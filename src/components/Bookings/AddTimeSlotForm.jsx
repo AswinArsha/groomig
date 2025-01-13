@@ -41,7 +41,7 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
   };
 
   return (
-    <Card>
+    <Card className= "h-[24rem]">
       <CardHeader>
         <CardDescription>
           Set up a new time slot for your schedule

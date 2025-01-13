@@ -1,12 +1,10 @@
 // src/components/Sidebar.jsx
-
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Outlet } from "react-router-dom";
 import {
   Sidebar as ShadcnSidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
@@ -16,22 +14,11 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import {
-  LogOut,
-  CreditCard,
-  BookOpen,
   Home,
   ClipboardList,
   Tag,
+  CreditCard,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "../supabase";
 
@@ -40,7 +27,7 @@ function Sidebar() {
   const location = useLocation();
   const [user, setUser] = useState(null);
 
-  // Fetch user session
+  // Fetch user session logic remains the same
   useEffect(() => {
     const fetchUser = async () => {
       const {
@@ -53,7 +40,6 @@ function Sidebar() {
         setUser(session.user);
       }
     };
-
     fetchUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
@@ -71,80 +57,97 @@ function Sidebar() {
     };
   }, []);
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Error logging out:", error.message);
-    }
-  };
-
   const navigationItems = [
-    { name: "Home", path: "/dashboard/home", icon: <Home className="w-5 h-5" /> },
-    { name: "Bookings", path: "/dashboard/bookings", icon: <ClipboardList className="w-5 h-5" /> },
-    { name: "Catalog", path: "/dashboard/catalog", icon: <Tag className="w-5 h-5" /> },
-    { name: "Billing", path: "/dashboard/billing", icon: <CreditCard className="w-5 h-5" /> },
+    { name: "Home", path: "/home", icon: <Home className="w-5 h-5" /> },
+    { name: "Bookings", path: "/bookings", icon: <ClipboardList className="w-5 h-5" /> },
+    { name: "Catalog", path: "/catalog", icon: <Tag className="w-5 h-5" /> },
+    { name: "Billing", path: "/billing", icon: <CreditCard className="w-5 h-5" /> },
   ];
 
-  const isLinkActive = (path) => {
-    return location.pathname === path;
+  const isLinkActive = (path) => location.pathname === path;
+
+  const getHeaderText = () => {
+    switch (location.pathname) {
+      case "/home":
+        return "Home";
+      case "/bookings":
+        return "Bookings";
+      case "/catalog":
+        return "Catalog";
+      case "/billing":
+        return "Billing";
+      default:
+        return "Dashboard";
+    }
   };
 
   return (
     <TooltipProvider>
-      <ShadcnSidebar collapsible="icon" collapsed={isSidebarCollapsed}>
-        <SidebarHeader>
+      <div className="flex h-screen w-full">
+        <ShadcnSidebar collapsible="icon" collapsed={isSidebarCollapsed}>
+          <SidebarHeader>
+           
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarMenu>
+                {navigationItems.map((item) => (
+                  <SidebarMenuItem key={item.name}>
+                    {isSidebarCollapsed ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton
+                            asChild
+                            className={`flex items-center ${isLinkActive(item.path) ? "bg-gray-200 dark:bg-gray-800" : ""}`}
+                          >
+                            <Link to={item.path} className="flex items-center w-full">
+                              {item.icon}
+                            </Link>
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <span>{item.name}</span>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <SidebarMenuButton
+                        asChild
+                        className={`flex items-center ${isLinkActive(item.path) ? "bg-gray-200 dark:bg-gray-800" : ""}`}
+                      >
+                        <Link to={item.path} className="flex items-center w-full">
+                          {item.icon}
+                          <span className="ml-2">{item.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    )}
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarRail />
+        </ShadcnSidebar>
+
+        <div className="flex-1 flex flex-col w-0">
+          <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-white px-6">
           <SidebarTrigger
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="cursor-pointer text-gray-600 hover:text-gray-800"
-          >
-            {isSidebarCollapsed ? "Expand" : "Collapse"}
-          </SidebarTrigger>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-            <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.name}>
-                  {isSidebarCollapsed ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton
-                          asChild
-                          className={`flex items-center ${
-                            isLinkActive(item.path) ? "bg-gray-200 dark:bg-gray-800" : ""
-                          }`}
-                        >
-                          <Link to={item.path} className="flex items-center w-full">
-                            {item.icon}
-                          </Link>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        <span>{item.name}</span>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <SidebarMenuButton
-                      asChild
-                      className={`flex items-center ${
-                        isLinkActive(item.path) ? "bg-gray-200 dark:bg-gray-800" : ""
-                      }`}
-                    >
-                      <Link to={item.path} className="flex items-center w-full">
-                        {item.icon}
-                        <span className="ml-2">{item.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        </SidebarContent>
-      
-        <SidebarRail />
-      </ShadcnSidebar>
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="cursor-pointer text-gray-600 hover:text-gray-800"
+            >
+              {isSidebarCollapsed ? "Expand" : "Collapse"}
+            </SidebarTrigger>
+            <h1 className="text-lg font-semibold tracking-tight">
+              {getHeaderText()}
+            </h1>
+          </header>
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="mx-auto max-w-7xl">
+              <Outlet />
+            </div>
+          </main>
+        </div>
+      </div>
     </TooltipProvider>
   );
 }

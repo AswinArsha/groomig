@@ -3,26 +3,23 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
-  DialogTrigger,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-
 import BookingForm from "./Home/BookingForm"; 
 import BookingTable from "./Home/BookingTable";
-import ManageTimeSlots from "./Home/ManageTimeSlots";  // Import the ManageTimeSlots component
+import AddTimeSlotForm from "./Bookings/AddTimeSlotForm";
+import TimeSlotList from "./Bookings/TimeSlotList";
 
 function Home() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [refreshList, setRefreshList] = useState(false);
-
-  const handleSlotAdded = () => {
-    setRefreshList(!refreshList);
-  };
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
 
   return (
-    <div className=" space-x-4">
+    <div className="-mt-4  ">
+      <div className="space-x-4">
       {/* New Booking Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger asChild>
@@ -32,28 +29,38 @@ function Home() {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            {/* Optional header content */}
+          
           </DialogHeader>
           <BookingForm onSave={() => setDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 
-      {/* Add & Manage Time Slots Sheet */}
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button className="my-4">Add Time Slots</Button>
-        </SheetTrigger>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Add & Manage Time Slots</SheetTitle>
-          </SheetHeader>
-          {/* Render combined form and list */}
-          <ManageTimeSlots onSlotAdded={handleSlotAdded} key={refreshList} />
-        </SheetContent>
-      </Sheet>
-
+      {/* Landscape Dialog for Managing Time Slots */}
+      <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
+        <DialogTrigger asChild>
+          <Button className="my-4" onClick={() => setManageDialogOpen(true)}>
+            Manage Time Slots
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="w-full max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Manage Time Slots</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col sm:flex-row sm:space-x-6">
+            {/* Left side: Add Time Slot Form */}
+            <div className="flex-1">
+              <AddTimeSlotForm onSlotAdded={() => {}} />
+            </div>
+            {/* Right side: Existing Time Slots List */}
+            <div className="flex-1">
+              <TimeSlotList />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      </div>
       {/* Booking Table */}
-      <BookingTable />
+      <BookingTable  />
     </div>
   );
 }

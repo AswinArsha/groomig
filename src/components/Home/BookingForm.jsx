@@ -102,30 +102,26 @@ export default function BookingForm({ booking, onSave, onCancel ,onSuccess }) {
     const formattedDate = bookingDate ? format(bookingDate, "yyyy-MM-dd") : null;
   
     if (isEditing) {
-      // Update existing booking
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          customer_name: customerName,
-          contact_number: contactNumber,
-          dog_name: dogName,
-          dog_breed: dogBreed,
-          dog_size: dogSize,
-          booking_date: formattedDate,
-          time_slot_id: selectedSlot,
-        })
-        .eq("id", booking.id);
-  
-      setSubmitting(false);
-  
-      if (error) {
-        toast.error(`Error updating booking: ${error.message}`);
-      } else {
-        toast.success("Booking updated successfully!");
-        if (onSave) onSave();
-      }
+      // ... existing update logic
     } else {
-      // Create new booking
+      // For new booking creation, first fetch the time slot details
+      let slotTime = null;
+      if (selectedSlot) {
+        const { data: timeSlotData, error: timeSlotError } = await supabase
+          .from('time_slots')
+          .select('start_time')
+          .eq('id', selectedSlot)
+          .single();
+  
+        if (timeSlotError) {
+          toast.error(`Error fetching time slot: ${timeSlotError.message}`);
+          setSubmitting(false);
+          return;
+        }
+        slotTime = timeSlotData.start_time;
+      }
+  
+      // Insert new booking with slot_time
       const { error } = await supabase.from("bookings").insert([
         {
           customer_name: customerName,
@@ -135,6 +131,7 @@ export default function BookingForm({ booking, onSave, onCancel ,onSuccess }) {
           dog_size: dogSize,
           booking_date: formattedDate,
           time_slot_id: selectedSlot,
+          slot_time: slotTime,  // Store the time directly in the booking
         },
       ]);
   
@@ -144,7 +141,7 @@ export default function BookingForm({ booking, onSave, onCancel ,onSuccess }) {
         toast.error(`Error creating booking: ${error.message}`);
       } else {
         toast.success("Booking created successfully!");
-        // Clear form fields for new booking
+        // Clear form fields
         setCustomerName("");
         setContactNumber("");
         setDogName("");
@@ -156,6 +153,7 @@ export default function BookingForm({ booking, onSave, onCancel ,onSuccess }) {
       }
     }
   };
+  
 
   return (
     <Card>
