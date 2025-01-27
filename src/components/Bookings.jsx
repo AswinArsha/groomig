@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import ManageTimeSlots from "./Home/ManageTimeSlots";  // Import the new component
 
 function Bookings() {
   const [refreshList, setRefreshList] = useState(false);
@@ -22,7 +21,7 @@ function Bookings() {
             <SheetTitle>Add & Manage Time Slots</SheetTitle>
           </SheetHeader>
           {/* Render combined form and list */}
-          <ManageTimeSlots onSlotAdded={handleSlotAdded} key={refreshList} />
+       
         </SheetContent>
       </Sheet>
     </div>

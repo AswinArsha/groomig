@@ -16,23 +16,26 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+// src/components/LoginForm.jsx
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+const handleSubmit = async (e) => {
+  e.preventDefault()
+  setError('')
+  setLoading(true)
 
-    setLoading(false)
-    if (error) {
-      setError(error.message)
-    } else {
-      navigate('/dashboard') // Redirect to Dashboard
-    }
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  setLoading(false)
+  if (error) {
+    setError(error.message)
+  } else {
+    navigate('/home') // Redirect to Home
   }
+}
+
 
   return (
     <Card className="w-full max-w-md mx-auto mt-20">

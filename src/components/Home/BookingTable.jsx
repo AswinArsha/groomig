@@ -2,8 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { addDays } from "date-fns"; 
+import { Trash2, Edit2 } from "lucide-react";
+import { format, parse } from "date-fns";
+import toast from "react-hot-toast";
+import BookingForm from "./BookingForm"; // Ensure correct import
 import {
   Table,
   TableBody,
@@ -12,13 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardTitle, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -28,10 +24,6 @@ import {
   DialogTrigger,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Trash2, Edit2 } from "lucide-react";
-import { format } from "date-fns";
-import toast from "react-hot-toast";
-import EditBookingForm from "./BookingForm";
 import {
   Pagination,
   PaginationContent,
@@ -41,15 +33,14 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Skeleton as ShadcnSkeleton } from "@/components/ui/skeleton";
-import { DateRangePicker } from "@/components/ui/DateRangePicker"; // Import our DateRangePicker component
-import { Input } from "@/components/ui/input"
+import { DateRangePicker } from "@/components/ui/DateRangePicker"; // Import your DateRangePicker component
+import { Input } from "@/components/ui/input";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function BookingTable() {
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,147 +51,137 @@ export default function BookingTable() {
   const [dateRange, setDateRange] = useState(null);
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-
+ 
   async function fetchBookings() {
     setLoading(true);
     try {
-      const { count, error: countError } = await supabase
+      // Base query with necessary joins
+      let query = supabase
         .from("bookings")
-        .select("*", { count: "exact", head: true });
-
-      if (countError) throw countError;
-      setTotalCount(count);
-
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*, time_slot:time_slot_id(start_time)")
+        .select(`
+          *,
+          sub_time_slot:sub_time_slots(*)
+        `)
         .order("booking_date", { ascending: true })
         .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
-
-      if (error) throw error;
-      setBookings(data || []);
+  
+      // Apply search filters
+      if (searchTerm) {
+        query = query.or(
+          `customer_name.ilike.%${searchTerm}%,dog_breed.ilike.%${searchTerm}%,contact_number.ilike.%${searchTerm}%,dog_name.ilike.%${searchTerm}%`
+        );
+      }
+  
+      // Apply date range filter
+      if (dateRange?.from) {
+        const from = format(dateRange.from, "yyyy-MM-dd");
+        const to = dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : from;
+        query = query.gte("booking_date", from).lte("booking_date", to);
+      }
+  
+      // Fetch data with count
+      const { data: bookingsData, error: bookingsError, count } = await query;
+  
+      if (bookingsError) throw bookingsError;
+  
+      // Log the data to inspect the structure
+      console.log('Bookings data:', bookingsData);
+  
+      setBookings(bookingsData || []);
+      setTotalCount(count || 0);
     } catch (error) {
       toast.error(`Error fetching bookings: ${error.message}`);
     } finally {
       setLoading(false);
     }
   }
-
+  
   useEffect(() => {
     fetchBookings();
-  }, [currentPage]);
+  }, [currentPage, searchTerm, dateRange]); // Refetch when page, search, or date range changes
 
   useEffect(() => {
-    const channel = supabase
-      .channel('public:bookings')
+    // Set up real-time subscription channels for bookings changes
+    const channel = supabase.channel('custom-all-channel')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
         (payload) => {
-          fetchBookings();
+          console.log('Change received!', payload);
+          fetchBookings(); // Refetch bookings on any change
         }
       )
       .subscribe();
 
+    // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [currentPage, searchTerm, dateRange]);
 
+  // Handle deletion of a booking
   async function handleDelete(id) {
-    const { error } = await supabase.from("bookings").delete().eq("id", id);
-    if (error) {
-      toast.error(`Error deleting booking: ${error.message}`);
-    } else {
+    setLoading(true); // Optionally show loading state during deletion
+    try {
+      const { error } = await supabase.from("bookings").delete().eq("id", id);
+      if (error) {
+        throw error;
+      }
       toast.success("Booking deleted successfully!");
+      // If we're on a page with only one item and it's not the first page,
+      // go to previous page after deletion
       if (bookings.length === 1 && currentPage > 1) {
         setCurrentPage(currentPage - 1);
       } else {
         fetchBookings();
       }
+    } catch (error) {
+      toast.error(`Error deleting booking: ${error.message}`);
+    } finally {
+      setDeleteId(null);
+      setLoading(false);
     }
-    setDeleteId(null);
   }
 
+  // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
+
     if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages is less than max visible
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
+      // Always show first page
       pages.push(1);
+
+      // Calculate middle pages
       let startPage = Math.max(2, currentPage - 1);
       let endPage = Math.min(totalPages - 1, currentPage + 1);
-      if (startPage > 2) pages.push('...');
-      for (let i = startPage; i <= endPage; i++) pages.push(i);
-      if (endPage < totalPages - 1) pages.push('...');
+
+      // Add ellipsis after first page if needed
+      if (startPage > 2) {
+        pages.push('...');
+      }
+
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+
+      // Add ellipsis before last page if needed
+      if (endPage < totalPages - 1) {
+        pages.push('...');
+      }
+
+      // Always show last page
       pages.push(totalPages);
     }
+
     return pages;
   };
-
-  if (loading) {
-    return (
-      <div className="space-y-4 p-4">
-        {/* Skeleton Header */}
-        <div className="flex justify-between items-center">
-          <ShadcnSkeleton className="h-8 w-1/3 rounded-lg bg-gray-200 animate-pulse" />
-          <ShadcnSkeleton className="h-8 w-1/4 rounded-lg bg-gray-200 animate-pulse" />
-        </div>
-  
-        {/* Skeleton Table */}
-        <div className="space-y-2">
-          {/* Table Header Skeleton */}
-          <div className="flex space-x-2">
-            {[...Array(8)].map((_, idx) => (
-              <ShadcnSkeleton
-                key={idx}
-                className="h-6 flex-1 bg-gray-200 animate-pulse rounded-lg"
-              />
-            ))}
-          </div>
-  
-          {/* Table Row Skeleton */}
-          {[...Array(5)].map((_, rowIdx) => (
-            <div key={rowIdx} className="flex space-x-2">
-              {[...Array(8)].map((_, cellIdx) => (
-                <ShadcnSkeleton
-                  key={`${rowIdx}-${cellIdx}`}
-                  className="h-6 flex-1 bg-gray-100 animate-pulse rounded-md"
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  
-
-  // Filter bookings based on searchTerm and dateRange
-  const filteredBookings = bookings.filter(booking => {
-    const term = searchTerm.toLowerCase();
-    const matchesSearch =
-      booking.customer_name.toLowerCase().includes(term) ||
-      booking.dog_breed.toLowerCase().includes(term) ||
-      booking.contact_number.includes(term) ||
-      booking.dog_name.toLowerCase().includes(term);
-  
-    let matchesDateRange = true;
-    if (dateRange?.from) {
-      const from = dateRange.from;
-      // Add one day to the 'to' date to make the range inclusive
-      const to = dateRange.to ? addDays(dateRange.to, 1) : dateRange.from;
-      const bookingDate = new Date(booking.booking_date);
-      // Use less-than comparison for end date after adding a day
-      matchesDateRange = bookingDate >= from && bookingDate < to;
-    }
-  
-    return matchesSearch && matchesDateRange;
-  });
-  
 
   return (
     <div>
@@ -213,7 +194,7 @@ export default function BookingTable() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="mb-2 sm:mb-0 sm:flex-1"
         />
-        <DateRangePicker dateRange={dateRange} setDateRange={setDateRange}  />
+        <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
       </div>
 
       <Card>
@@ -222,10 +203,14 @@ export default function BookingTable() {
           <CardDescription>Manage your dog grooming appointments</CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredBookings.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center py-4">
+              <span>Loading...</span>
+            </div>
+          ) : bookings.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">No bookings found.</p>
           ) : (
-            <div className="border rounded-lg">
+            <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader className="bg-gray-100">
                   <TableRow>
@@ -234,34 +219,35 @@ export default function BookingTable() {
                     <TableHead>Contact</TableHead>
                     <TableHead>Dog</TableHead>
                     <TableHead>Breed</TableHead>
-                    <TableHead>Size</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Time Slot</TableHead>
+                    <TableHead>Sub Slot</TableHead> {/* Added Sub Slot Column */}
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBookings.map((booking, index) => (
+                  {bookings.map((booking, index) => (
                     <TableRow key={booking.id}>
                       <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
                       <TableCell>{booking.customer_name}</TableCell>
                       <TableCell>{booking.contact_number}</TableCell>
                       <TableCell>{booking.dog_name}</TableCell>
                       <TableCell>{booking.dog_breed}</TableCell>
-                      <TableCell>{booking.dog_size}</TableCell>
                       <TableCell>{format(new Date(booking.booking_date), "MMM dd, yyyy")}</TableCell>
                       <TableCell>
                         {booking.slot_time
-                          ? booking.slot_time.split(":").slice(0, 2).join(":")
-                          : booking.time_slot
-                          ? booking.time_slot.start_time.split(":").slice(0, 2).join(":")
+                          ? format(parse(booking.slot_time, 'HH:mm:ss', new Date()), "hh:mm a")
                           : "N/A"}
                       </TableCell>
+                      <TableCell>
+  {booking.sub_time_slot?.description || "N/A"}
+</TableCell>
+
                       <TableCell>
                         <div className="flex space-x-2">
                           {/* Edit Button */}
                           <Dialog
-                            open={editingBooking?.id === booking.id}
+                            open={Boolean(editingBooking && editingBooking.id === booking.id)}
                             onOpenChange={(open) => {
                               if (!open) setEditingBooking(null);
                             }}
@@ -276,9 +262,11 @@ export default function BookingTable() {
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
-                              <DialogHeader></DialogHeader>
+                              <DialogHeader>
+                                <DialogTitle>Edit Booking</DialogTitle>
+                              </DialogHeader>
                               {editingBooking && (
-                                <EditBookingForm
+                                <BookingForm
                                   booking={editingBooking}
                                   onSave={() => {
                                     setEditingBooking(null);
@@ -314,7 +302,10 @@ export default function BookingTable() {
                                 </DialogDescription>
                               </DialogHeader>
                               <DialogFooter>
-                                <Button variant="outline" onClick={() => setDeleteId(null)}>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setDeleteId(null)}
+                                >
                                   Cancel
                                 </Button>
                                 <Button
@@ -335,18 +326,19 @@ export default function BookingTable() {
             </div>
           )}
         </CardContent>
-         {totalCount > ITEMS_PER_PAGE && (
-          <div className="my-2 flex justify-center">
+        {/* Pagination */}
+        {totalCount > ITEMS_PER_PAGE && !loading && (
+          <div className="mt-4 flex justify-center">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious 
+                  <PaginationPrevious
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                   />
                 </PaginationItem>
-                
+
                 {getPageNumbers().map((pageNum, index) => (
                   <PaginationItem key={index}>
                     {pageNum === '...' ? (
@@ -373,8 +365,8 @@ export default function BookingTable() {
               </PaginationContent>
             </Pagination>
           </div>
-        )}      </Card>
+        )}
+      </Card>
     </div>
   );
 }
-
