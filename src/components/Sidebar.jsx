@@ -66,8 +66,7 @@ function Sidebar() {
 
   const navigationItems = [
     { name: "Home", path: "/home", icon: <Home className="w-5 h-5" /> },
-    { name: "Bookings", path: "/bookings", icon: <ClipboardList className="w-5 h-5" /> },
-    { name: "Catalog", path: "/catalog", icon: <Tag className="w-5 h-5" /> },
+    { name: "service", path: "/service", icon: <Tag className="w-5 h-5" /> },
     { name: "Billing", path: "/billing", icon: <CreditCard className="w-5 h-5" /> },
   ];
 
@@ -78,10 +77,9 @@ function Sidebar() {
     switch (location.pathname) {
       case "/home":
         return "Home";
-      case "/bookings":
-        return "Bookings";
-      case "/catalog":
-        return "Catalog";
+
+      case "/service":
+        return "service";
       case "/billing":
         return "Billing";
       default:

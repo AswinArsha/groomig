@@ -5,7 +5,16 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle,CardFooter  } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea"
+import { ImagePlus } from "lucide-react"
 
 export default function ServiceForm({ service, onSuccess, onCancel }) {
   const isEditing = Boolean(service);
@@ -13,6 +22,7 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
   const [name, setName] = useState(service?.name || "");
   const [description, setDescription] = useState(service?.description || "");
   const [price, setPrice] = useState(service?.price || "");
+  const [type, setType] = useState(service?.type || "checkbox"); // New state for service type
   
   const [imageUrl, setImageUrl] = useState(service?.image_url || "");
   const [selectedFile, setSelectedFile] = useState(null);
@@ -50,10 +60,10 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
         // If editing and there's an existing image, delete it first
         if (isEditing && service.image_url) {
           // Extract file path from image_url
-          const imagePath = service.image_url.split('/').pop();
+          const imagePath = service.image_url.split("/").pop();
           const { error: removeError } = await supabase
             .storage
-            .from('service-images')
+            .from("service-images")
             .remove([imagePath]);
           
           if (removeError) {
@@ -66,7 +76,7 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
         const filePath = `${Date.now()}-${selectedFile.name}`;
         const { data: uploadData, error: uploadError } = await supabase
           .storage
-          .from('service-images')
+          .from("service-images")
           .upload(filePath, selectedFile, { upsert: true });
 
         if (uploadError) {
@@ -77,7 +87,7 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
         // Get public URL
         const { data: { publicUrl }, error: publicUrlError } = supabase
           .storage
-          .from('service-images')
+          .from("service-images")
           .getPublicUrl(filePath);
 
         if (publicUrlError) {
@@ -93,6 +103,7 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
         name,
         description,
         price,
+        type, // Include the 'type' in the data
         image_url: finalImageUrl,
       };
 
@@ -117,68 +128,118 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
   };
 
   return (
-    <Card>
+<Card className="w-full max-w-lg mx-auto">
       <CardHeader>
         <CardTitle>{isEditing ? "Edit Service" : "Add New Service"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="name">Service Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
+      <form onSubmit={handleSubmit} className="space-y-6">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {/* Left Column */}
+    <div className="space-y-4">
+      {/* Service Name */}
+      <div className="space-y-2">
+        <Label htmlFor="name">Service Name</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          placeholder="Enter service name"
+        />
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe your service"
+          rows={4}
+        />
+      </div>
+
+      {/* Service Type */}
+      <div className="space-y-2">
+        <Label htmlFor="type">Service Type</Label>
+        <Select value={type} onValueChange={setType}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select service type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="checkbox">Checkbox</SelectItem>
+            <SelectItem value="input">Input</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    {/* Right Column */}
+    <div className="space-y-4">
+      {/* Price */}
+      <div className="space-y-2">
+        <Label htmlFor="price">Price</Label>
+        <Input
+          id="price"
+          type="number"
+          step="0.01"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          required
+          placeholder="0.00"
+          min="0"
+        />
+      </div>
+
+      {/* Service Image */}
+      <div className="space-y-2">
+        <Label htmlFor="imageFile">Service Image</Label>
+        <div className="flex items-center space-x-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => document.getElementById("imageFile").click()}
+          >
+            <ImagePlus className="h-4 w-4" />
+          </Button>
+          <Input
+            id="imageFile"
+            type="file"
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
+          {previewUrl ? (
+            <img
+              src={previewUrl || "/placeholder.svg"}
+              alt="Preview"
+              className="w-20 h-20 object-cover rounded"
             />
-          </div>
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="imageFile">Upload Image</Label>
-            <Input
-              id="imageFile"
-              type="file"
-              onChange={handleFileChange}
-              accept="image/*"
-            />
-            {previewUrl && (
-              <div className="mt-2">
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="w-32 h-32 object-cover rounded"
-                />
-              </div>
-            )}
-          </div>
-          <div>
-            <Label htmlFor="price">Price</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex space-x-2">
-            <Button type="submit">{isEditing ? "Save Changes" : "Add Service"}</Button>
-            {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
-          </div>
-        </form>
+          ) : (
+            <div className="text-sm text-muted-foreground">No image selected</div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+</form>
+
       </CardContent>
+      <CardFooter className="flex justify-end space-x-2">
+        {onCancel && (
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
+        <Button type="submit" onClick={handleSubmit}>
+          {isEditing ? "Save Changes" : "Add Service"}
+        </Button>
+      </CardFooter>
     </Card>
   );
 }

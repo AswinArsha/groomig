@@ -24,7 +24,6 @@ import { format, isBefore, startOfToday } from "date-fns";
 import { CalendarIcon, Loader2, AlertCircle, CheckCircle, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion"; // For animations
 import { Progress } from "@/components/ui/progress"; // Updated import
-
 export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
   const isEditing = Boolean(booking);
 
@@ -169,7 +168,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
         return;
       }
       if (!selectedSubSlot) {
-      
+        toast.error("Please select a sub-time slot.");
         setSubmitting(false);
         return;
       }
@@ -230,11 +229,12 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               booking_date: formattedDate,
               sub_time_slot_id: selectedSubSlot,
               slot_time: slotTime,
+              // Status remains unchanged or can be updated based on your logic
             })
             .eq("id", booking.id);
-        
+
           if (error) throw error;
-        
+
           toast.success("Booking updated successfully!");
           setSubmitting(false);
           if (onSuccess) {
@@ -254,11 +254,12 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               booking_date: formattedDate,
               sub_time_slot_id: selectedSubSlot,
               slot_time: slotTime,
+              // Status defaults to 'reserved' as per table schema
             },
           ]);
-        
+
           if (error) throw error;
-        
+
           toast.success("Booking created successfully!");
           setSubmitting(false);
           if (onSuccess) {
@@ -278,7 +279,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
 
   // Function to format time in IST
   const formatTimeIST = (timeStr) => {
-    // Assuming timeStr is in "HH:MM:SS" format (24-hour)
+    // Assuming timeStr is in "HH:mm:ss" format (24-hour)
     const [hours, minutes, seconds] = timeStr.split(":").map(Number);
     const date = new Date();
     date.setHours(hours, minutes, seconds);
@@ -438,9 +439,9 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="space-y-6"
+            className="space-y-2"
           >
-            <div className="space-y-4">
+            <div className="">
               <Label htmlFor="customerName">Customer Name</Label>
               <Input
                 id="customerName"
@@ -451,7 +452,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 aria-label="Customer Name"
               />
             </div>
-            <div className="space-y-4">
+            <div className="">
               <Label htmlFor="contactNumber">Contact Number</Label>
               <Input
                 id="contactNumber"
@@ -465,7 +466,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 placeholder="e.g., 9876543210"
               />
             </div>
-            <div className="space-y-4">
+            <div className="">
               <Label htmlFor="dogName">Dog Name</Label>
               <Input
                 id="dogName"
@@ -476,7 +477,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 aria-label="Dog Name"
               />
             </div>
-            <div className="space-y-4">
+            <div className="">
               <Label htmlFor="dogBreed">Dog Breed</Label>
               <Input
                 id="dogBreed"
@@ -544,6 +545,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                   <strong>Dog Breed:</strong> {dogBreed}
                 </span>
               </div>
+              {/* Optional: Add more details or a summary of selected services */}
             </div>
           </motion.div>
         );
@@ -554,12 +556,12 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
   };
 
   return (
-    <Card className="max-w-3xl mx-auto p-6">
+    <Card className="max-w-6xl  ">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold">
+        <CardTitle className="text-lg font-bold">
           {isEditing ? "Update Booking" : "Create Booking"}
         </CardTitle>
-        <CardDescription className="text-lg">
+        <CardDescription className="text-sm">
           {isEditing
             ? "Update your dog grooming appointment details"
             : "Schedule a new dog grooming appointment"}
@@ -590,7 +592,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
           {step < 3 && (
             <Button
               type="button" // Ensure type is "button" to prevent form submission
-              variant="primary"
+
               onClick={(e) => {
                 e.preventDefault();
                 // Handle step transitions with validation
@@ -604,7 +606,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                     return;
                   }
                   if (!selectedSubSlot) {
-                   
+                    toast.error("Please select a sub-time slot.");
                     return;
                   }
                 }
@@ -655,16 +657,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
           )}
         </CardFooter>
       </form>
-      {isEditing && (
-        <Button
-          variant="ghost"
-          onClick={onCancel}
-          className="mt-2 w-full"
-          aria-label="Cancel editing"
-        >
-          Cancel Editing
-        </Button>
-      )}
     </Card>
   );
 }
+

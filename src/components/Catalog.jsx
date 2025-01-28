@@ -1,15 +1,18 @@
+// src/components/Catalog.jsx
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import ServiceForm from "./Catalog/ServiceForm";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -119,7 +122,6 @@ export default function Catalog() {
   return (
     <div className="container mx-auto ">
      
-
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <Button onClick={handleAddNew}>
           <Plus className="mr-2 h-4 w-4" /> Add New Service
@@ -140,7 +142,7 @@ export default function Catalog() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-           
+            {/* Optionally, you can add a title or description here */}
           </DialogHeader>
           <ServiceForm
             service={editingService}
@@ -172,22 +174,16 @@ export default function Catalog() {
       ) : filteredServices.length === 0 ? (
         <p className="text-center text-gray-500">No services found.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredServices.map((service) => (
-            <Card key={service.id} className="flex flex-col">
+            <Card key={service.id} c>
               <CardHeader>
-                <CardTitle className="text-xl">{service.name}</CardTitle>
-                <CardDescription>{service.description}</CardDescription>
+            
               </CardHeader>
-              <CardContent className="flex-grow">
-                <p className="font-semibold text-lg mb-2">₹{service.price}</p>
-                {service.image_url && (
-                  <img
-                    src={service.image_url}
-                    alt={service.name}
-                    className="w-full h-48 object-cover rounded-md"
-                  />
-                )}
+              <CardContent >
+              <h3 className="text-xl font-semibold mb-2">{service.name}</h3>
+              <p className="text-gray-600 mb-4">{service.description}</p>
+              <p className="text-2xl font-bold text-primary">₹{service.price}</p>
               </CardContent>
               <CardFooter className="flex justify-between">
                 <Button size="sm" variant="outline" onClick={() => handleEdit(service)}>
@@ -214,7 +210,7 @@ export default function Catalog() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction className="bg-red-500 hover:bg-red-600" onClick={confirmDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

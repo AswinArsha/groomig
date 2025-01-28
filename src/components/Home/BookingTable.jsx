@@ -1,8 +1,8 @@
-// src/components/BookingTable.jsx
+// src/components/Home/BookingTable.jsx
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2 } from "lucide-react";
+import { Trash2, Edit2, ArrowRight } from "lucide-react"; // Added ArrowRight for navigation
 import { format, parse } from "date-fns";
 import toast from "react-hot-toast";
 import BookingForm from "./BookingForm"; // Ensure correct import
@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/pagination";
 import { DateRangePicker } from "@/components/ui/DateRangePicker"; // Import your DateRangePicker component
 import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
 
 const ITEMS_PER_PAGE = 10;
 
@@ -51,7 +52,8 @@ export default function BookingTable() {
   const [dateRange, setDateRange] = useState(null);
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
- 
+  const navigate = useNavigate(); // Initialize useNavigate
+
   async function fetchBookings() {
     setLoading(true);
     try {
@@ -60,33 +62,39 @@ export default function BookingTable() {
         .from("bookings")
         .select(`
           *,
-          sub_time_slot:sub_time_slots(*)
+          sub_time_slots (
+            *,
+            time_slots (
+              start_time
+            )
+          )
         `)
-        .order("booking_date", { ascending: true })
+        .order("created_at", { ascending: false }) // Fetch latest bookings first
         .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
-  
+
       // Apply search filters
       if (searchTerm) {
         query = query.or(
           `customer_name.ilike.%${searchTerm}%,dog_breed.ilike.%${searchTerm}%,contact_number.ilike.%${searchTerm}%,dog_name.ilike.%${searchTerm}%`
         );
       }
-  
+
       // Apply date range filter
       if (dateRange?.from) {
         const from = format(dateRange.from, "yyyy-MM-dd");
         const to = dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : from;
         query = query.gte("booking_date", from).lte("booking_date", to);
       }
-  
+
       // Fetch data with count
-      const { data: bookingsData, error: bookingsError, count } = await query;
-  
+      const { data: bookingsData, error: bookingsError, count } = await query
+        .select("*", { count: "exact" }); // Ensure count is fetched
+
       if (bookingsError) throw bookingsError;
-  
+
       // Log the data to inspect the structure
       console.log('Bookings data:', bookingsData);
-  
+
       setBookings(bookingsData || []);
       setTotalCount(count || 0);
     } catch (error) {
@@ -139,6 +147,26 @@ export default function BookingTable() {
       toast.error(`Error deleting booking: ${error.message}`);
     } finally {
       setDeleteId(null);
+      setLoading(false);
+    }
+  }
+
+  // Handle check-in action
+  async function handleCheckIn(bookingId) {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status: 'checked_in' })
+        .eq("id", bookingId);
+      
+      if (error) throw error;
+
+      toast.success("Booking checked in successfully!");
+      fetchBookings();
+    } catch (error) {
+      toast.error(`Error checking in booking: ${error.message}`);
+    } finally {
       setLoading(false);
     }
   }
@@ -222,6 +250,7 @@ export default function BookingTable() {
                     <TableHead>Date</TableHead>
                     <TableHead>Time Slot</TableHead>
                     <TableHead>Sub Slot</TableHead> {/* Added Sub Slot Column */}
+                    <TableHead>Status</TableHead> {/* Added Status Column */}
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -240,9 +269,25 @@ export default function BookingTable() {
                           : "N/A"}
                       </TableCell>
                       <TableCell>
-  {booking.sub_time_slot?.description || "N/A"}
-</TableCell>
-
+                        {booking.sub_time_slots?.description || `Slot ${booking.sub_time_slots?.slot_number}` || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded text-white ${
+                            booking.status === 'reserved'
+                              ? 'bg-yellow-500'
+                              : booking.status === 'checked_in'
+                              ? 'bg-green-500'
+                              : booking.status === 'progressing'
+                              ? 'bg-blue-500'
+                              : booking.status === 'completed'
+                              ? 'bg-indigo-500'
+                              : 'bg-red-500'
+                          }`}
+                        >
+                          {booking.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
                           {/* Edit Button */}
@@ -262,21 +307,39 @@ export default function BookingTable() {
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Edit Booking</DialogTitle>
-                              </DialogHeader>
                               {editingBooking && (
                                 <BookingForm
                                   booking={editingBooking}
-                                  onSave={() => {
-                                    setEditingBooking(null);
-                                    fetchBookings();
+                                  onSuccess={() => {
+                                    setEditingBooking(null); // This will close the dialog
+                                    fetchBookings(); // Refresh the table data
                                   }}
                                   onCancel={() => setEditingBooking(null)}
                                 />
                               )}
                             </DialogContent>
                           </Dialog>
+
+                          {/* Check-in Button or Arrow Button */}
+                          {booking.status === 'reserved' ? (
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => handleCheckIn(booking.id)}
+                              aria-label={`Check in booking ${booking.id}`}
+                            >
+                              Check-in
+                            </Button>
+                          ) : (booking.status === 'checked_in' || booking.status === 'progressing') ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/bookings/${booking.id}`)}
+                              aria-label={`View details for booking ${booking.id}`}
+                            >
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          ) : null}
 
                           {/* Delete Button with Confirmation Dialog */}
                           <Dialog
