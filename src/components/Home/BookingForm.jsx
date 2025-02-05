@@ -21,7 +21,15 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format, isBefore, startOfToday } from "date-fns";
-import { CalendarIcon, Loader2, AlertCircle, CheckCircle, Info } from "lucide-react";
+import { CalendarIcon, Loader2, AlertCircle, CheckCircle,
+
+  PawPrintIcon as Paw,
+
+  Clock,
+  Phone,
+  User,
+  DogIcon,
+ } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion"; // For animations
 import { Progress } from "@/components/ui/progress"; // Updated import
 export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
@@ -168,7 +176,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
         return;
       }
       if (!selectedSubSlot) {
-        toast.error("Please select a sub-time slot.");
+     
         setSubmitting(false);
         return;
       }
@@ -510,37 +518,37 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 </span>
               </div>
               <div className="flex items-center">
-                <Info className="h-5 w-5 text-primary mr-2" />
+                <Clock className="h-5 w-5 text-primary mr-2" />
                 <span className="text-md">
                   <strong>Time Slot:</strong> {selectedTimeSlot ? formatTimeIST(availableTimeSlots.find(ts => ts.id === selectedTimeSlot)?.start_time) : "N/A"}
                 </span>
               </div>
               <div className="flex items-center">
-                <Info className="h-5 w-5 text-primary mr-2" />
+                <Clock className="h-5 w-5 text-primary mr-2" />
                 <span className="text-md">
                   <strong>Sub-Time Slot:</strong> {selectedSubSlot ? (availableSubSlots.find(ss => ss.id === selectedSubSlot)?.description || `Slot ${availableSubSlots.find(ss => ss.id === selectedSubSlot)?.slot_number}`) : "N/A"}
                 </span>
               </div>
               <div className="flex items-center">
-                <Info className="h-5 w-5 text-primary mr-2" />
+                <User className="h-5 w-5 text-primary mr-2" />
                 <span className="text-md">
                   <strong>Customer Name:</strong> {customerName}
                 </span>
               </div>
               <div className="flex items-center">
-                <Info className="h-5 w-5 text-primary mr-2" />
+                <Phone className="h-5 w-5 text-primary mr-2" />
                 <span className="text-md">
                   <strong>Contact Number:</strong> {contactNumber}
                 </span>
               </div>
               <div className="flex items-center">
-                <Info className="h-5 w-5 text-primary mr-2" />
+                <DogIcon className="h-5 w-5 text-primary mr-2" />
                 <span className="text-md">
                   <strong>Dog Name:</strong> {dogName}
                 </span>
               </div>
               <div className="flex items-center">
-                <Info className="h-5 w-5 text-primary mr-2" />
+                <Paw className="h-5 w-5 text-primary mr-2" />
                 <span className="text-md">
                   <strong>Dog Breed:</strong> {dogBreed}
                 </span>
@@ -606,7 +614,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                     return;
                   }
                   if (!selectedSubSlot) {
-                    toast.error("Please select a sub-time slot.");
+                 
                     return;
                   }
                 }

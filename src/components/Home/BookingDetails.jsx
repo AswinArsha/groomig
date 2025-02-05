@@ -1,15 +1,40 @@
 // src/components/Home/BookingDetails.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import toast from "react-hot-toast";
-import { Loader2, ArrowLeft, ArrowRight } from "lucide-react"; // Removed CheckCircle
+import {
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  User,
+  Phone,
+  DogIcon,
+  PawPrintIcon as Paw,
+  Calendar,
+  Clock,
+  Printer,
+  Edit2,
+  ChevronDown  
+} from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox"
 import { format, parse } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion"; // For animations
+import { motion, AnimatePresence } from "framer-motion";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export default function BookingDetails() {
   const { id } = useParams();
@@ -22,8 +47,8 @@ export default function BookingDetails() {
   const [serviceInputs, setServiceInputs] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch booking details
-  const fetchBookingDetails = async () => {
+  // Fetch booking details (including sub_time_slots and selected services)
+  const fetchBookingDetails = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -35,199 +60,370 @@ export default function BookingDetails() {
             time_slots (
               start_time
             )
+          ),
+          booking_services_selected (
+            *,
+            services (
+              *
+            )
           )
         `)
         .eq("id", id)
         .single();
-
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       setBooking(data);
+
+      // Initialize selectedServices from booking_services_selected without duplicates
+      if (data.booking_services_selected) {
+        const uniqueServices = data.booking_services_selected.reduce(
+          (acc, curr) => {
+            if (!acc.some((s) => s.id === curr.service_id)) {
+              acc.push({
+                id: curr.service_id,
+                name: curr.services.name,
+                price: curr.services.price,
+                type: curr.services.type,
+                input_value: curr.input_value,
+              });
+            }
+            return acc;
+          },
+          []
+        );
+        setSelectedServices(uniqueServices);
+      }
     } catch (error) {
-      toast.error(`Error fetching booking details: ${error.message}`);
+      toast.error(`Failed to fetch booking details: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  // Fetch all available services
-  const fetchAllServices = async () => {
+  // Fetch all available services (for editing)
+  const fetchAllServices = useCallback(async () => {
     try {
       const { data, error } = await supabase.from("services").select("*");
-
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       setServices(data || []);
     } catch (error) {
-      toast.error(`Error fetching services: ${error.message}`);
+      toast.error(`Failed to fetch services: ${error.message}`);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBookingDetails();
     fetchAllServices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [fetchBookingDetails, fetchAllServices]);
 
-  // Handle service selection
-  const handleServiceSelection = (service) => {
-    if (selectedServices.some(s => s.id === service.id)) {
-      // Deselect service
-      setSelectedServices(selectedServices.filter(s => s.id !== service.id));
+  // Subscribe to real-time changes for bookings
+  useEffect(() => {
+    const channel = supabase
+      .channel("public:bookings")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings" },
+        (payload) => {
+          fetchBookingDetails();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchBookingDetails]);
 
-      // Remove input value if service type is 'input'
-      if (service.type === 'input') {
-        const updatedInputs = { ...serviceInputs };
-        delete updatedInputs[service.id];
-        setServiceInputs(updatedInputs);
+  // Handle service selection (for editing)
+  const handleServiceSelection = useCallback((service) => {
+    setSelectedServices((prev) => {
+      if (prev.some((s) => s.id === service.id)) {
+        return prev.filter((s) => s.id !== service.id);
+      } else {
+        return [...prev, service];
       }
-    } else {
-      // Select service
-      setSelectedServices([...selectedServices, service]);
-    }
-  };
-
-  // Handle input change for services of type 'input'
-  const handleInputChange = (serviceId, value) => {
-    setServiceInputs({
-      ...serviceInputs,
-      [serviceId]: value,
     });
-  };
+    if (service.type === "input") {
+      setServiceInputs((prev) => {
+        const updated = { ...prev };
+        if (updated[service.id]) {
+          delete updated[service.id];
+        }
+        return updated;
+      });
+    }
+  }, []);
 
-  // Handle form submission
-  const handleSubmit = async () => {
+  // Handle input change for services of type "input"
+  const handleInputChange = useCallback((serviceId, value) => {
+    setServiceInputs((prev) => ({
+      ...prev,
+      [serviceId]: value,
+    }));
+  }, []);
+
+  // Handle submission when updating/editing booking services
+  const handleSubmit = useCallback(async () => {
     if (selectedServices.length === 0) {
       toast.error("Please select at least one service.");
       return;
     }
-
     setSubmitting(true);
-
     try {
-      // Insert selected services into booking_services_selected table
-      const bookingServices = selectedServices.map(service => ({
+      // Delete existing booking_services_selected for this booking
+      const { error: deleteError } = await supabase
+        .from("booking_services_selected")
+        .delete()
+        .eq("booking_id", id);
+      if (deleteError) throw deleteError;
+
+      // Insert new booking_services_selected
+      const bookingServices = selectedServices.map((service) => ({
         booking_id: id,
         service_id: service.id,
-        input_value: service.type === 'input' ? serviceInputs[service.id] || "" : null,
+        input_value: service.type === "input" ? serviceInputs[service.id] || "" : null,
       }));
+      const { error: insertError } = await supabase
+        .from("booking_services_selected")
+        .insert(bookingServices);
+      if (insertError) throw insertError;
 
-      const { data, error } = await supabase.from("booking_services_selected").insert(bookingServices);
-
-      if (error) {
-        throw error;
-      }
-
-      // Update booking status to 'progressing'
-      const { error: updateError } = await supabase
-        .from("bookings")
-        .update({ status: 'progressing' })
-        .eq("id", id);
-
-      if (updateError) {
-        throw updateError;
+      // Update booking status to "progressing" if current status is reserved or checked_in
+      if (booking.status === "reserved" || booking.status === "checked_in") {
+        const { error: updateError } = await supabase
+          .from("bookings")
+          .update({ status: "progressing" })
+          .eq("id", id);
+        if (updateError) throw updateError;
       }
 
       toast.success("Booking updated successfully!");
-      navigate("/bookings"); // Redirect to bookings page or desired location
+      fetchBookingDetails();
+     
     } catch (error) {
-      toast.error(`Error submitting booking: ${error.message}`);
+      toast.error(`Failed to submit booking: ${error.message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [id, selectedServices, serviceInputs, booking?.status, fetchBookingDetails]);
+
+  // Handle initial submission (for non-edit mode)
+  const handleInitialSubmit = useCallback(async () => {
+    if (selectedServices.length === 0) {
+      toast.error("Please select at least one service.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const bookingServices = selectedServices.map((service) => ({
+        booking_id: id,
+        service_id: service.id,
+        input_value: service.type === "input" ? serviceInputs[service.id] || "" : null,
+      }));
+      const { error: insertError } = await supabase
+        .from("booking_services_selected")
+        .insert(bookingServices);
+      if (insertError) throw insertError;
+
+      const { error: updateError } = await supabase
+        .from("bookings")
+        .update({ status: "progressing" })
+        .eq("id", id);
+      if (updateError) throw updateError;
+
+      toast.success("Booking confirmed successfully!");
+      navigate("/home");
+    } catch (error) {
+      toast.error(`Failed to submit booking: ${error.message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [id, selectedServices, serviceInputs, navigate]);
+
+  // Handle marking the booking as completed (check-out)
+  const handleCompleteBooking = async () => {
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status: "completed" })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Booking marked as COMPLETED!");
+      fetchBookingDetails();
+    } catch (error) {
+      toast.error(`Error marking booking as completed: ${error.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Handle printing slip (for customer or groomer)
+  const handlePrintSlip = (copyType) => {
+    const printWindow = window.open("", "_blank", "width=600,height=600");
+    if (printWindow) {
+      const slipContent = `
+        <html>
+          <head>
+            <title>Booking Slip - ${copyType}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; color: #000; }
+              h2 { text-align: center; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+              .total { font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <h2>Booking Slip - ${copyType.toUpperCase()}</h2>
+            <p><strong>Customer Name:</strong> ${booking.customer_name}</p>
+            <p><strong>Contact Number:</strong> ${booking.contact_number}</p>
+            <p><strong>Dog Name:</strong> ${booking.dog_name}</p>
+            <p><strong>Dog Breed:</strong> ${booking.dog_breed}</p>
+            <p><strong>Booking Date:</strong> ${format(new Date(booking.booking_date), "PPP")}</p>
+            <p><strong>Time Slot:</strong> ${
+              booking.sub_time_slots?.time_slots?.start_time
+                ? format(parse(booking.sub_time_slots.time_slots.start_time, "HH:mm:ss", new Date()), "hh:mm a")
+                : "N/A"
+            }</p>
+            <p><strong>Sub-Time Slot:</strong> ${
+              booking.sub_time_slots?.description ||
+              `Slot ${booking.sub_time_slots?.slot_number}` ||
+              "N/A"
+            }</p>
+            <h3>Services:</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${selectedServices
+                  .map(
+                    (service) => `
+                  <tr>
+                    <td>${service.name}${
+                      service.type === "input"
+                        ? " (" + (serviceInputs[service.id] || "") + ")"
+                        : ""
+                    }</td>
+                    <td>₹${service.price}</td>
+                  </tr>
+                `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+      printWindow.document.open();
+      printWindow.document.write(slipContent);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center py-4">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading booking details" />
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!booking) {
-    return <p className="text-center text-gray-500">Booking not found.</p>;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-center text-gray-500 text-lg">Booking not found.</p>
+      </div>
+    );
   }
 
-  // Render content based on the current step
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
         return (
           <motion.div
             key="step1"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <Label className="font-semibold">Select Services:</Label>
-            <div className="space-y-4">
-              {services.map(service => (
-                <div key={service.id} className="flex items-center space-x-2">
-                  {service.type === 'checkbox' ? (
-                    <input
-                      type="checkbox"
-                      checked={selectedServices.some(s => s.id === service.id)}
-                      onChange={() => handleServiceSelection(service)}
-                      aria-label={`Select service ${service.name}`}
-                    />
-                  ) : service.type === 'input' ? (
+            <h3 className="text-lg font-semibold">Select Services</h3>
+            <ScrollArea className="h-[300px] rounded-md border p-4">
+              {services.map((service) => (
+                <div key={service.id} className="flex items-center space-x-2 mb-4">
+                  {service.type === "checkbox" ? (
                     <>
-                      <input
-                        type="checkbox"
-                        checked={selectedServices.some(s => s.id === service.id)}
-                        onChange={() => handleServiceSelection(service)}
+                      <Checkbox
+                        id={`service-${service.id}`}
+                        checked={selectedServices.some((s) => s.id === service.id)}
+                        onCheckedChange={() => handleServiceSelection(service)}
                         aria-label={`Select service ${service.name}`}
                       />
+                      <Label htmlFor={`service-${service.id}`} className="flex-grow">
+                        {service.name} - ₹{service.price}
+                      </Label>
+                    </>
+                  ) : service.type === "input" ? (
+                    <>
                       <Input
                         type="text"
-                        placeholder={`Enter details for ${service.name}`}
+                        placeholder={`Details for ${service.name}`}
                         value={serviceInputs[service.id] || ""}
                         onChange={(e) => handleInputChange(service.id, e.target.value)}
-                        disabled={!selectedServices.some(s => s.id === service.id)}
+                        className="w-1/2"
                         aria-label={`Input for service ${service.name}`}
                       />
+                      <Label htmlFor={`service-${service.id}`} className="flex-grow">
+                        {service.name} - ₹{service.price}
+                      </Label>
                     </>
                   ) : null}
-                  <span>{service.name} - ₹{service.price}</span>
                 </div>
               ))}
-            </div>
+            </ScrollArea>
           </motion.div>
         );
 
       case 2:
-        // Calculate total bill
-        const totalBill = selectedServices.reduce((acc, service) => acc + parseFloat(service.price), 0);
-
+        const totalBill = selectedServices.reduce(
+          (acc, service) => acc + Number.parseFloat(service.price),
+          0
+        );
         return (
           <motion.div
             key="step2"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            <Label className="font-semibold">Review Your Bill:</Label>
-            <div className="space-y-4">
-              {selectedServices.map(service => (
-                <div key={service.id} className="flex justify-between">
-                  <span>{service.name}</span>
+            <h3 className="text-lg font-semibold">Review Your Bill</h3>
+            <ScrollArea className="h-[300px] rounded-md border p-4">
+              {selectedServices.map((service) => (
+                <div key={service.id} className="flex justify-between mb-2">
+                  <span>
+                    {service.name}
+                    {service.type === "input" && serviceInputs[service.id]
+                      ? ` (${serviceInputs[service.id]})`
+                      : ""}
+                  </span>
                   <span>₹{service.price}</span>
                 </div>
               ))}
-              <div className="flex justify-between font-bold">
+              <Separator className="my-4" />
+              <div className="flex justify-between font-bold text-lg">
                 <span>Total:</span>
                 <span>₹{totalBill.toFixed(2)}</span>
               </div>
-            </div>
+            </ScrollArea>
           </motion.div>
         );
 
@@ -237,133 +433,175 @@ export default function BookingDetails() {
   };
 
   return (
-    <Card className="max-w-4xl mx-auto mt-8">
-      <CardHeader className="flex justify-between items-center">
-        <div>
-          <CardTitle>Booking Details</CardTitle>
-          <CardDescription>Manage and review your booking.</CardDescription>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate("/home")}
-          aria-label="Back"
-          className="flex items-center space-x-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back</span>
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {/* Booking Information */}
-          <div className="space-y-2">
-            <div className="flex flex-col">
-              <Label className="font-semibold">Customer Name:</Label>
-              <Input value={booking.customer_name} readOnly />
-            </div>
-            <div className="flex flex-col">
-              <Label className="font-semibold">Contact Number:</Label>
-              <Input value={booking.contact_number} readOnly />
-            </div>
-            <div className="flex flex-col">
-              <Label className="font-semibold">Dog Name:</Label>
-              <Input value={booking.dog_name} readOnly />
-            </div>
-            <div className="flex flex-col">
-              <Label className="font-semibold">Dog Breed:</Label>
-              <Input value={booking.dog_breed} readOnly />
-            </div>
-            <div className="flex flex-col">
-              <Label className="font-semibold">Booking Date:</Label>
-              <Input value={format(new Date(booking.booking_date), "PPP")} readOnly />
-            </div>
-            <div className="flex flex-col">
-              <Label className="font-semibold">Time Slot:</Label>
-              <Input
-                value={
-                  booking.sub_time_slots?.time_slots?.start_time
-                    ? format(parse(booking.sub_time_slots.time_slots.start_time, 'HH:mm:ss', new Date()), "hh:mm a")
-                    : "N/A"
-                }
-                readOnly
-              />
-            </div>
-            <div className="flex flex-col">
-              <Label className="font-semibold">Sub-Time Slot:</Label>
-              <Input
-                value={
-                  booking.sub_time_slots?.description ||
-                  `Slot ${booking.sub_time_slots?.slot_number}` ||
-                  "N/A"
-                }
-                readOnly
-              />
-            </div>
-            <div className="flex flex-col">
-              <Label className="font-semibold">Status:</Label>
-              <span
-                className={`px-2 py-1 rounded text-white ${
-                  booking.status === 'reserved'
-                    ? 'bg-yellow-500'
-                    : booking.status === 'checked_in'
-                    ? 'bg-green-500'
-                    : booking.status === 'progressing'
-                    ? 'bg-blue-500'
-                    : booking.status === 'completed'
-                    ? 'bg-indigo-500'
-                    : 'bg-red-500'
-                }`}
-              >
-                {booking.status.replace('_', ' ').toUpperCase()}
-              </span>
-            </div>
+    <Card className="max-w-8xl ">
+      <CardHeader className="bg-primary rounded-t-lg text-primary-foreground">
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle className="text-2xl">Booking Details</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Manage and review your booking
+            </CardDescription>
           </div>
-        </div>
-        <AnimatePresence mode="wait">
-          {renderStepContent()}
-        </AnimatePresence>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        {currentStep > 1 && (
           <Button
-            variant="outline"
-            onClick={() => setCurrentStep(currentStep - 1)}
-            aria-label="Go back to previous step"
+            variant="secondary"
+            onClick={() => navigate("/home")}
             className="flex items-center space-x-2"
+            aria-label="Back to Bookings"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Back</span>
           </Button>
-        )}
-        {currentStep < 2 && (
-          <Button
-            variant="primary"
-            onClick={() => setCurrentStep(currentStep + 1)}
-            disabled={selectedServices.length === 0 || submitting}
-            aria-label="Proceed to next step"
-            className="flex items-center space-x-2"
-          >
-            <span>Next</span>
-            <ArrowRight className="h-4 w-4" />
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <User className="h-5 w-5 text-primary" />
+              <Label className="font-semibold">Customer Name:</Label>
+              <span>{booking.customer_name}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Phone className="h-5 w-5 text-primary" />
+              <Label className="font-semibold">Contact Number:</Label>
+              <span>{booking.contact_number}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <DogIcon className="h-5 w-5 text-primary" />
+              <Label className="font-semibold">Dog Name:</Label>
+              <span>{booking.dog_name}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Paw className="h-5 w-5 text-primary" />
+              <Label className="font-semibold">Dog Breed:</Label>
+              <span>{booking.dog_breed}</span>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <Label className="font-semibold">Booking Date:</Label>
+              <span>{format(new Date(booking.booking_date), "PPP")}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Clock className="h-5 w-5 text-primary" />
+              <Label className="font-semibold">Time Slot:</Label>
+              <span>
+                {booking.sub_time_slots?.time_slots?.start_time
+                  ? format(parse(booking.sub_time_slots.time_slots.start_time, "HH:mm:ss", new Date()), "hh:mm a")
+                  : "N/A"}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Clock className="h-5 w-5 text-primary" />
+              <Label className="font-semibold">Sub-Time Slot:</Label>
+              <span>
+                {booking.sub_time_slots?.description ||
+                  `Slot ${booking.sub_time_slots?.slot_number}` ||
+                  "N/A"}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Label className="font-semibold">Status:</Label>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  booking.status === "reserved"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : booking.status === "checked_in"
+                    ? "bg-green-100 text-green-800"
+                    : booking.status === "progressing"
+                    ? "bg-blue-100 text-blue-800"
+                    : booking.status === "completed"
+                    ? "bg-indigo-100 text-indigo-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {booking.status.replace("_", " ").toUpperCase()}
+              </span>
+            </div>
+          </div>
+        </div>
+        <Separator className="my-6" />
+        <AnimatePresence mode="wait">{renderStepContent()}</AnimatePresence>
+      </CardContent>
+      <CardFooter className="flex flex-col md:flex-row justify-between items-center bg-muted/50 p-4">
+        <div className="flex space-x-2 mb-4 md:mb-0">
+          {currentStep > 1 && (
+            <Button
+              variant="outline"
+              onClick={() => setCurrentStep(currentStep - 1)}
+              className="flex items-center space-x-2"
+              aria-label="Back to Previous Step"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Services</span>
+            </Button>
+          )}
+          {currentStep < 2 && (
+            <Button
+              onClick={() => setCurrentStep(currentStep + 1)}
+              disabled={selectedServices.length === 0 || submitting}
+              className="flex items-center space-x-2"
+              aria-label="Proceed to Review Bill"
+            >
+              <span>Next</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <div className="flex space-x-2">
+          {currentStep === 2 && booking.status === "reserved" && (
+            <Button
+              onClick={handleInitialSubmit}
+              disabled={submitting}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Confirm Booking
+                </>
+              ) : (
+                "Confirm Booking"
+              )}
+            </Button>
+          )}
+          {currentStep === 2 && (booking.status === "progressing" || booking.status === "checked_in") && (
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Update Booking
+                </>
+              ) : (
+                "Update Booking"
+              )}
+            </Button>
+          )}
+          {(booking.status === "progressing" || booking.status === "checked_in") && (
+            <Button onClick={handleCompleteBooking} className="bg-green-500 hover:bg-green-600 text-white">
+            <Check className="mr-2 h-4 w-4" /> Complete Booking
           </Button>
-        )}
-        {currentStep === 2 && (
-          <Button
-            variant="success"
-            onClick={handleSubmit}
-            disabled={submitting}
-            aria-label="Submit booking and proceed"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              "Submit"
-            )}
+    
+          )}
+           <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="bg-white text-gray-800">
+            <Printer className="mr-2 h-4 w-4" /> Print Slip
+            <ChevronDown className="ml-2 h-4 w-4" />
           </Button>
-        )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onClick={() => handlePrintSlip("customer")}>Customer Slip</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handlePrintSlip("groomer")}>Groomer Slip</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+  
+        </div>
       </CardFooter>
     </Card>
   );

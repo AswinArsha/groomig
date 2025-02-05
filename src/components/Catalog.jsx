@@ -121,7 +121,6 @@ export default function Catalog() {
 
   return (
     <div className="container mx-auto ">
-     
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <Button onClick={handleAddNew}>
           <Plus className="mr-2 h-4 w-4" /> Add New Service
@@ -178,7 +177,6 @@ export default function Catalog() {
           {filteredServices.map((service) => (
             <Card key={service.id} c>
               <CardHeader>
-            
               </CardHeader>
               <CardContent >
               <h3 className="text-xl font-semibold mb-2">{service.name}</h3>
