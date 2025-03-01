@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Shop from "./Catalog/shop";
 import ServiceForm from "./Catalog/ServiceForm";
+import ManageTimeSlotsPage from "./Home/ManageTimeSlotsPage";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Catalog() {
   const [services, setServices] = useState([]);
@@ -120,22 +123,84 @@ export default function Catalog() {
   );
 
   return (
-    <div className="container mx-auto ">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-        <Button onClick={handleAddNew}>
-          <Plus className="mr-2 h-4 w-4" /> Add New Service
-        </Button>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search services..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 w-full"
-          />
-        </div>
-      </div>
+    <div className="container mx-auto">
+      <Tabs defaultValue="services" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="shop">Shop</TabsTrigger>
+          <TabsTrigger value="timeslots">Time Slots</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="services">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+            <Button onClick={handleAddNew}>
+              <Plus className="mr-2 h-4 w-4" /> Add New Service
+            </Button>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search services..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full"
+              />
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, index) => (
+                <Card key={index} className="flex flex-col">
+                  <CardHeader>
+                    <Skeleton className="h-4 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <Skeleton className="h-4 w-1/4 mb-2" />
+                    <Skeleton className="w-full h-48 rounded-md" />
+                  </CardContent>
+                  <CardFooter className="flex justify-between">
+                    <Skeleton className="h-10 w-20" />
+                    <Skeleton className="h-10 w-20" />
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          ) : filteredServices.length === 0 ? (
+            <p className="text-center text-gray-500">No services found.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredServices.map((service) => (
+                <Card key={service.id}>
+                  <CardContent className="pt-6">
+                    <h3 className="text-xl font-semibold mb-2">{service.name}</h3>
+                    <p className="text-gray-600 mb-4">{service.description}</p>
+                    <p className="text-2xl font-bold text-primary">₹{service.price}</p>
+                  </CardContent>
+                  <CardFooter className="flex justify-between">
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(service)}>
+                      <Pencil className="mr-2 h-4 w-4" /> Edit
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDelete(service)}>
+                      <Trash2 className="mr-2 h-4 w-4" /> Delete
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="shop">
+        <Shop />
+        </TabsContent>
+
+        <TabsContent value="timeslots">
+          <ManageTimeSlotsPage />
+        </TabsContent>
+     
+      </Tabs>
 
       {/* Dialog for Adding or Editing Service */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -150,51 +215,6 @@ export default function Catalog() {
           />
         </DialogContent>
       </Dialog>
-
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, index) => (
-            <Card key={index} className="flex flex-col">
-              <CardHeader>
-                <Skeleton className="h-4 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <Skeleton className="h-4 w-1/4 mb-2" />
-                <Skeleton className="w-full h-48 rounded-md" />
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Skeleton className="h-10 w-20" />
-                <Skeleton className="h-10 w-20" />
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      ) : filteredServices.length === 0 ? (
-        <p className="text-center text-gray-500">No services found.</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredServices.map((service) => (
-            <Card key={service.id} c>
-              <CardHeader>
-              </CardHeader>
-              <CardContent >
-              <h3 className="text-xl font-semibold mb-2">{service.name}</h3>
-              <p className="text-gray-600 mb-4">{service.description}</p>
-              <p className="text-2xl font-bold text-primary">₹{service.price}</p>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button size="sm" variant="outline" onClick={() => handleEdit(service)}>
-                  <Pencil className="mr-2 h-4 w-4" /> Edit
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(service)}>
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
 
       {/* Alert Dialog for Deletion Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

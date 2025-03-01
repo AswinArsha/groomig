@@ -2,6 +2,7 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { supabase } from "../supabase";
+import { motion } from "framer-motion";
 
 function ProtectedRoute() {
   const [user, setUser] = React.useState(null);
@@ -34,9 +35,16 @@ function ProtectedRoute() {
   }, []);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>; // Or a loader component
+    return (
+      <div className="fixed inset-0 flex justify-center items-center bg-white/80 backdrop-blur-sm">
+        <motion.div
+          className="w-12 h-12 border-2 border-transparent border-t-pink-500 rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
+    );
   }
-
   return user ? <Outlet /> : <Navigate to="/" replace />;
 }
 

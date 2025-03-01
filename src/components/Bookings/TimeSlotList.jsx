@@ -141,7 +141,7 @@ export default function TimeSlotList() {
   }
 
   return (
-    <Card className="w-full max-w-3xl mx-auto ">
+    <Card className="w-full max-w-5xl mx-auto ">
       <CardHeader>
         <CardDescription>Manage your time slots and their sub-slots.</CardDescription>
       </CardHeader>
@@ -154,107 +154,105 @@ export default function TimeSlotList() {
             </p>
           </div>
         ) : (
-          <ScrollArea className="h-[24rem] ">
-            <ul className="space-y-2">
+          <ScrollArea className="h-[24rem]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {slots.map((slot) => (
-                <li key={slot.id}>
-                  <Card className="shadow-md">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="bg-primary/10 p-3 rounded-full">
-                            <Clock className="h-6 w-6 text-primary" />
+                <div key={slot.id} className="aspect-square">
+                  <Card className="h-full shadow-md">
+                    <CardContent className="p-4 h-full flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="bg-primary/10 p-2 rounded-full">
+                            <Clock className="h-5 w-5 text-primary" />
                           </div>
-                          <p className="font-medium text-xl">
+                          <p className="font-medium text-lg">
                             {formatTimeDisplay(slot.start_time)}
                           </p>
                         </div>
-                        <div className="flex gap-2">
-                          {/* Edit Button */}
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setEditingSlot(slot)}
-                              >
-                                <Edit2 className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[425px]">
-                              <DialogHeader>
-                                <DialogTitle>Edit Time Slot</DialogTitle>
-                              </DialogHeader>
-                              {editingSlot && (
-                                <EditTimeSlotForm
-                                  slot={editingSlot}
-                                  onSave={handleEdit}
-                                  onCancel={() => setEditingSlot(null)}
-                                />
-                              )}
-                            </DialogContent>
-                          </Dialog>
-                          {/* Delete Button with Confirmation Dialog */}
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => setDeleteId(slot.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Delete
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Confirm Deletion</DialogTitle>
-                                <DialogDescription>
-                                  Are you sure you want to delete this time slot? This will also
-                                  delete all associated sub-time slots.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setDeleteId(null)}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={() => handleDelete(deleteId)}
-                                >
-                                  Delete
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-sm">Sub-Time Slots</h4>
+                          {slot.sub_time_slots && slot.sub_time_slots.length > 0 ? (
+                            <ul className="text-sm space-y-1 overflow-y-auto max-h-[100px]">
+                              {slot.sub_time_slots.map((subSlot) => (
+                                <li key={subSlot.id} className="flex items-center gap-1">
+                                  <span className="text-primary">•</span>
+                                  <span>Slot {subSlot.slot_number}: {subSlot.description || "No Description"}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No sub-time slots added.</p>
+                          )}
                         </div>
                       </div>
-                      <div className="mt-4">
-                        <h4 className="font-semibold">Sub-Time Slots</h4>
-                        {slot.sub_time_slots && slot.sub_time_slots.length > 0 ? (
-                          <ul className="list-disc list-inside space-y-1">
-                            {slot.sub_time_slots.map((subSlot) => (
-                              <li key={subSlot.id} className="text-sm">
-                                Slot {subSlot.slot_number}:{" "}
-                                {subSlot.description || "No Description"}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            No sub-time slots added.
-                          </p>
-                        )}
+                      <div className="flex gap-2 mt-4">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingSlot(slot)}
+                              className="flex-1"
+                            >
+                              <Edit2 className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[800px]">
+                            <DialogHeader>
+                              <DialogTitle>Edit Time Slot</DialogTitle>
+                            </DialogHeader>
+                            {editingSlot && (
+                              <EditTimeSlotForm
+                                slot={editingSlot}
+                                onSave={handleEdit}
+                                onCancel={() => setEditingSlot(null)}
+                              />
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setDeleteId(slot.id)}
+                              className="flex-1"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Confirm Deletion</DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to delete this time slot? This will also
+                                delete all associated sub-time slots.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button
+                                variant="outline"
+                                onClick={() => setDeleteId(null)}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleDelete(deleteId)}
+                              >
+                                Delete
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </CardContent>
                   </Card>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </ScrollArea>
         )}
       </CardContent>
