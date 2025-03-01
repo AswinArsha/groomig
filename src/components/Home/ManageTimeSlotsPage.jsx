@@ -11,15 +11,7 @@ export default function ManageTimeSlotsPage({ onSlotAdded }) {
   
   return (
     <div className="">
-      {/* Back Button */}
-      <Button
-        variant="outline"
-        className="mb-6 flex items-center space-x-2"
-        onClick={() => navigate(-1)} // Navigates back to the previous page
-      >
-        <ArrowLeft className="h-4 w-4" />
-        <span>Back</span>
-      </Button>
+
       
       {/* Manage Time Slots Content */}
       <div className="space-y-6">

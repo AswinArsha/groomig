@@ -162,7 +162,7 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
       </div>
 
       {/* Service Type */}
-      <div className="space-y-2">
+      <div className="space-y-2 hidden">
         <Label htmlFor="type">Service Type</Label>
         <Select value={type} onValueChange={setType}>
           <SelectTrigger>

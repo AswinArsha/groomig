@@ -36,13 +36,6 @@ function Home() {
           </DialogContent>
         </Dialog>
 
-        {/* Navigate to Manage Time Slots Page */}
-        <Button
-          className="my-4"
-          onClick={() => navigate("/manage-time-slots")} // Navigate to the new page
-        >
-          Manage Time Slots
-        </Button>
         <Button onClick={() => navigate("/all-bookings")}>
             View All Bookings
           </Button>

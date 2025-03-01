@@ -16,10 +16,9 @@ import {
 } from "@/components/ui/sidebar";
 import {
   Home,
-  ClipboardList,
-  Tag,
-  CreditCard,
-  LogOut, // Import LogOut icon
+  Store,
+  BarChart,
+  LogOut,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button"; // Import Button for Logout
@@ -66,8 +65,8 @@ function Sidebar() {
 
   const navigationItems = [
     { name: "Home", path: "/home", icon: <Home className="w-5 h-5" /> },
-    { name: "service", path: "/service", icon: <Tag className="w-5 h-5" /> },
-    { name: "Billing", path: "/billing", icon: <CreditCard className="w-5 h-5" /> },
+    { name: "shop", path: "/shop", icon: <Store className="w-5 h-5" /> },
+    { name: "Analytics", path: "/analytics", icon: <BarChart className="w-5 h-5" /> },
   ];
 
   const isLinkActive = (path) => location.pathname === path;
@@ -78,15 +77,14 @@ function Sidebar() {
       case "/home":
         return "Home";
 
-      case "/service":
-        return "service";
-      case "/billing":
-        return "Billing";
+      case "/shop":
+        return "shop";
+      case "/analytics":
+        return "Analytics";
       default:
         return "Home"; 
     }
   };
-
   // Handle Logout Function
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();

@@ -4,8 +4,8 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import LoginForm from "./components/LoginForm";
 import Sidebar from "./components/Sidebar";
 import Home from "./components/Home";
-import Service from "./components/Catalog";
-import Billing from "./components/Billing";
+import Shop from "./components/Catalog";
+import Analytics from "./components/Analytics";
 import NotFound from "./components/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ManageTimeSlotsPage from "./components/Home/ManageTimeSlotsPage";
@@ -14,6 +14,10 @@ import AllBookingsPage from "./components/Home/AllBookingsPage";
 import AllBookingDetails from "./components/Home/AllBookingDetails"; 
 import toast, { Toaster } from "react-hot-toast";
 
+// Import the new user components
+import UserBookingForm from "./components/User/UserBookingForm";
+import UserLayout from "./components/User/UserLayout";
+
 function App() {
   return (
     <Router>
@@ -21,6 +25,12 @@ function App() {
         <Toaster position="top-right" />
         <Routes>
           <Route path="/" element={<LoginForm />} />
+          
+          {/* User Booking Route */}
+          <Route path="/user" element={<UserLayout />}>
+            <Route index element={<UserBookingForm />} />
+          </Route>
+          
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Sidebar />}>
@@ -28,11 +38,12 @@ function App() {
               <Route path="/bookings/:id" element={<BookingDetails />} />
               <Route path="/all-bookings" element={<AllBookingsPage />} />
               <Route path="/all-booking-details/:id" element={<AllBookingDetails />} />
-              <Route path="/service" element={<Service />} />
-              <Route path="/billing" element={<Billing />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/manage-time-slots" element={<ManageTimeSlotsPage />} />
             </Route>
           </Route>
+
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
         </Routes>

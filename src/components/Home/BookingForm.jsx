@@ -1,4 +1,3 @@
-// src/components/Home/BookingForm.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
@@ -21,28 +20,38 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format, isBefore, startOfToday } from "date-fns";
-import { CalendarIcon, Loader2, AlertCircle, CheckCircle,
-
+import { 
+  CalendarIcon, 
+  Loader2, 
+  AlertCircle, 
+  CheckCircle,
   PawPrintIcon as Paw,
-
   Clock,
   Phone,
   User,
   DogIcon,
- } from "lucide-react";
+  Store
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion"; // For animations
 import { Progress } from "@/components/ui/progress"; // Updated import
+
 export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
   const isEditing = Boolean(booking);
 
-  // Step management: Now 3 steps
+  // Step management: Now 4 steps (added Shop selection)
   const [step, setStep] = useState(1);
 
-  // Step 1: Booking Date, Time Slot, Sub-Time Slot
+  // Step 1: Booking Date
   const [bookingDate, setBookingDate] = useState(
     booking?.booking_date ? new Date(booking.booking_date) : null
   );
 
+  // Step 2: Shop Selection (New)
+  const [availableShops, setAvailableShops] = useState([]);
+  const [selectedShop, setSelectedShop] = useState(booking?.shop_id || "");
+  const [loadingShops, setLoadingShops] = useState(false);
+
+  // Step 3: Time Slot, Sub-Time Slot
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
   const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
@@ -51,7 +60,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
   const [selectedSubSlot, setSelectedSubSlot] = useState(booking?.sub_time_slot_id || "");
   const [loadingSubSlots, setLoadingSubSlots] = useState(false);
 
-  // Step 2: Booking Details
+  // Step 4: Booking Details
   const [customerName, setCustomerName] = useState(booking?.customer_name || "");
   const [contactNumber, setContactNumber] = useState(booking?.contact_number || "");
   const [dogName, setDogName] = useState(booking?.dog_name || "");
@@ -64,11 +73,15 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const popoverRef = useRef();
 
-  // Fetch available time slots based on selected date
+  // Fetch available shops when date is selected and auto-advance to shop selection
   useEffect(() => {
     if (bookingDate) {
-      fetchAvailableTimeSlots();
+      fetchAvailableShops();
+      // Auto-advance to shop selection step
+      setStep(2);
     } else {
+      setAvailableShops([]);
+      setSelectedShop("");
       setAvailableTimeSlots([]);
       setSelectedTimeSlot("");
       setAvailableSubSlots([]);
@@ -76,6 +89,21 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingDate]);
+
+  // Fetch available time slots based on selected shop and date, auto-advance to time slot selection
+  useEffect(() => {
+    if (selectedShop && bookingDate) {
+      fetchAvailableTimeSlots();
+      // Auto-advance to time slot selection step
+      setStep(3);
+    } else {
+      setAvailableTimeSlots([]);
+      setSelectedTimeSlot("");
+      setAvailableSubSlots([]);
+      setSelectedSubSlot("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShop, bookingDate]);
 
   // Fetch available sub-time slots based on selected time slot and date
   useEffect(() => {
@@ -87,13 +115,47 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTimeSlot, bookingDate]);
+  
+  // Auto-advance to customer details when sub-slot is selected
+  useEffect(() => {
+    if (selectedSubSlot) {
+      // Short delay to show the selection before advancing
+      const timer = setTimeout(() => {
+        setStep(4);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSubSlot]);
 
-  // Function to fetch available time slots for the selected date
+  // Function to fetch available shops
+  const fetchAvailableShops = async () => {
+    setLoadingShops(true);
+    
+    try {
+      const { data: shops, error } = await supabase
+        .from("shops")
+        .select("id, name, badge")
+        .order("name", { ascending: true });
+      
+      if (error) {
+        throw error;
+      }
+      
+      setAvailableShops(shops || []);
+    } catch (error) {
+      toast.error(`Error fetching shops: ${error.message}`);
+    } finally {
+      setLoadingShops(false);
+    }
+  };
+
+  // Function to fetch available time slots for the selected date and shop
   const fetchAvailableTimeSlots = async () => {
     setLoadingTimeSlots(true);
     const dayOfWeek = format(bookingDate, "EEEE"); // e.g., "Monday"
 
-    // Fetch time_slots that are active on the selected day
+    // Fetch time_slots that are active on the selected day and associated with the selected shop
     const { data: timeSlots, error } = await supabase
       .from("time_slots")
       .select(`
@@ -101,6 +163,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
         start_time
       `)
       .or(`repeat_all_days.eq.true,specific_days.cs.{${dayOfWeek}}`)
+      .contains('shop_ids', [selectedShop])
       .order("start_time", { ascending: true });
 
     if (error) {
@@ -122,7 +185,8 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
     const { data: bookingsOnDate, error: bookingsError } = await supabase
       .from("bookings")
       .select("sub_time_slot_id")
-      .eq("booking_date", formattedDate);
+      .eq("booking_date", formattedDate)
+      .eq("shop_id", selectedShop);
 
     if (bookingsError) {
       toast.error(`Error fetching bookings: ${bookingsError.message}`);
@@ -154,6 +218,11 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
 
     setAvailableSubSlots(available);
     setLoadingSubSlots(false);
+    
+    // If there's only one sub-slot available, auto-select it
+    if (available.length === 1) {
+      setSelectedSubSlot(available[0].id);
+    }
   };
 
   // Handle form submission
@@ -170,16 +239,6 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
         setSubmitting(false);
         return;
       }
-      if (!selectedTimeSlot) {
-        toast.error("Please select a time slot.");
-        setSubmitting(false);
-        return;
-      }
-      if (!selectedSubSlot) {
-     
-        setSubmitting(false);
-        return;
-      }
 
       // Proceed to next step
       setStep(2);
@@ -188,7 +247,40 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
     }
 
     if (step === 2) {
-      // Validate Step 2 inputs
+      // Validate Step 2 selections
+      if (!selectedShop) {
+        toast.error("Please select a shop.");
+        setSubmitting(false);
+        return;
+      }
+
+      // Proceed to next step
+      setStep(3);
+      setSubmitting(false);
+      return;
+    }
+
+    if (step === 3) {
+      // Validate Step 3 selections
+      if (!selectedTimeSlot) {
+        toast.error("Please select a time slot.");
+        setSubmitting(false);
+        return;
+      }
+      if (!selectedSubSlot) {
+
+        setSubmitting(false);
+        return;
+      }
+
+      // Proceed to next step
+      setStep(4);
+      setSubmitting(false);
+      return;
+    }
+
+    if (step === 4) {
+      // Validate Step 4 inputs
       if (!customerName || !contactNumber || !dogName || !dogBreed) {
         toast.error("Please fill in all the booking details.");
         setSubmitting(false);
@@ -196,12 +288,12 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
       }
 
       // Proceed to summary step
-      setStep(3);
+      setStep(5);
       setSubmitting(false);
       return;
     }
 
-    if (step === 3) {
+    if (step === 5) {
       // Final submission for booking
       try {
         // Fetch the start_time from the selected sub_time_slot
@@ -237,6 +329,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               booking_date: formattedDate,
               sub_time_slot_id: selectedSubSlot,
               slot_time: slotTime,
+              shop_id: selectedShop,
               // Status remains unchanged or can be updated based on your logic
             })
             .eq("id", booking.id);
@@ -262,6 +355,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               booking_date: formattedDate,
               sub_time_slot_id: selectedSubSlot,
               slot_time: slotTime,
+              shop_id: selectedShop,
               // Status defaults to 'reserved' as per table schema
             },
           ]);
@@ -298,7 +392,39 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
 
   // Calculate progress percentage
   const calculateProgress = () => {
-    return (step / 3) * 100;
+    return (step / 5) * 100; // Updated to 5 steps (including summary)
+  };
+  
+  // Handle auto-completion of form based on input validation
+  const checkFormCompletion = () => {
+    if (step === 4) {
+      // Check if all customer details are filled
+      if (customerName && contactNumber && dogName && dogBreed) {
+        // All fields are filled, auto-advance to summary after short delay
+        const timer = setTimeout(() => {
+          setStep(5);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  };
+  
+  // Check for form completion when customer details change
+  useEffect(() => {
+    if (step === 4) {
+      const timer = setTimeout(() => {
+        if (customerName && contactNumber && dogName && dogBreed) {
+          setStep(5);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerName, contactNumber, dogName, dogBreed]);
+
+  // Get selected shop details
+  const getSelectedShopDetails = () => {
+    return availableShops.find(shop => shop.id === selectedShop) || {};
   };
 
   // Render content based on the current step
@@ -343,6 +469,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                     onSelect={(date) => {
                       setBookingDate(date);
                       // Reset selections when date changes
+                      setSelectedShop("");
                       setSelectedTimeSlot("");
                       setSelectedSubSlot("");
                       setAvailableSubSlots([]);
@@ -354,48 +481,117 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 </PopoverContent>
               </Popover>
             </div>
+          </motion.div>
+        );
 
+      case 2:
+        return (
+          <motion.div
+            key="step2"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            {/* Shop Selection */}
+            <div className="space-y-4">
+              <Label>Select Shop</Label>
+              {loadingShops ? (
+                <div className="flex items-center justify-center h-32 bg-gray-100 rounded-lg">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading shops" />
+                  <span className="ml-2 text-sm text-gray-600">
+                    Loading available shops...
+                  </span>
+                </div>
+              ) : availableShops.length === 0 ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center">
+                  <AlertCircle className="h-6 w-6 text-yellow-700 mr-2" />
+                  <span className="text-yellow-800 font-semibold">
+                    No shops available.
+                  </span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {availableShops.map((shop) => (
+                    <div
+                      key={shop.id}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        selectedShop === shop.id
+                          ? "border-primary bg-primary/10"
+                          : "border-gray-200 hover:border-primary/50"
+                      }`}
+                      onClick={() => setSelectedShop(shop.id)}
+                      aria-pressed={selectedShop === shop.id}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-lg">{shop.name}</span>
+                          {shop.badge && (
+                            <span className="text-sm text-primary mt-1">{shop.badge}</span>
+                          )}
+                        </div>
+                        {selectedShop === shop.id && (
+                          <CheckCircle className="h-6 w-6 text-primary" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+
+      case 3:
+        return (
+          <motion.div
+            key="step3"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
             {/* Time Slot Selection */}
-            {bookingDate && (
-              <div className="space-y-4">
-                <Label>Select Time Slot</Label>
-                {loadingTimeSlots ? (
-                  <div className="flex items-center justify-center h-32 bg-gray-100 rounded-lg">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading time slots" />
-                    <span className="ml-2 text-sm text-gray-600">
-                      Loading available time slots...
-                    </span>
-                  </div>
-                ) : availableTimeSlots.length === 0 ? (
-                  <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center">
-                    <AlertCircle className="h-6 w-6 text-yellow-700 mr-2" />
-                    <span className="text-yellow-800 font-semibold">
-                      No available time slots for this date.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {availableTimeSlots.map((timeSlot) => (
-                      <Button
-                        key={timeSlot.id}
-                        variant={selectedTimeSlot === timeSlot.id ? "primary" : "outline"}
-                        onClick={() => {
-                          setSelectedTimeSlot(timeSlot.id);
-                          // Reset sub-time slot selection when time slot changes
-                          setSelectedSubSlot("");
-                        }}
-                        className="py-3 px-5 text-lg"
-                        aria-pressed={selectedTimeSlot === timeSlot.id}
-                        aria-label={`Select time slot at ${formatTimeIST(timeSlot.start_time)}`}
-                      >
-                        {formatTimeIST(timeSlot.start_time)}
-                        {selectedTimeSlot === timeSlot.id && <CheckCircle className="ml-2 h-5 w-5 text-green-500" />}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="space-y-4">
+              <Label>Select Time Slot</Label>
+              {loadingTimeSlots ? (
+                <div className="flex items-center justify-center h-32 bg-gray-100 rounded-lg">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Loading time slots" />
+                  <span className="ml-2 text-sm text-gray-600">
+                    Loading available time slots...
+                  </span>
+                </div>
+              ) : availableTimeSlots.length === 0 ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center">
+                  <AlertCircle className="h-6 w-6 text-yellow-700 mr-2" />
+                  <span className="text-yellow-800 font-semibold">
+                    No available time slots for this shop and date.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {availableTimeSlots.map((timeSlot) => (
+                    <Button
+                      key={timeSlot.id}
+                      variant={selectedTimeSlot === timeSlot.id ? "primary" : "outline"}
+                      onClick={() => {
+                        setSelectedTimeSlot(timeSlot.id);
+                        // Reset sub-time slot selection when time slot changes
+                        setSelectedSubSlot("");
+                      }}
+                      className="py-3 px-5 text-lg"
+                      aria-pressed={selectedTimeSlot === timeSlot.id}
+                      aria-label={`Select time slot at ${formatTimeIST(timeSlot.start_time)}`}
+                    >
+                      {formatTimeIST(timeSlot.start_time)}
+                      {selectedTimeSlot === timeSlot.id && <CheckCircle className="ml-2 h-5 w-5 text-green-500" />}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Sub-Time Slot Selection */}
             {selectedTimeSlot && (
@@ -439,10 +635,10 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
           </motion.div>
         );
 
-      case 2:
+      case 4:
         return (
           <motion.div
-            key="step2"
+            key="step4"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
@@ -499,10 +695,11 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
           </motion.div>
         );
 
-      case 3:
+      case 5:
+        const selectedShopDetails = getSelectedShopDetails();
         return (
           <motion.div
-            key="step3"
+            key="step5"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -515,6 +712,13 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 <CalendarIcon className="h-5 w-5 text-primary mr-2" />
                 <span className="text-md">
                   <strong>Date:</strong> {bookingDate ? format(bookingDate, "PPP") : "N/A"}
+                </span>
+              </div>
+              <div className="flex items-center">
+                <Store className="h-5 w-5 text-primary mr-2" />
+                <span className="text-md">
+                  <strong>Shop:</strong> {selectedShopDetails.name || "N/A"}
+                  {selectedShopDetails.badge && ` (${selectedShopDetails.badge})`}
                 </span>
               </div>
               <div className="flex items-center">
@@ -553,7 +757,6 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                   <strong>Dog Breed:</strong> {dogBreed}
                 </span>
               </div>
-              {/* Optional: Add more details or a summary of selected services */}
             </div>
           </motion.div>
         );
@@ -564,7 +767,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
   };
 
   return (
-    <Card className="max-w-6xl  ">
+    <Card className="max-w-6xl relative">
       <CardHeader>
         <CardTitle className="text-lg font-bold">
           {isEditing ? "Update Booking" : "Create Booking"}
@@ -576,20 +779,20 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
         </CardDescription>
         {/* Progress Indicator */}
         <div className="mt-4">
-          <Progress value={calculateProgress()} aria-label={`Progress: Step ${step} of 3`} />
-          <span className="text-sm text-gray-600 mt-1 block">Step {step} of 3</span>
+          <Progress value={calculateProgress()} aria-label={`Progress: Step ${step} of 5`} />
+          <span className="text-sm text-gray-600 mt-1 block">Step {step} of 5</span>
         </div>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
-          <AnimatePresence mode="wait"> {/* Updated mode from 'exitBeforeEnter' to 'wait' */}
+          <AnimatePresence mode="wait">
             {renderStepContent()}
           </AnimatePresence>
         </CardContent>
         <CardFooter className="flex justify-between items-center">
           {step > 1 && (
             <Button
-              type="button" // Ensure type is "button" to prevent form submission
+              type="button"
               variant="outline"
               onClick={() => setStep(step - 1)}
               aria-label="Go to previous step"
@@ -597,56 +800,18 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               Back
             </Button>
           )}
-          {step < 3 && (
-            <Button
-              type="button" // Ensure type is "button" to prevent form submission
-
-              onClick={(e) => {
-                e.preventDefault();
-                // Handle step transitions with validation
-                if (step === 1) {
-                  if (!bookingDate) {
-                    toast.error("Please select a booking date.");
-                    return;
-                  }
-                  if (!selectedTimeSlot) {
-                    toast.error("Please select a time slot.");
-                    return;
-                  }
-                  if (!selectedSubSlot) {
-                 
-                    return;
-                  }
-                }
-                if (step === 2) {
-                  if (!customerName || !contactNumber || !dogName || !dogBreed) {
-                    toast.error("Please fill in all the booking details.");
-                    return;
-                  }
-                }
-                setStep(step + 1);
-              }}
-              disabled={
-                (step === 1 &&
-                  (!bookingDate ||
-                    !selectedTimeSlot ||
-                    !selectedSubSlot ||
-                    loadingTimeSlots ||
-                    loadingSubSlots ||
-                    submitting)) ||
-                (step === 2 &&
-                  (!customerName ||
-                    !contactNumber ||
-                    !dogName ||
-                    !dogBreed ||
-                    submitting))
-              }
-              aria-label="Proceed to next step"
-            >
-              Next
-            </Button>
+          {/* Keep the Next button only for specific circumstances where manual advance is needed */}
+          {step === 3 && !selectedSubSlot && availableSubSlots.length > 1 && (
+            <div className="text-sm text-gray-500">
+              Please select a time slot ↑
+            </div>
           )}
-          {step === 3 && (
+          {step === 4 && !(customerName && contactNumber && dogName && dogBreed) && (
+            <div className="text-sm text-gray-500">
+              Complete all fields to continue
+            </div>
+          )}
+          {step === 5 && (
             <Button
               type="submit"
               disabled={submitting}
@@ -663,9 +828,20 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               )}
             </Button>
           )}
+          
+          {/* Helper text for steps that need user action */}
+          {step === 1 && !bookingDate && (
+            <div className="text-sm text-gray-500 italic">
+              Select a date to continue
+            </div>
+          )}
+          {step === 2 && availableShops.length > 0 && !selectedShop && (
+            <div className="text-sm text-gray-500 italic">
+              Select a shop to continue
+            </div>
+          )}
         </CardFooter>
       </form>
     </Card>
   );
 }
-

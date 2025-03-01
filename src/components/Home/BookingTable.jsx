@@ -71,7 +71,35 @@ export default function BookingTable() {
   const [selectedServiceFilters, setSelectedServiceFilters] = useState([]);
   const [selectValue, setSelectValue] = useState("");
 
+  // States for filtering by shops
+  const [shopOptions, setShopOptions] = useState([]);
+  const [selectedShop, setSelectedShop] = useState(null);
+
   const navigate = useNavigate();
+
+  // Fetch available shops for filtering
+  const fetchShopOptions = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("shops")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      const options = [{ value: null, label: "All Shops" }].concat(
+        data.map(shop => ({
+          value: shop.id,
+          label: shop.name,
+        }))
+      );
+      setShopOptions(options);
+    } catch (error) {
+      toast.error(`Error fetching shops: ${error.message}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchShopOptions();
+  }, [fetchShopOptions]);
 
   // Helper to display sub-slot
   const getSubSlotDisplay = (booking) => {
@@ -107,8 +135,14 @@ export default function BookingTable() {
   // When a service is selected from the dropdown, add it to the filter list
   const handleServiceSelect = (serviceId) => {
     const selectedService = serviceOptions.find(s => s.value === serviceId);
-    if (selectedService && !selectedServiceFilters.some(s => s.value === serviceId)) {
-      setSelectedServiceFilters([...selectedServiceFilters, selectedService]);
+    if (selectedService) {
+      // If service is already selected, remove it
+      if (selectedServiceFilters.some(s => s.value === serviceId)) {
+        setSelectedServiceFilters(selectedServiceFilters.filter(s => s.value !== serviceId));
+      } else {
+        // If service is not selected, add it
+        setSelectedServiceFilters([...selectedServiceFilters, selectedService]);
+      }
       setSelectValue(""); // reset select value after selection
     }
   };
@@ -149,6 +183,11 @@ export default function BookingTable() {
         );
       }
 
+      // Add shop filter
+      if (selectedShop) {
+        query = query.eq("shop_id", selectedShop);
+      }
+
       // If service filters are applied, filter bookings that have at least one matching service.
       if (selectedServiceFilters.length > 0) {
         const selectedServiceIds = selectedServiceFilters.map(service => service.value);
@@ -177,13 +216,13 @@ export default function BookingTable() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, searchTerm, currentPage, selectedServiceFilters]);
+  }, [selectedDate, searchTerm, currentPage, selectedServiceFilters, selectedShop]);
 
   useEffect(() => {
-    // Reset to page 1 when search term, date or service filters change
+    // Reset to page 1 when search term, date, service filters, or shop filter changes
     setCurrentPage(1);
     fetchBookings();
-  }, [searchTerm, selectedDate, selectedServiceFilters, fetchBookings]);
+  }, [searchTerm, selectedDate, selectedServiceFilters, selectedShop, fetchBookings]);
 
   useEffect(() => {
     fetchBookings();
@@ -209,9 +248,32 @@ export default function BookingTable() {
   async function handleDelete(id) {
     setLoading(true);
     try {
-      const { error } = await supabase.from("bookings").delete().eq("id", id);
-      if (error) throw error;
+      // First delete any related records in booking_services_selected
+      const { error: servicesError } = await supabase
+        .from("booking_services_selected")
+        .delete()
+        .eq("booking_id", id);
+        
+      if (servicesError) throw servicesError;
+      
+      // Then delete any related records in booking_feedback
+      const { error: feedbackError } = await supabase
+        .from("booking_feedback")
+        .delete()
+        .eq("booking_id", id);
+      
+      // We don't throw on feedback error because there might not be any feedback
+      
+      // Now delete the booking itself
+      const { error: deleteError } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("id", id);
+        
+      if (deleteError) throw deleteError;
+      
       toast.success("Booking deleted successfully!");
+      
       if (bookings.length === 1 && currentPage > 1) {
         setCurrentPage(currentPage - 1);
       } else {
@@ -269,40 +331,64 @@ export default function BookingTable() {
 
   return (
     <div className="container mx-auto p-4">
-      {/* Top controls: Search, Date Picker, and Service Filter */}
-     
-        <div className="flex mb-2 flex-col sm:flex-row sm:items-center sm:space-x-4">
-          <Input
-            type="text"
-            placeholder="Search by customer, breed, contact, dog name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-64"
-            aria-label="Search Bookings"
-          />
-          {/* Service Filter Select */}
-          <div className="sm:w-72">
-            <Select value={selectValue} onValueChange={(val) => { handleServiceSelect(val); }}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by services..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {serviceOptions.map((service) => (
-                    <SelectItem
-                      key={service.value}
-                      value={service.value}
-                      disabled={selectedServiceFilters.some(s => s.value === service.value)}
-                    >
-                      {service.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
+      <div className="flex mb-2 flex-col sm:flex-row sm:items-center sm:space-x-4">
+        <Input
+          type="text"
+          placeholder="Search by customer, breed, contact, dog name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:w-64"
+          aria-label="Search Bookings"
+        />
+
+        {/* Shop Filter Select */}
+        <div className="sm:w-72">
+          <Select value={selectedShop} onValueChange={setSelectedShop}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filter by shop..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {shopOptions.map((shop) => (
+                  <SelectItem
+                    key={shop.value || 'all'}
+                    value={shop.value}
+                  >
+                    {shop.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* Service Filter Select */}
+        <div className="sm:w-72">
+          <Select value={selectValue} onValueChange={(val) => { handleServiceSelect(val); }}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filter by services..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {serviceOptions.map((service) => (
+                  <SelectItem
+                    key={service.value}
+                    value={service.value}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex">
+                    <span>{service.label}</span>
+                    {selectedServiceFilters.some(s => s.value === service.value) && (
+                      <Check className="h-4 w-4 ml-2 text-primary" />
+                    )}</div>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
+      </div>
 
        
          {/* Display selected service filters as badges */}
@@ -389,7 +475,7 @@ export default function BookingTable() {
                               : booking.status === "progressing"
                               ? "bg-blue-100 text-blue-800"
                               : booking.status === "completed"
-                              ? "bg-indigo-100 text-indigo-800"
+                              ? "bg-green-100 text-green-800"
                               : "bg-red-100 text-red-800"
                           }`}
                         >
@@ -442,14 +528,14 @@ export default function BookingTable() {
                           ) : (booking.status === "checked_in" ||
                               booking.status === "progressing" ||
                               booking.status === "completed") ? (
-                            <motion.button
-                            onClick={() => navigate(`/bookings/${booking.id}`)}
-                              whileTap={{ scale: 0.95 }}
-                              aria-label={`View details for booking ${booking.id}`}
-                              className="flex items-center justify-center p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition"
-                            >
-                              <ArrowRight className="h-4 w-4" />
-                            </motion.button>
+<motion.button
+  onClick={() => navigate(`/bookings/${booking.id}`)}
+  whileTap={{ scale: 0.95 }}
+  aria-label={`View details for booking ${booking.id}`}
+  className="flex items-center justify-center p-2 bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50 hover:border-gray-400 transition"
+>
+  <ArrowRight className="h-4 w-4" />
+</motion.button>
                           ) : null}
 
                           {/* Delete Booking Dialog */}
