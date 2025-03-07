@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSwipeable } from "react-swipeable";
 import {
   Card,
@@ -15,6 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import toast from "react-hot-toast";
+  // Import the printing functions
+  import { handleCustomerPrintSlip } from "./CustomerSlip";
+  import { handleGroomerPrintSlip } from "./GroomerSlip";
+
 import {
   Loader2,
   ArrowLeft,
@@ -58,6 +63,9 @@ export default function BookingDetails() {
   const [hoverRating, setHoverRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [groomers, setGroomers] = useState([]);
+  const [selectedGroomer, setSelectedGroomer] = useState(null);
 
   // Fetch booking details (including sub_time_slots and selected services)
   const fetchBookingDetails = useCallback(async () => {
@@ -138,10 +146,25 @@ export default function BookingDetails() {
     }
   }, []);
 
+  // Fetch all groomers
+  const fetchGroomers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("groomers")
+        .select("*")
+        .order("name");
+      if (error) throw error;
+      setGroomers(data || []);
+    } catch (error) {
+      toast.error(`Failed to fetch groomers: ${error.message}`);
+    }
+  }, []);
+
   useEffect(() => {
     fetchBookingDetails();
     fetchAllServices();
-  }, [fetchBookingDetails, fetchAllServices]);
+    fetchGroomers();
+  }, [fetchBookingDetails, fetchAllServices, fetchGroomers]);
 
   // Subscribe to real-time changes for bookings
   useEffect(() => {
@@ -204,6 +227,21 @@ export default function BookingDetails() {
       [serviceId]: value,
     }));
   }, []);
+
+  // Handle groomer selection
+  const handleGroomerSelection = useCallback(async (groomerId) => {
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ groomer_id: groomerId })
+        .eq("id", id);
+      if (error) throw error;
+      setSelectedGroomer(groomerId);
+      toast.success("Groomer assigned successfully!");
+    } catch (error) {
+      toast.error(`Failed to assign groomer: ${error.message}`);
+    }
+  }, [id]);
 
   // Handle submission when updating/editing booking services
   const handleSubmit = useCallback(async () => {
@@ -298,7 +336,6 @@ export default function BookingDetails() {
     }
   }, [id, selectedServices, serviceInputs, careTips, navigate]);
   
-
 // Handle marking the booking as completed (check-out) and save to historical_bookings
 const handleCompleteBooking = async () => {
   setSubmitting(true);
@@ -370,27 +407,92 @@ const handleCompleteBooking = async () => {
       await Promise.all(updatePromises);
     }
     
+    // Fetch shop name - make sure to handle this properly
+    let shopName = null;
+    if (booking.shop_id) {
+      const { data: shopData, error: shopError } = await supabase
+        .from("shops")
+        .select("name")
+        .eq("id", booking.shop_id)
+        .single();
+      
+      if (shopError) {
+        console.error("Error fetching shop name:", shopError);
+      } else if (shopData) {
+        shopName = shopData.name;
+      }
+    }
+
+    // Log shop info for debugging
+    console.log("Shop ID:", booking.shop_id);
+    console.log("Fetched Shop Name:", shopName);
+    
+    // Fetch sub_time_slot description
+    let slotDescription = null;
+    if (booking.sub_time_slot_id) {
+      const { data: slotData, error: slotError } = await supabase
+        .from("sub_time_slots")
+        .select("description, slot_number")
+        .eq("id", booking.sub_time_slot_id)
+        .single();
+      
+      if (slotError) {
+        console.error("Error fetching slot description:", slotError);
+      } else if (slotData) {
+        slotDescription = slotData.description || `Slot ${slotData.slot_number}`;
+      }
+    }
+
+    // Log slot info for debugging
+    console.log("Slot ID:", booking.sub_time_slot_id);
+    console.log("Fetched Slot Description:", slotDescription);
+
+    // If we couldn't fetch the shop name from the database, try to get it from the booking
+    if (!shopName && booking.shop) {
+      shopName = booking.shop.name;
+    }
+
+    // If we couldn't fetch the slot description, try to get it from the booking
+    if (!slotDescription && booking.sub_time_slots) {
+      slotDescription = booking.sub_time_slots.description || 
+                        `Slot ${booking.sub_time_slots.slot_number}`;
+    }
+    
+    // Prepare the historical booking data
+    const historicalBookingData = {
+      original_booking_id: id,
+      customer_name: booking.customer_name,
+      contact_number: booking.contact_number,
+      dog_name: booking.dog_name,
+      dog_breed: booking.dog_breed,
+      booking_date: booking.booking_date,
+      slot_time: booking.sub_time_slots?.time_slots?.start_time,
+      sub_time_slot_id: booking.sub_time_slot_id,
+      shop_id: booking.shop_id,
+      shop_name: shopName || "Unknown Shop", // Use a default value if shop name is not found
+      slot_description: slotDescription || "Unknown Slot", // Use a default value if slot description is not found
+      groomer_id: booking.groomer_id, // Add groomer_id
+      groomer_name: groomers.find(g => g.id === booking.groomer_id)?.name || "Unknown Groomer", // Fix groomer name lookup
+      status: 'completed',
+      services: servicesData,
+      feedback: null, // Will be updated after feedback submission
+      check_in_time: booking.check_in_time // Add check_in_time to historical booking
+    };
+    
+    // Log the data being inserted for debugging
+    console.log("Inserting historical booking:", historicalBookingData);
+    
     // Store the booking in historical_bookings
     const { data: historicalData, error: historicalError } = await supabase
       .from("historical_bookings")
-      .insert({
-        original_booking_id: id,
-        customer_name: booking.customer_name,
-        contact_number: booking.contact_number,
-        dog_name: booking.dog_name,
-        dog_breed: booking.dog_breed,
-        booking_date: booking.booking_date,
-        slot_time: booking.sub_time_slots?.time_slots?.start_time,
-        sub_time_slot_id: booking.sub_time_slot_id,
-        shop_id: booking.shop_id,
-        status: 'completed',
-        services: servicesData,
-        feedback: null // Will be updated after feedback submission
-      })
+      .insert(historicalBookingData)
       .select()
       .single();
     
-    if (historicalError) throw historicalError;
+    if (historicalError) {
+      console.error("Error inserting historical booking:", historicalError);
+      throw historicalError;
+    }
     
     // Update original booking status
     const { error } = await supabase
@@ -400,11 +502,12 @@ const handleCompleteBooking = async () => {
     
     if (error) throw error;
     
-    toast.success("Booking marked as COMPLETED!");
+    toast.success("Booking COMPLETED!");
     
     // Show feedback dialog after completing
     setShowFeedbackDialog(true);
   } catch (error) {
+    console.error("Complete booking error:", error);
     toast.error(`Error marking booking as completed: ${error.message}`);
   } finally {
     setSubmitting(false);
@@ -457,75 +560,14 @@ const handleFeedbackSubmit = async () => {
     navigate("/home");
   };
 
-  // Handle printing slip (for customer or groomer)
-  const handlePrintSlip = (copyType) => {
-    const printWindow = window.open("", "_blank", "width=600,height=600");
-    if (printWindow) {
-      const slipContent = `
-        <html>
-          <head>
-            <title>Booking Slip - ${copyType}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; color: #000; }
-              h2 { text-align: center; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-              .total { font-weight: bold; }
-            </style>
-          </head>
-          <body>
-            <h2>Booking Slip - ${copyType.toUpperCase()}</h2>
-            <p><strong>Customer Name:</strong> ${booking.customer_name}</p>
-            <p><strong>Contact Number:</strong> ${booking.contact_number}</p>
-            <p><strong>Dog Name:</strong> ${booking.dog_name}</p>
-            <p><strong>Dog Breed:</strong> ${booking.dog_breed}</p>
-            <p><strong>Booking Date:</strong> ${format(new Date(booking.booking_date), "PPP")}</p>
-            <p><strong>Time Slot:</strong> ${
-              booking.sub_time_slots?.time_slots?.start_time
-                ? format(parse(booking.sub_time_slots.time_slots.start_time, "HH:mm:ss", new Date()), "hh:mm a")
-                : "N/A"
-            }</p>
-            <p><strong>Sub-Time Slot:</strong> ${
-              booking.sub_time_slots?.description ||
-              `Slot ${booking.sub_time_slots?.slot_number}` ||
-              "N/A"
-            }</p>
-            <h3>Services:</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Service</th>
-                  <th>Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${selectedServices
-                  .map(
-                    (service) => `
-                  <tr>
-                    <td>${service.name}${
-                      service.type === "input"
-                        ? " (" + (serviceInputs[service.id] || "") + ")"
-                        : ""
-                    }</td>
-                    <td>₹${service.price}</td>
-                  </tr>
-                `
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </body>
-        </html>
-      `;
-      printWindow.document.open();
-      printWindow.document.write(slipContent);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }
-  };
+// Handle printing slip (for customer or groomer)
+const handlePrintSlip = (copyType) => {
+  if (copyType.toLowerCase() === "customer") {
+    handleCustomerPrintSlip(booking, selectedServices, serviceInputs);
+  } else if (copyType.toLowerCase() === "groomer") {
+    handleGroomerPrintSlip(booking, selectedServices, serviceInputs, groomers);
+  }
+};
 
   // Open fullscreen image modal with index tracking
   const openFullscreenImage = (imageUrl, serviceName) => {
@@ -639,31 +681,21 @@ const handleFeedbackSubmit = async () => {
                   return (
                     <motion.div
                       key={service.id}
-                      whileHover={{ scale: 1.02, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
+                      whileHover={{ scale: 1.02, boxShadow: "0 10px 20px -5px rgba(0, 0, 0, 0.15)" }}
                       whileTap={{ scale: 0.98 }}
                       initial={false}
                       animate={isSelected ? { 
                         scale: [1, 1.05, 1],
-                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)" 
+                        transition: { duration: 0.3 }
                       } : { scale: 1 }}
-                      transition={{ 
-                        duration: 0.2,
-                        ease: "easeInOut" 
-                      }}
-                      className={`relative rounded-xl border overflow-hidden transition-all duration-200 ${
+                      className={`relative rounded-xl border-2 overflow-hidden transition-all duration-300 ${
                         isSelected
-                          ? 'border-primary bg-primary/5 shadow-md'
-                          : 'hover:border-primary/50'
+                          ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] transform -translate-y-1'
+                          : 'border-transparent hover:border-primary/50 hover:shadow-lg'
                       }`}
                       onClick={() => handleServiceSelection(service)}
                     >
-                      <div className="absolute top-3 right-3 z-10">
-                        <div className={`h-6 w-6 rounded-full flex items-center justify-center ${
-                          isSelected ? 'bg-primary text-white' : 'bg-white border border-gray-300'
-                        }`}>
-                          {isSelected && <Check className="h-4 w-4" />}
-                        </div>
-                      </div>
+                    
                       
                       {service.image_url && (
                         <div className="relative h-48 w-full overflow-hidden">
@@ -867,6 +899,20 @@ const handleFeedbackSubmit = async () => {
               <Label className="font-semibold">Dog Breed:</Label>
               <span>{booking.dog_breed}</span>
             </div>
+            {booking.groomer_id && (
+              <div className="flex items-center space-x-2">
+                <User className="h-5 w-5 text-primary" />
+                <Label className="font-semibold">Groomer:</Label>
+                <span>{groomers.find(g => g.id === booking.groomer_id)?.name || "Not assigned"}</span>
+              </div>
+            )}
+            {booking.check_in_time && (
+              <div className="flex items-center space-x-2">
+                <Check className="h-5 w-5 text-primary" />
+                <Label className="font-semibold">Check in Time:</Label>
+                <span>{format(new Date(booking.check_in_time), "PPp")}</span>
+              </div>
+            )}
           </div>
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
@@ -895,21 +941,43 @@ const handleFeedbackSubmit = async () => {
             <div className="flex items-center space-x-2">
               <Label className="font-semibold">Status:</Label>
               <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  booking.status === "reserved"
-                    ? "bg-yellow-100 text-yellow-800"
+                className={`px-2 py-1 rounded-full text-xs font-medium ${booking.status === "reserved"
+                    ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
                     : booking.status === "checked_in"
-                    ? "bg-green-100 text-green-800"
+                    ? "bg-green-200 text-green-700 border border-green-300"
                     : booking.status === "progressing"
-                    ? "bg-blue-100 text-blue-800"
+                    ? "bg-blue-200 text-blue-700 border border-blue-300"
                     : booking.status === "completed"
-                    ? "bg-indigo-100 text-indigo-800"
-                    : "bg-red-100 text-red-800"
-                }`}
+                    ? "bg-green-200 text-green-700 border border-green-300"
+                    : booking.status === "canceled" || booking.status === "cancelled"
+                    ? "bg-red-200 text-red-700 border border-red-300"
+                    : "bg-gray-200 text-gray-700 border border-gray-300"
+                  }`}
               >
                 {booking.status.replace("_", " ").toUpperCase()}
               </span>
             </div>
+            {/* Groomer Assignment Section */}
+            {(booking.status === "checked_in" || booking.status === "progressing") && (
+              <div className="flex items-center space-x-2 mt-4">
+                <Label className="font-semibold">Assign Groomer:</Label>
+                <Select
+                  value={selectedGroomer || booking.groomer_id || ""}
+                  onValueChange={handleGroomerSelection}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select a groomer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groomers.map((groomer) => (
+                      <SelectItem key={groomer.id} value={groomer.id}>
+                        {groomer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
         <Separator className="my-6" />
@@ -974,8 +1042,13 @@ const handleFeedbackSubmit = async () => {
             </Button>
           )}
           {(booking.status === "progressing" || booking.status === "checked_in") && (
-            <Button onClick={handleCompleteBooking} className="bg-green-500 hover:bg-green-600 text-white">
-              <Check className="mr-2 h-4 w-4" /> Complete Booking
+            <Button onClick={() => setShowConfirmDialog(true)} className="bg-green-500 hover:bg-green-600 text-white">
+              {submitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              Complete Booking
             </Button>
           )}
           <DropdownMenu>
@@ -1064,6 +1137,31 @@ const handleFeedbackSubmit = async () => {
         </DialogContent>
       </Dialog>
       
+      {/* Confirm Complete Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Booking</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this booking as completed? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowConfirmDialog(false);
+                handleCompleteBooking();
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Feedback Dialog */}
       <Dialog open={showFeedbackDialog} onOpenChange={setShowFeedbackDialog}>
         <DialogContent className="sm:max-w-md">
