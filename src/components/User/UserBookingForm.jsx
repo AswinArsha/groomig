@@ -35,6 +35,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import AnimationTickWebM from "../../assets/AnimationTick.WebM";
+import { sendWhatsAppConfirmation } from "../../services/twilioService";
 
 export default function UserBookingForm() {
   // Step management: 5 steps (including summary)
@@ -187,15 +188,18 @@ export default function UserBookingForm() {
       // Fetch bookings on the selected date to determine availability
       const { data: bookingsOnDate, error: bookingsError } = await supabase
         .from("bookings")
-        .select("sub_time_slot_id")
+        .select("sub_time_slot_id, status")
         .eq("booking_date", formattedDate)
-        .eq("shop_id", selectedShop);
+        .eq("shop_id", selectedShop)
+        .neq("status", "cancelled");
 
       if (bookingsError) {
         throw bookingsError;
       }
 
+      // Filter out sub_time_slot_ids from non-cancelled bookings
       const bookedSubSlotIds = bookingsOnDate
+        .filter(b => b.status !== "cancelled")
         .map((b) => b.sub_time_slot_id)
         .filter((id) => id !== null);
 
@@ -227,12 +231,12 @@ export default function UserBookingForm() {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     // For the final step, validate and submit the form
     if (step === 5) {
       setSubmitting(true);
       const formattedDate = format(bookingDate, "yyyy-MM-dd");
-
+  
       try {
         // Fetch the start_time from the selected sub_time_slot
         const { data: subSlotData, error: subSlotError } = await supabase
@@ -246,13 +250,13 @@ export default function UserBookingForm() {
           `)
           .eq("id", selectedSubSlot)
           .single();
-
+  
         if (subSlotError) {
           throw subSlotError;
         }
-
+  
         const slotTime = subSlotData.time_slots.start_time;
-
+  
         // Create new booking
         const { data, error } = await supabase.from("bookings").insert([
           {
@@ -267,14 +271,40 @@ export default function UserBookingForm() {
             status: "reserved" // Default status
           },
         ]).select();
-
+  
         if (error) {
           throw error;
         }
-
+  
         // Set booking reference and show success
         if (data && data.length > 0) {
           setBookingReference(data[0].id);
+          
+          // Get the shop details for the WhatsApp notification
+          const { data: shopData, error: shopError } = await supabase
+            .from("shops")
+            .select("name, directions, phone_number, badge")
+            .eq("id", selectedShop)
+            .single();
+            
+          if (shopError) {
+            console.error("Error fetching shop details:", shopError);
+          } else {
+            // Send WhatsApp notification
+            try {
+              const bookingData = {
+                ...data[0],
+                slot_time: formatTimeIST(slotTime)
+              };
+              
+              await sendWhatsAppConfirmation(bookingData, shopData);
+              console.log("WhatsApp notification sent successfully");
+            } catch (whatsappError) {
+              console.error("Failed to send WhatsApp notification:", whatsappError);
+              // Continue with the booking process even if WhatsApp notification fails
+            }
+          }
+          
           setBookingComplete(true);
           toast.success("Your booking has been confirmed!");
         }
@@ -300,7 +330,7 @@ export default function UserBookingForm() {
           return;
         }
       }
-
+  
       // Move to next step
       setStep(step + 1);
     }

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import Shop from "./Catalog/shop";
 import ServiceForm from "./Catalog/ServiceForm";
 import ManageTimeSlotsPage from "./Home/ManageTimeSlotsPage";
+import Groomer from "./Catalog/Groomer";
 import {
   Dialog,
   DialogContent,
@@ -125,10 +126,11 @@ export default function Catalog() {
   return (
     <div className="container mx-auto">
       <Tabs defaultValue="services" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
+        <TabsList className="grid w-full grid-cols-4 mb-8">
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="shop">Shop</TabsTrigger>
           <TabsTrigger value="timeslots">Time Slots</TabsTrigger>
+          <TabsTrigger value="groomers">Groomers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="services">
@@ -198,6 +200,10 @@ export default function Catalog() {
 
         <TabsContent value="timeslots">
           <ManageTimeSlotsPage />
+        </TabsContent>
+
+        <TabsContent value="groomers">
+          <Groomer />
         </TabsContent>
      
       </Tabs>

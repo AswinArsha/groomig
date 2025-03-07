@@ -184,9 +184,10 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
     // Fetch bookings on the selected date to determine availability
     const { data: bookingsOnDate, error: bookingsError } = await supabase
       .from("bookings")
-      .select("sub_time_slot_id")
+      .select("sub_time_slot_id, status")
       .eq("booking_date", formattedDate)
-      .eq("shop_id", selectedShop);
+      .eq("shop_id", selectedShop)
+      .not("status", "eq", "cancelled");
 
     if (bookingsError) {
       toast.error(`Error fetching bookings: ${bookingsError.message}`);
@@ -195,6 +196,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
     }
 
     const bookedSubSlotIds = bookingsOnDate
+      .filter(b => b.status !== "cancelled")
       .map((b) => b.sub_time_slot_id)
       .filter((id) => id !== null);
 
@@ -218,11 +220,6 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
 
     setAvailableSubSlots(available);
     setLoadingSubSlots(false);
-    
-    // If there's only one sub-slot available, auto-select it
-    if (available.length === 1) {
-      setSelectedSubSlot(available[0].id);
-    }
   };
 
   // Handle form submission

@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, X, Download, Check} from "lucide-react";
+import { ArrowRight, ArrowLeft, X, Download, Check, RotateCcw } from "lucide-react";
 import { format, parse, startOfMonth, endOfMonth } from "date-fns";
 import toast from "react-hot-toast";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +60,7 @@ export default function HistoricalBookingTable() {
   const [selectValue, setSelectValue] = useState("");
   const [shopOptions, setShopOptions] = useState([]);
   const [selectedShop, setSelectedShop] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState(null);
   const navigate = useNavigate();
 
   // Fetch available services
@@ -126,6 +127,18 @@ export default function HistoricalBookingTable() {
     setSelectedServices(selectedServices.filter(service => service.value !== serviceId));
   };
 
+  const clearAllFilters = () => {
+    setSelectedServices([]);
+    setSelectValue("");
+    setSearchTerm("");
+    setSelectedShop(null);
+    setSelectedStatus(null);
+    setSelectedDate({
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date())
+    });
+  };
+
   const clearAllServices = () => {
     setSelectedServices([]);
     setSelectValue("");
@@ -141,13 +154,28 @@ export default function HistoricalBookingTable() {
     doc.setFontSize(10);
     doc.text(`Date Range: ${format(selectedDate.from, "MMM dd, yyyy")} - ${format(selectedDate.to, "MMM dd, yyyy")}`, 14, 25);
     
+    let yPosition = 32;
+    
     if (selectedServices.length > 0) {
       const servicesText = `Services: ${selectedServices.map(s => s.label).join(', ')}`;
-      doc.text(servicesText, 14, 32);
+      doc.text(servicesText, 14, yPosition);
+      yPosition += 7;
     }
     
     if (searchTerm) {
-      doc.text(`Search Term: ${searchTerm}`, 14, selectedServices.length > 0 ? 39 : 32);
+      doc.text(`Search Term: ${searchTerm}`, 14, yPosition);
+      yPosition += 7;
+    }
+
+    if (selectedStatus) {
+      doc.text(`Status: ${selectedStatus}`, 14, yPosition);
+      yPosition += 7;
+    }
+
+    if (selectedShop) {
+      const shopName = shopOptions.find(shop => shop.value === selectedShop)?.label || "Unknown Shop";
+      doc.text(`Shop: ${shopName}`, 14, yPosition);
+      yPosition += 7;
     }
 
     // Define the table columns
@@ -178,7 +206,7 @@ export default function HistoricalBookingTable() {
     doc.autoTable({
       head: [columns],
       body: data,
-      startY: selectedServices.length > 0 || searchTerm ? 45 : 35,
+      startY: yPosition,
       headStyles: { fillColor: [51, 51, 51] },
       styles: { fontSize: 8 },
       columnStyles: {
@@ -218,22 +246,43 @@ export default function HistoricalBookingTable() {
         query = query.eq("shop_id", selectedShop);
       }
 
-      // Add service filter if selected
-      if (selectedServices.length > 0) {
-        const selectedServiceIds = selectedServices.map(service => service.value);
-        
-        // For services, we need to filter the JSONB 'services' array
-        // This is more complex in historical_bookings since services are stored as JSONB
-        // We'll need to use containedBy or other JSONB operators
-        
-        // This is a simplified approach - might need adjustment based on your exact JSONB structure
-        const serviceFilters = selectedServiceIds.map(serviceId => 
-          `services::jsonb @> '[{"id":"${serviceId}"}]'`
-        ).join(' OR ');
-        
-        query = query.or(serviceFilters);
+      // Add status filter if selected
+      if (selectedStatus) {
+        query = query.eq("status", selectedStatus.toLowerCase());
       }
 
+      // Add service filter if selected
+      if (selectedServices.length > 0) {
+        // First, execute the query without service filters to get all matching records
+        const { data: initialData, error: initialError, count: initialCount } = await query;
+        
+        if (initialError) throw initialError;
+        
+        // Then filter these records on the client side for services
+        // This approach avoids the complex JSONB query that was causing the error
+        let filteredData = initialData || [];
+        
+        // Filter the records that have at least one of the selected services
+        if (selectedServices.length > 0) {
+          filteredData = filteredData.filter(booking => {
+            if (!booking.services || !Array.isArray(JSON.parse(booking.services))) return false;
+            
+            const bookingServices = JSON.parse(booking.services);
+            return selectedServices.some(selectedService => 
+              bookingServices.some(bookingService => bookingService.id === selectedService.value)
+            );
+          });
+        }
+        
+        setBookings(filteredData);
+        // For pagination, we're now using client-side data, so adjust count accordingly
+        setTotalCount(filteredData.length);
+        setTotalPages(Math.ceil(filteredData.length / ITEMS_PER_PAGE));
+        setLoading(false);
+        return; // Skip the rest of the method since we've handled everything
+      }
+
+      // If no service filters, execute the query normally
       const { data, error, count } = await query;
       
       if (error) throw error;
@@ -246,12 +295,12 @@ export default function HistoricalBookingTable() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, searchTerm, currentPage, selectedServices, selectedShop]);
+  }, [selectedDate, searchTerm, currentPage, selectedServices, selectedShop, selectedStatus]);
 
   useEffect(() => {
     setCurrentPage(1);
     fetchHistoricalBookings();
-  }, [searchTerm, selectedDate, selectedServices, selectedShop]);
+  }, [searchTerm, selectedDate, selectedServices, selectedShop, selectedStatus]);
 
   useEffect(() => {
     fetchHistoricalBookings();
@@ -285,13 +334,24 @@ export default function HistoricalBookingTable() {
             </Button>
 
             {/* Search Input */}
-            <Input
-              type="text"
-              placeholder="Search historical bookings..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 md:flex-1"
-            />
+            <div className="flex gap-2 w-full sm:w-80 md:flex-1">
+              <Input
+                type="text"
+                placeholder="Search historical bookings..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+                  {/* Clear All Filters Button */}
+            <Button
+              variant="outline"
+              onClick={clearAllFilters}
+              className="flex items-center space-x-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span>Clear All Filters</span>
+            </Button>
+            </div>
 
             {/* Download PDF Button */}
             <Button
@@ -307,7 +367,7 @@ export default function HistoricalBookingTable() {
           {/* Filter Row: Shop, Services, Date */}
           <div className="flex flex-wrap items-center gap-4">
             {/* Shop Filter */}
-            <div className="w-full sm:w-64">
+            <div className="w-full sm:w-52">
               <Select value={selectedShop} onValueChange={setSelectedShop}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Filter by shop..." />
@@ -324,8 +384,24 @@ export default function HistoricalBookingTable() {
               </Select>
             </div>
 
+            {/* Status Filter */}
+            <div className="w-full sm:w-52">
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={null}>All Statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Service Filter */}
-            <div className="w-full sm:w-72">
+            <div className="w-full sm:w-52">
               <Select value={selectValue} onValueChange={handleServiceSelect}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Filter by services..." />
@@ -352,9 +428,11 @@ export default function HistoricalBookingTable() {
             </div>
 
             {/* Date Picker */}
-            <div className="w-full sm:w-64">
+            <div className="w-full sm:w-52">
               <CalendarDatePicker date={selectedDate} onDateSelect={setSelectedDate} />
             </div>
+
+        
           </div>
 
           {/* Selected Services Display */}
@@ -381,7 +459,7 @@ export default function HistoricalBookingTable() {
                 onClick={clearAllServices}
                 className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                Clear all
+                Clear services
               </Button>
             </div>
           )}
@@ -391,8 +469,10 @@ export default function HistoricalBookingTable() {
           <CardHeader>
             <CardTitle>Historical Bookings</CardTitle>
             <CardDescription>
-              Viewing completed bookings from {format(selectedDate.from, "PPP")} to{" "}
+              Viewing {selectedStatus ? selectedStatus.toLowerCase() : "all"} bookings from {format(selectedDate.from, "PPP")} to{" "}
               {format(selectedDate.to, "PPP")}
+              {selectedShop && shopOptions.find(shop => shop.value === selectedShop) && 
+                ` for ${shopOptions.find(shop => shop.value === selectedShop).label}`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -416,6 +496,7 @@ export default function HistoricalBookingTable() {
                       <TableHead>Breed</TableHead>
                       <TableHead>Booking Date</TableHead>
                       <TableHead>Completed On</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Rating</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -435,6 +516,18 @@ export default function HistoricalBookingTable() {
                           {booking.completed_at ? format(new Date(booking.completed_at), "MMM dd, yyyy") : "N/A"}
                         </TableCell>
                         <TableCell>
+                          <Badge
+                            variant={booking.status === "completed" ? "success" : "destructive"}
+                            className={`${
+                              booking.status === "completed" 
+                                ? "bg-green-200 text-green-700 border border-green-300 " 
+                                : "bg-red-200 text-red-700 border border-red-300 "
+                            }`}
+                          >
+                            {booking.status.toUpperCase()}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
                           {booking.feedback && booking.feedback.rating ? (
                             <span className="flex items-center">
                               {booking.feedback.rating}
@@ -447,14 +540,26 @@ export default function HistoricalBookingTable() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/all-booking-details/${booking.original_booking_id}`)}
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
+  <Button
+    size="sm"
+    variant="outline"
+    onClick={() => {
+      if (!booking?.id) {
+        toast.error("Invalid booking ID");
+        return;
+      }
+      // Ensure the ID is a valid UUID before navigation
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(booking.id)) {
+        toast.error("Invalid booking ID format");
+        return;
+      }
+      navigate(`/all-booking-details/${booking.id}`);
+    }}
+  >
+    <ArrowRight className="h-4 w-4" />
+  </Button>
+</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -473,6 +578,11 @@ export default function HistoricalBookingTable() {
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
                   />
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="px-4">
+                    Page {currentPage} of {totalPages}
+                  </span>
                 </PaginationItem>
                 <PaginationItem>
                   <PaginationNext
