@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
-import AnimationTickWebM from "../../assets/AnimationTick.WebM";
+import AnimationTickWebM from "../../assets/AnimationTick.webm";
 import { sendWhatsAppConfirmation } from "../../services/twilioService";
 
 export default function UserBookingForm() {
