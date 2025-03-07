@@ -1,8 +1,7 @@
-// src/components/Home/BookingTable.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2, Check, ArrowRight, Loader2, X } from "lucide-react";
+import { X, Edit2, Check, ArrowRight, Loader2, Ban } from "lucide-react";
 import { format, parse } from "date-fns";
 import toast from "react-hot-toast";
 import BookingForm from "./BookingForm"; // Ensure correct import
@@ -58,7 +57,7 @@ const ITEMS_PER_PAGE = 10;
 export default function BookingTable() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
+  const [cancelId, setCancelId] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -76,6 +75,9 @@ export default function BookingTable() {
   const [selectedShop, setSelectedShop] = useState(null);
 
   const navigate = useNavigate();
+
+  // Calculate total pages
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   // Fetch available shops for filtering
   const fetchShopOptions = useCallback(async () => {
@@ -245,44 +247,88 @@ export default function BookingTable() {
     };
   }, [currentPage, searchTerm, selectedDate, selectedServiceFilters, fetchBookings]);
 
-  async function handleDelete(id) {
+  async function handleCancel(booking) {
     setLoading(true);
     try {
-      // First delete any related records in booking_services_selected
-      const { error: servicesError } = await supabase
-        .from("booking_services_selected")
-        .delete()
-        .eq("booking_id", id);
+      // 1. Get shop name
+      const { data: shopData, error: shopError } = await supabase
+        .from("shops")
+        .select("name")
+        .eq("id", booking.shop_id)
+        .single();
+      
+      if (shopError) throw shopError;
+      
+      // 2. Get sub_time_slot description
+      let slotDescription = "N/A";
+      if (booking.sub_time_slot_id) {
+        const { data: slotData, error: slotError } = await supabase
+          .from("sub_time_slots")
+          .select("description, slot_number")
+          .eq("id", booking.sub_time_slot_id)
+          .single();
         
+        if (slotError) throw slotError;
+        slotDescription = slotData.description || (slotData.slot_number ? `Slot ${slotData.slot_number}` : "N/A");
+      }
+      
+      // 3. Get selected services
+      const { data: servicesData, error: servicesError } = await supabase
+        .from("booking_services_selected")
+        .select("service_id, services(name, price)")
+        .eq("booking_id", booking.id);
+      
       if (servicesError) throw servicesError;
       
-      // Then delete any related records in booking_feedback
-      const { error: feedbackError } = await supabase
+      // Format services as JSON
+      const services = servicesData.map(item => ({
+        id: item.service_id,
+        name: item.services?.name || "Unknown",
+        price: item.services?.price || 0
+      }));
+      
+      // 4. Get feedback if any
+      const { data: feedbackData, error: feedbackError } = await supabase
         .from("booking_feedback")
-        .delete()
-        .eq("booking_id", id);
+        .select("*")
+        .eq("booking_id", booking.id);
       
-      // We don't throw on feedback error because there might not be any feedback
+      // 5. Store in historical_bookings
+      const { error: historyError } = await supabase
+        .from("historical_bookings")
+        .insert({
+          original_booking_id: booking.id,
+          customer_name: booking.customer_name,
+          contact_number: booking.contact_number,
+          dog_name: booking.dog_name,
+          dog_breed: booking.dog_breed,
+          booking_date: booking.booking_date,
+          slot_time: booking.slot_time,
+          sub_time_slot_id: booking.sub_time_slot_id,
+          shop_id: booking.shop_id,
+          status: "cancelled",  
+          services: services.length > 0 ? JSON.stringify(services) : null,
+          feedback: feedbackData && feedbackData.length > 0 ? JSON.stringify(feedbackData[0]) : null,
+          shop_name: shopData?.name || null,
+          slot_description: slotDescription
+        });
       
-      // Now delete the booking itself
-      const { error: deleteError } = await supabase
+      if (historyError) throw historyError;
+      
+      // 6. Update booking status to canceled
+      const { error: updateError } = await supabase
         .from("bookings")
-        .delete()
-        .eq("id", id);
+        .update({ status: "cancelled" })
+        .eq("id", booking.id);
         
-      if (deleteError) throw deleteError;
+      if (updateError) throw updateError;
       
-      toast.success("Booking deleted successfully!");
-      
-      if (bookings.length === 1 && currentPage > 1) {
-        setCurrentPage(currentPage - 1);
-      } else {
-        fetchBookings();
-      }
+      toast.success("Booking canceled successfully!");
+      fetchBookings();
     } catch (error) {
-      toast.error(`Error deleting booking: ${error.message}`);
+      toast.error(`Error canceling booking: ${error.message}`);
     } finally {
-      setDeleteId(null);
+      setCancelId(null);
       setLoading(false);
     }
   }
@@ -292,7 +338,10 @@ export default function BookingTable() {
     try {
       const { error } = await supabase
         .from("bookings")
-        .update({ status: "checked_in" })
+        .update({
+          status: "checked_in",
+          check_in_time: new Date().toISOString()
+        })
         .eq("id", bookingId);
       if (error) throw error;
       toast.success("Booking checked in successfully!");
@@ -417,10 +466,6 @@ export default function BookingTable() {
           </div>
         )}
 
-          
-       
-   
-
       <Card>
         <CardHeader>
           <CardTitle>Bookings</CardTitle>
@@ -467,16 +512,17 @@ export default function BookingTable() {
                       <TableCell>{getSubSlotDisplay(booking)}</TableCell>
                       <TableCell>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            booking.status === "reserved"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : booking.status === "checked_in"
-                              ? "bg-green-100 text-green-800"
-                              : booking.status === "progressing"
-                              ? "bg-blue-100 text-blue-800"
-                              : booking.status === "completed"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${booking.status === "reserved"
+                            ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
+                            : booking.status === "checked_in"
+                            ? "bg-green-200 text-green-700 border border-green-300"
+                            : booking.status === "progressing"
+                            ? "bg-blue-200 text-blue-700 border border-blue-300"
+                            : booking.status === "completed"
+                            ? "bg-green-200 text-green-700 border border-green-300"
+                            : booking.status === "canceled" || booking.status === "cancelled"
+                            ? "bg-red-200 text-red-700 border border-red-300"
+                            : "bg-gray-200 text-gray-700 border border-gray-300"
                           }`}
                         >
                           {booking.status.replace("_", " ").toUpperCase()}
@@ -485,22 +531,23 @@ export default function BookingTable() {
                       <TableCell>
                         <div className="flex space-x-2">
                           {/* Edit Booking Dialog */}
-                          <Dialog
-                            open={Boolean(editingBooking && editingBooking.id === booking.id)}
-                            onOpenChange={(open) => {
-                              if (!open) setEditingBooking(null);
-                            }}
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setEditingBooking(booking)}
-                                aria-label={`Edit booking ${booking.id}`}
-                              >
-                                <Edit2 className="h-4 w-4 mr-1" />
-                              </Button>
-                            </DialogTrigger>
+                          {booking.status !== 'cancelled' && booking.status !== 'canceled' && booking.status !== 'completed' && (
+                            <Dialog
+                              open={Boolean(editingBooking && editingBooking.id === booking.id)}
+                              onOpenChange={(open) => {
+                                if (!open) setEditingBooking(null);
+                              }}
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingBooking(booking)}
+                                  aria-label={`Edit booking ${booking.id}`}
+                                >
+                                  <Edit2 className="h-4 w-4 mr-1" />
+                                </Button>
+                              </DialogTrigger>
                             <DialogContent>
                               {editingBooking && (
                                 <BookingForm
@@ -514,7 +561,7 @@ export default function BookingTable() {
                               )}
                             </DialogContent>
                           </Dialog>
-
+                          )}
                           {/* Check-in or View Details Button */}
                           {booking.status === "reserved" ? (
                             <motion.button
@@ -528,50 +575,55 @@ export default function BookingTable() {
                           ) : (booking.status === "checked_in" ||
                               booking.status === "progressing" ||
                               booking.status === "completed") ? (
-<motion.button
-  onClick={() => navigate(`/bookings/${booking.id}`)}
-  whileTap={{ scale: 0.95 }}
-  aria-label={`View details for booking ${booking.id}`}
-  className="flex items-center justify-center p-2 bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50 hover:border-gray-400 transition"
->
-  <ArrowRight className="h-4 w-4" />
-</motion.button>
+                            <motion.button
+                              onClick={() => navigate(`/bookings/${booking.id}`)}
+                              whileTap={{ scale: 0.95 }}
+                              aria-label={`View details for booking ${booking.id}`}
+                              className="flex items-center justify-center p-2 bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50 hover:border-gray-400 transition"
+                            >
+                              <ArrowRight className="h-4 w-4" />
+                            </motion.button>
                           ) : null}
 
-                          {/* Delete Booking Dialog */}
-                          <Dialog
-                            open={deleteId === booking.id}
-                            onOpenChange={(open) => {
-                              if (!open) setDeleteId(null);
-                            }}
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => setDeleteId(booking.id)}
-                                aria-label={`Delete booking ${booking.id}`}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                              </Button>
-                            </DialogTrigger>
+                          {/* Cancel Booking Dialog - Replace the Delete dialog with Cancel */}
+                          {booking.status !== 'cancelled' && booking.status !== 'canceled' && booking.status !== 'completed' && (
+                            <Dialog
+                              open={cancelId === booking.id}
+                              onOpenChange={(open) => {
+                                if (!open) setCancelId(null);
+                              }}
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => setCancelId(booking.id)}
+                                  aria-label={`Cancel booking ${booking.id}`}
+                                >
+                                  <Ban className="h-4 w-4 mr-1" />
+                                </Button>
+                              </DialogTrigger>
                             <DialogContent>
                               <DialogHeader>
-                                <DialogTitle>Confirm Deletion</DialogTitle>
+                                <DialogTitle>Confirm Cancellation</DialogTitle>
                                 <DialogDescription>
-                                  Are you sure you want to delete this booking? This action cannot be undone.
+                                  Are you sure you want to cancel this booking? This action cannot be undone.
                                 </DialogDescription>
                               </DialogHeader>
                               <DialogFooter>
-                                <Button variant="outline" onClick={() => setDeleteId(null)}>
-                                  Cancel
+                                <Button variant="outline" onClick={() => setCancelId(null)}>
+                                  No, keep booking
                                 </Button>
-                                <Button variant="destructive" onClick={() => deleteId && handleDelete(deleteId)}>
-                                  Delete
+                                <Button 
+                                  variant="destructive" 
+                                  onClick={() => cancelId && handleCancel(bookings.find(b => b.id === cancelId))}
+                                >
+                                  Yes, cancel booking
                                 </Button>
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
