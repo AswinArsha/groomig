@@ -297,7 +297,7 @@ export default function UserBookingForm() {
                 slot_time: formatTimeIST(slotTime)
               };
               
-              await sendWhatsAppConfirmation(bookingData, shopData);
+               await sendWhatsAppConfirmation(bookingData, shopData);
               console.log("WhatsApp notification sent successfully");
             } catch (whatsappError) {
               console.error("Failed to send WhatsApp notification:", whatsappError);

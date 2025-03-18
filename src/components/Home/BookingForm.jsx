@@ -797,17 +797,37 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               Back
             </Button>
           )}
-          {/* Keep the Next button only for specific circumstances where manual advance is needed */}
-          {step === 3 && !selectedSubSlot && availableSubSlots.length > 1 && (
-            <div className="text-sm text-gray-500">
-              Please select a time slot ↑
-            </div>
+          {/* Next buttons for different steps */}
+          {step === 2 && selectedShop && (
+            <Button
+              type="button"
+              onClick={() => setStep(3)}
+              aria-label="Go to next step"
+            >
+              Next
+            </Button>
           )}
-          {step === 4 && !(customerName && contactNumber && dogName && dogBreed) && (
-            <div className="text-sm text-gray-500">
-              Complete all fields to continue
-            </div>
+          
+          {step === 3 && selectedSubSlot && (
+            <Button
+              type="button"
+              onClick={() => setStep(4)}
+              aria-label="Go to next step"
+            >
+              Next
+            </Button>
           )}
+          
+          {step === 4 && customerName && contactNumber && dogName && dogBreed && (
+            <Button
+              type="button"
+              onClick={() => setStep(5)}
+              aria-label="Go to next step"
+            >
+              Next
+            </Button>
+          )}
+          
           {step === 5 && (
             <Button
               type="submit"
@@ -826,7 +846,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
             </Button>
           )}
           
-          {/* Helper text for steps that need user action */}
+          {/* Helper text remains unchanged */}
           {step === 1 && !bookingDate && (
             <div className="text-sm text-gray-500 italic">
               Select a date to continue

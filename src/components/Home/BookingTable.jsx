@@ -1,7 +1,10 @@
+
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
-import { X, Edit2, Check, ArrowRight, Loader2, Ban } from "lucide-react";
+import { X, Edit2, Check, ArrowRight, Loader2, Ban
+  ,RotateCcw
+ } from "lucide-react";
 import { format, parse } from "date-fns";
 import toast from "react-hot-toast";
 import BookingForm from "./BookingForm"; // Ensure correct import
@@ -461,7 +464,7 @@ export default function BookingTable() {
               onClick={clearAllServiceFilters}
               className="text-sm"
             >
-              Clear all
+                <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
         )}
