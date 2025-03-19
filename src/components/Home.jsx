@@ -17,8 +17,8 @@ function Home() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   return (
-    <div className="-m-4">
-      <div className="space-x-4 ml-4">
+    <div className="-m-4 mt-1">
+      <div className="space-x-4 ml-4 ">
         {/* New Booking Dialog */}
        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>

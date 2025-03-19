@@ -145,8 +145,8 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
                         onCheckedChange={() => toggleShopSelection(shop.id)}
                       />
                       <Label
-                        htmlFor={`shop-${shop.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        htmlFor={`shop-${shop.id}`} // Ensure htmlFor matches the Checkbox id
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                       >
                         {shop.name}
                       </Label>

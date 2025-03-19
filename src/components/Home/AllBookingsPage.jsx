@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
@@ -231,8 +232,7 @@ export default function HistoricalBookingTable() {
         .select("*", { count: "exact" })
         .gte("booking_date", formattedDateFrom)
         .lte("booking_date", formattedDateTo)
-        .order("completed_at", { ascending: false })
-        .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
+        .order("completed_at", { ascending: false });
 
       // Add search term filter if provided
       if (searchTerm) {
@@ -251,45 +251,47 @@ export default function HistoricalBookingTable() {
         query = query.eq("status", selectedStatus.toLowerCase());
       }
 
-      // Add service filter if selected
-      if (selectedServices.length > 0) {
-        // First, execute the query without service filters to get all matching records
-        const { data: initialData, error: initialError, count: initialCount } = await query;
-        
-        if (initialError) throw initialError;
-        
-        // Then filter these records on the client side for services
-        // This approach avoids the complex JSONB query that was causing the error
-        let filteredData = initialData || [];
-        
-        // Filter the records that have at least one of the selected services
-        if (selectedServices.length > 0) {
-          filteredData = filteredData.filter(booking => {
-            if (!booking.services || !Array.isArray(JSON.parse(booking.services))) return false;
-            
-            const bookingServices = JSON.parse(booking.services);
-            return selectedServices.some(selectedService => 
-              bookingServices.some(bookingService => bookingService.id === selectedService.value)
-            );
-          });
-        }
-        
-        setBookings(filteredData);
-        // For pagination, we're now using client-side data, so adjust count accordingly
-        setTotalCount(filteredData.length);
-        setTotalPages(Math.ceil(filteredData.length / ITEMS_PER_PAGE));
-        setLoading(false);
-        return; // Skip the rest of the method since we've handled everything
-      }
-
-      // If no service filters, execute the query normally
+      // Execute the query
       const { data, error, count } = await query;
       
       if (error) throw error;
+
+      // Filter by services if any are selected
+      let filteredData = data || [];
+      if (selectedServices.length > 0) {
+        filteredData = filteredData.filter(booking => {
+          if (!booking.services) return false;
+          
+          let bookingServices;
+          try {
+            // Handle both string and object cases
+            bookingServices = typeof booking.services === 'string' 
+              ? JSON.parse(booking.services)
+              : booking.services;
+
+            // Ensure bookingServices is an array
+            if (!Array.isArray(bookingServices)) {
+              bookingServices = [bookingServices];
+            }
+
+            return selectedServices.some(selectedService =>
+              bookingServices.some(bookingService => bookingService.id === selectedService.value)
+            );
+          } catch (e) {
+            console.warn('Error parsing services for booking:', booking.id);
+            return false;
+          }
+        });
+      }
+
+      // Update pagination based on filtered results
+      const filteredCount = filteredData.length;
+      const start = (currentPage - 1) * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
       
-      setBookings(data || []);
-      setTotalCount(count || 0);
-      setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
+      setBookings(filteredData.slice(start, end));
+      setTotalCount(filteredCount);
+      setTotalPages(Math.ceil(filteredCount / ITEMS_PER_PAGE));
     } catch (error) {
       toast.error(`Error fetching historical bookings: ${error.message}`);
     } finally {
@@ -459,7 +461,7 @@ export default function HistoricalBookingTable() {
                 onClick={clearAllServices}
                 className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                Clear services
+   <RotateCcw className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -489,16 +491,16 @@ export default function HistoricalBookingTable() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>No.</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Dog</TableHead>
-                      <TableHead>Breed</TableHead>
-                      <TableHead>Booking Date</TableHead>
-                      <TableHead>Completed On</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Rating</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">No.</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Customer</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Contact</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Dog</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Breed</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Booking Date</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Completed On</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Status</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Rating</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -540,26 +542,26 @@ export default function HistoricalBookingTable() {
                           )}
                         </TableCell>
                         <TableCell>
-  <Button
-    size="sm"
-    variant="outline"
-    onClick={() => {
-      if (!booking?.id) {
-        toast.error("Invalid booking ID");
-        return;
-      }
-      // Ensure the ID is a valid UUID before navigation
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(booking.id)) {
-        toast.error("Invalid booking ID format");
-        return;
-      }
-      navigate(`/all-booking-details/${booking.id}`);
-    }}
-  >
-    <ArrowRight className="h-4 w-4" />
-  </Button>
-</TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (!booking?.id) {
+                                toast.error("Invalid booking ID");
+                                return;
+                              }
+                              // Ensure the ID is a valid UUID before navigation
+                              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                              if (!uuidRegex.test(booking.id)) {
+                                toast.error("Invalid booking ID format");
+                                return;
+                              }
+                              navigate(`/all-booking-details/${booking.id}`);
+                            }}
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

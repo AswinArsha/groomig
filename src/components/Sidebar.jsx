@@ -11,7 +11,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarTrigger,
-  SidebarRail,
   SidebarFooter, // Import SidebarFooter
 } from "@/components/ui/sidebar";
 import {
@@ -69,7 +68,16 @@ function Sidebar() {
     { name: "Analytics", path: "/analytics", icon: <BarChart className="w-5 h-5" /> },
   ];
 
-  const isLinkActive = (path) => location.pathname === path;
+  const isLinkActive = (path) => {
+    // Consider booking-related pages as part of Home
+    if (path === '/home') {
+      return location.pathname === '/home' || 
+             location.pathname.includes('/all-bookings') ||
+             location.pathname.includes('/booking') ||
+             location.pathname.includes('/all-booking-details');
+    }
+    return location.pathname === path;
+  };
 
   // Dynamic header text based on current route
   const getHeaderText = () => {
@@ -101,13 +109,8 @@ function Sidebar() {
     <TooltipProvider>
       <div className="flex h-screen w-full">
         <ShadcnSidebar collapsible="icon" collapsed={isSidebarCollapsed}>
+          {/* Remove the SidebarTrigger from SidebarHeader */}
           <SidebarHeader>
-            <SidebarTrigger
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="cursor-pointer text-gray-600 hover:text-gray-800"
-            >
-              {isSidebarCollapsed ? "Expand" : "Collapse"}
-            </SidebarTrigger>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
@@ -157,22 +160,29 @@ function Sidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <Button
-                  variant="ghost"
-                  className="w-full justify-start text-red-600 hover:bg-red-100 dark:hover:bg-red-900"
+              
+                  className="w-full text-red-500 bg-gray-100 border border-red-500 hover:bg-red-500 hover:text-white  "
                   onClick={handleLogout}
                 >
-                  <LogOut className="w-5 h-5 mr-2" />
+                  <LogOut className="w-5 h-5 ml-1" />
                   {!isSidebarCollapsed && "Logout"}
                 </Button>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>
 
-          <SidebarRail />
+          {/* Remove the SidebarRail component */}
         </ShadcnSidebar>
 
         <div className="flex-1 flex flex-col w-0">
           <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-white px-6">
+            {/* Add SidebarTrigger here */}
+            <SidebarTrigger
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="cursor-pointer text-gray-600 hover:text-gray-800"
+            >
+              {isSidebarCollapsed ? "Expand" : "Collapse"}
+            </SidebarTrigger>
             <h1 className="text-lg font-semibold tracking-tight">
               {getHeaderText()}
             </h1>

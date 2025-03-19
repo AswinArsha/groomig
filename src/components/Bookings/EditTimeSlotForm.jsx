@@ -145,19 +145,19 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
             <Label className="text-base font-semibold">Select Shops</Label>
             <div className="grid grid-cols-2 gap-4">
               {shops.map((shop) => (
-                <div key={shop.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`shop-${shop.id}`}
-                    checked={selectedShops.includes(shop.id)}
-                    onCheckedChange={() => toggleShopSelection(shop.id)}
-                  />
-                  <Label
-                    htmlFor={`shop-${shop.id}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    {shop.name}
-                  </Label>
-                </div>
+                       <div key={shop.id} className="flex items-center space-x-2">
+                       <Checkbox
+                         id={`shop-${shop.id}`}
+                         checked={selectedShops.includes(shop.id)}
+                         onCheckedChange={() => toggleShopSelection(shop.id)}
+                       />
+                       <Label
+                         htmlFor={`shop-${shop.id}`} // Ensure htmlFor matches the Checkbox id
+                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 "
+                       >
+                         {shop.name}
+                       </Label>
+                     </div>
               ))}
             </div>
           </div>
