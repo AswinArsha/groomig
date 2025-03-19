@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import toast from "react-hot-toast";
@@ -259,7 +260,9 @@ export default function Groomer() {
               />
             </div>
             <div>
-              <Label htmlFor="shop">Shop *</Label>
+              <Label htmlFor="shop">
+                Shop <span style={{ color: 'red' }}>*</span>
+              </Label>
               <Select
                 value={formData.shop_id}
                 onValueChange={handleShopChange}

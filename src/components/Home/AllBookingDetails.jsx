@@ -1,3 +1,4 @@
+
 // src/components/AllBookingDetails.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -215,95 +216,108 @@ export default function AllBookingDetails() {
         <CardContent className="p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Personal Information */}
-            <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-lg text-primary mb-3">Personal Information</h3>
-              <div className="flex items-center space-x-2">
-                <User className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Customer:</Label>
-                <span>{booking.customer_name}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Phone className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Contact:</Label>
-                <span>{booking.contact_number}</span>
-              </div>
-            </div>
+            <Card className="bg-gray-50 p-4 rounded-lg">
+              <CardContent>
+                <h3 className="font-semibold text-lg text-primary mb-3">Personal Information</h3>
+                <div className="flex items-center space-x-2 mb-3 "
+                >
+                  <User className="h-5 w-5 text-primary" />
+                
+                  <span>{booking.customer_name}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Phone className="h-5 w-5 text-primary" />
+               
+                  <span>{booking.contact_number}</span>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Pet Information */}
-            <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-lg text-primary mb-3">Pet Information</h3>
-              <div className="flex items-center space-x-2">
-                <DogIcon className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Name:</Label>
-                <span>{booking.dog_name}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Paw className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Breed:</Label>
-                <span>{booking.dog_breed}</span>
-              </div>
-            </div>
+            <Card className="bg-gray-50 p-4 rounded-lg">
+              <CardContent>
+                <h3 className="font-semibold text-lg text-primary mb-3">Pet Information</h3>
+                <div className="flex items-center space-x-2 mb-3
+                ">
+                  <DogIcon className="h-5 w-5 text-primary" />
+           
+                  <span>{booking.dog_name}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Paw className="h-5 w-5 text-primary" />
+                 
+                  <span>{booking.dog_breed}</span>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Shop Information */}
-            <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-lg text-primary mb-3">Shop Details</h3>
-              <div className="flex items-center space-x-2">
-                <Store className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Shop:</Label>
-                <span>{booking.shop_name || "N/A"}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <User className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Groomer:</Label>
-                <span>{booking.groomer_name || " "}</span>
-              </div>
-            </div>
+            <Card className="bg-gray-50 p-4 rounded-lg">
+              <CardContent>
+                <h3 className="font-semibold text-lg text-primary mb-3">Shop Details</h3>
+                <div className="flex items-center space-x-2 mb-3
+                ">
+                  <Store className="h-5 w-5 text-primary" />
+                 
+                  <span>{booking.shop_name || "N/A"}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <User className="h-5 w-5 text-primary" />
+                 
+                  <span>{booking.groomer_name || " "}</span>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Appointment Details */}
-            <div className="space-y-4 bg-gray-50 p-4 rounded-lg lg:col-span-2">
-              <h3 className="font-semibold text-lg text-primary mb-3">Appointment Details</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  <Label className="font-semibold">Date:</Label>
-                  <span>{format(new Date(booking.booking_date), "PPP")}</span>
+            <Card className="bg-gray-50 p-4 rounded-lg lg:col-span-2">
+              <CardContent>
+                <h3 className="font-semibold text-lg text-primary mb-3">Appointment Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+              
+                    <span>{format(new Date(booking.booking_date), "PPP")}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <Label className="font-semibold">Time:</Label>
+                    <span>{formatTime(booking.slot_time)}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <Label className="font-semibold">Check-in:</Label>
+                    <span>
+                      {booking.check_in_time ? 
+                        format(
+                          new Date(
+                            new Date(booking.check_in_time).getTime() + 
+                            (5.5 * 60 * 60 * 1000) // Adding 5 hours and 30 minutes for Indian timezone
+                          ),
+                          "hh:mm a"
+                        ) : " "}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <Label className="font-semibold">Completed:</Label>
+                    <span>{booking.completed_at ? format(new Date(booking.completed_at), "hh:mm a") : "N/A"}</span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <Label className="font-semibold">Time:</Label>
-                  <span>{formatTime(booking.slot_time)}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <Label className="font-semibold">Check-in:</Label>
-                  <span>
-                    {booking.check_in_time ? 
-                      format(
-                        new Date(
-                          new Date(booking.check_in_time).getTime() + 
-                          (5.5 * 60 * 60 * 1000) // Adding 5 hours and 30 minutes for Indian timezone
-                        ),
-                        "hh:mm a"
-                      ) : " "}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <Label className="font-semibold">Completed:</Label>
-                  <span>{booking.completed_at ? format(new Date(booking.completed_at), "hh:mm a") : "N/A"}</span>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Status */}
-            <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-lg text-primary mb-3">Booking Status</h3>
-              <div className="flex items-center space-x-2">
-                <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${booking.status === "pending" ? "bg-yellow-200 text-yellow-700 border border-yellow-300" : booking.status === "checked_in" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "progressing" ? "bg-blue-200 text-blue-700 border border-blue-300" : booking.status === "completed" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "canceled" || booking.status === "cancelled" ? "bg-red-200 text-red-700 border border-red-300" : "bg-gray-200 text-gray-700 border border-gray-300"}`}>
-                  {booking.status.replace("_", " ").toUpperCase()}
-                </span>
-              </div>
-            </div>
+            <Card className="bg-gray-50 p-4 rounded-lg">
+              <CardContent className="flex flex-col items-center justify-center">
+                <h3 className="font-semibold text-lg text-primary mb-3">Booking Status</h3>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${booking.status === "pending" ? "bg-yellow-200 text-yellow-700 border border-yellow-300" : booking.status === "checked_in" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "progressing" ? "bg-blue-200 text-blue-700 border border-blue-300" : booking.status === "completed" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "canceled" || booking.status === "cancelled" ? "bg-red-200 text-red-700 border border-red-300" : "bg-gray-200 text-gray-700 border border-gray-300"}`}>
+                    {booking.status.replace("_", " ").toUpperCase()}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </CardContent>
       </Card>

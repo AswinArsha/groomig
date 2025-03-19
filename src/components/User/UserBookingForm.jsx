@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
-import AnimationTickWebM from "../../assets/AnimationTick.WebM";
+import AnimationTickWebM from "../../assets/AnimationTick.webm";
 import { sendWhatsAppConfirmation } from "../../services/twilioService";
 
 export default function UserBookingForm() {
@@ -297,7 +297,7 @@ export default function UserBookingForm() {
                 slot_time: formatTimeIST(slotTime)
               };
               
-              await sendWhatsAppConfirmation(bookingData, shopData);
+               await sendWhatsAppConfirmation(bookingData, shopData);
               console.log("WhatsApp notification sent successfully");
             } catch (whatsappError) {
               console.error("Failed to send WhatsApp notification:", whatsappError);

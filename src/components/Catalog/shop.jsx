@@ -96,7 +96,7 @@ const ShopForm = ({ shop, onSuccess, onCancel }) => {
       </div>
       <div className="hidden">
         <Label htmlFor="shop-username">Username</Label>
-        <Input id="shop-username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+        <Input id="shop-username" value={username} onChange={(e) => setUsername(e.target.value)}  />
       </div>
       <div className="hidden">
         <Label htmlFor="shop-password">
@@ -107,7 +107,7 @@ const ShopForm = ({ shop, onSuccess, onCancel }) => {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          required={!shop}
+
         />
       </div>
       <div className="flex justify-end space-x-2">
@@ -121,6 +121,15 @@ const ShopForm = ({ shop, onSuccess, onCancel }) => {
     </form>
   );
 };
+
+function isValidUrl(string) {
+  try {
+    new URL(string);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 export default function Shop() {
   const [shops, setShops] = useState([]);
@@ -231,25 +240,41 @@ export default function Shop() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredShops.map((shop) => (
-            <Card key={shop.id}>
-              <CardHeader className="pt-6">
-                <CardTitle className="text-xl font-semibold">{shop.name}</CardTitle>
+            <Card key={shop.id} className="group">
+              <CardHeader className="pt-6 pb-4">
+                <CardTitle className="text-xl font-semibold text-gray-900">{shop.name}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">{shop.directions}</p>
-                <p className="text-gray-600">Phone: {shop.phone_number}</p>
+              <CardContent className="space-y-3">
+                <div className="flex items-start space-x-2">
+                  {isValidUrl(shop.directions) ? (
+                    <a
+                      href={shop.directions}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      View Directions
+                    </a>
+                  ) : (
+                    <p className="text-gray-600 flex-grow">{shop.directions}</p>
+                  )}
+                </div>
+                <p className="text-gray-700 font-medium flex items-center">
+                  <span className="mr-2">📞</span>
+                  {shop.phone_number}
+                </p>
                 {shop.badge && (
-                  <p className="mt-2 inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                  <p className="mt-2 inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1.5 rounded-full font-medium transform transition-transform duration-300 ease-in-out ">
                     {shop.badge}
                   </p>
                 )}
                 <p className="text-gray-500 text-sm mt-2 hidden">Username: {shop.username}</p>
               </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button size="sm" variant="outline" onClick={() => handleEdit(shop)}>
+              <CardFooter className="flex justify-between pt-4 border-t border-gray-100">
+                <Button size="sm" variant="outline" onClick={() => handleEdit(shop)} className="hover:bg-gray-50 transition-colors duration-200">
                   <Pencil className="mr-2 h-4 w-4" /> Edit
                 </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(shop)}>
+                <Button size="sm" variant="destructive" onClick={() => handleDelete(shop)} className="hover:bg-red-600 transition-colors duration-200">
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </Button>
               </CardFooter>
