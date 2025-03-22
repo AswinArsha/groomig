@@ -406,18 +406,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
     }
   };
   
-  // Check for form completion when customer details change
-  useEffect(() => {
-    if (step === 4) {
-      const timer = setTimeout(() => {
-        if (customerName && contactNumber && dogName && dogBreed) {
-          setStep(5);
-        }
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerName, contactNumber, dogName, dogBreed]);
+  // Removed automatic transition to step 5
 
   // Get selected shop details
   const getSelectedShopDetails = () => {
@@ -640,9 +629,9 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="space-y-2"
+            className="space-y-4"
           >
-            <div className="">
+            <div className="space-y-2">
               <Label htmlFor="customerName">Customer Name</Label>
               <Input
                 id="customerName"
@@ -653,7 +642,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 aria-label="Customer Name"
               />
             </div>
-            <div className="">
+            <div className="space-y-2">
               <Label htmlFor="contactNumber">Contact Number</Label>
               <Input
                 id="contactNumber"
@@ -667,7 +656,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 placeholder="e.g., 9876543210"
               />
             </div>
-            <div className="">
+            <div className="space-y-2">
               <Label htmlFor="dogName">Dog Name</Label>
               <Input
                 id="dogName"
@@ -678,7 +667,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 aria-label="Dog Name"
               />
             </div>
-            <div className="">
+            <div className="space-y-2">
               <Label htmlFor="dogBreed">Dog Breed</Label>
               <Input
                 id="dogBreed"
@@ -689,6 +678,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                 aria-label="Dog Breed"
               />
             </div>
+    
           </motion.div>
         );
 

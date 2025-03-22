@@ -2,9 +2,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
-import { X, Edit2, Check, ArrowRight, Loader2, Ban
-  ,RotateCcw
- } from "lucide-react";
+import { X, Edit2, Check, ArrowRight, Loader2, Ban, RotateCcw, Receipt } from "lucide-react";
 import { format, parse } from "date-fns";
 import toast from "react-hot-toast";
 import BookingForm from "./BookingForm"; // Ensure correct import
@@ -33,6 +31,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
@@ -54,6 +57,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -176,7 +184,8 @@ export default function BookingTable() {
             time_slots (
               start_time
             )
-          )
+          ),
+          booking_services_selected (*, services(*))
         `, { count: "exact" })
         .eq("booking_date", formattedDate)
         .order("created_at", { ascending: false })
@@ -486,18 +495,19 @@ export default function BookingTable() {
           ) : (
             <div className="border rounded-lg overflow-x-auto">
               <Table>
-                <TableHeader className="bg-gray-100">
+                <TableHeader>
                   <TableRow>
-                    <TableHead>No.</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Dog</TableHead>
-                    <TableHead>Breed</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Time Slot</TableHead>
-                    <TableHead>Sub Slot</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800"  >No.</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Customer</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Contact</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Dog</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Breed</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Date</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Time Slot</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Sub Slot</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Status</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Total Bill</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -512,6 +522,7 @@ export default function BookingTable() {
                       <TableCell>
                         {booking.slot_time ? formatTimeIST(booking.slot_time) : "N/A"}
                       </TableCell>
+                  
                       <TableCell>{getSubSlotDisplay(booking)}</TableCell>
                       <TableCell>
                         <span
@@ -530,6 +541,41 @@ export default function BookingTable() {
                         >
                           {booking.status.replace("_", " ").toUpperCase()}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" className="font-medium flex items-center gap-2">
+                            
+                              ₹{booking.booking_services_selected?.reduce((total, service) => 
+                                total + (service.services?.price || 0), 0).toFixed(2) || '0.00'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[300px] p-6">
+                            <div className="space-y-6">
+                        
+                    
+                              <div className="space-y-3">
+                                <div className="text-sm font-medium">Services</div>
+                                {booking.booking_services_selected?.map((service, idx) => (
+                                  <div key={idx} className="flex justify-between items-center text-sm py-1 ">
+                                    <span>{service.services?.name}</span>
+                                    <span>₹{service.services?.price.toFixed(2)}</span>
+                                  </div>
+                                )) || <p className="text-sm text-muted-foreground">No services selected</p>}
+                              </div>
+                              {booking.booking_services_selected?.length > 0 && (
+                                <div className="pt-4 border-t">
+                                  <div className="flex justify-between items-center font-semibold">
+                                    <span>Total Amount</span>
+                                    <span>₹{booking.booking_services_selected?.reduce((total, service) => 
+                                      total + (service.services?.price || 0), 0).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">

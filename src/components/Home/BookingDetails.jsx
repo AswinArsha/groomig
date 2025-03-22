@@ -66,6 +66,8 @@ export default function BookingDetails() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [groomers, setGroomers] = useState([]);
   const [selectedGroomer, setSelectedGroomer] = useState(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [selectedPaymentMode, setSelectedPaymentMode] = useState(null);
 
   // Fetch booking details (including sub_time_slots and selected services)
   const fetchBookingDetails = useCallback(async () => {
@@ -337,9 +339,21 @@ export default function BookingDetails() {
   }, [id, selectedServices, serviceInputs, careTips, navigate]);
   
 // Handle marking the booking as completed (check-out) and save to historical_bookings
-const handleCompleteBooking = async () => {
+const handleCompleteBooking = async (paymentModeParam) => {
   setSubmitting(true);
   try {
+    // Close the payment dialog first
+    setShowPaymentDialog(false);
+    
+    // Store the selected payment mode in state for UI updates
+    setSelectedPaymentMode(paymentModeParam);
+    
+    // Make sure we have a valid payment mode
+    const paymentMode = paymentModeParam || 'cash';
+    
+    // Log the payment mode being used
+    console.log("Using payment mode:", paymentMode);
+
     // First, gather all the service data with care tips
     let servicesData = [];
     
@@ -407,7 +421,7 @@ const handleCompleteBooking = async () => {
       await Promise.all(updatePromises);
     }
     
-    // Fetch shop name - make sure to handle this properly
+    // Fetch shop name
     let shopName = null;
     if (booking.shop_id) {
       const { data: shopData, error: shopError } = await supabase
@@ -422,10 +436,6 @@ const handleCompleteBooking = async () => {
         shopName = shopData.name;
       }
     }
-
-    // Log shop info for debugging
-    console.log("Shop ID:", booking.shop_id);
-    console.log("Fetched Shop Name:", shopName);
     
     // Fetch sub_time_slot description
     let slotDescription = null;
@@ -442,10 +452,6 @@ const handleCompleteBooking = async () => {
         slotDescription = slotData.description || `Slot ${slotData.slot_number}`;
       }
     }
-
-    // Log slot info for debugging
-    console.log("Slot ID:", booking.sub_time_slot_id);
-    console.log("Fetched Slot Description:", slotDescription);
 
     // If we couldn't fetch the shop name from the database, try to get it from the booking
     if (!shopName && booking.shop) {
@@ -469,18 +475,20 @@ const handleCompleteBooking = async () => {
       slot_time: booking.sub_time_slots?.time_slots?.start_time,
       sub_time_slot_id: booking.sub_time_slot_id,
       shop_id: booking.shop_id,
-      shop_name: shopName || "Unknown Shop", // Use a default value if shop name is not found
-      slot_description: slotDescription || "Unknown Slot", // Use a default value if slot description is not found
-      groomer_id: booking.groomer_id, // Add groomer_id
-      groomer_name: groomers.find(g => g.id === booking.groomer_id)?.name || "Unknown Groomer", // Fix groomer name lookup
+      shop_name: shopName || "Unknown Shop",
+      slot_description: slotDescription || "Unknown Slot",
+      groomer_id: booking.groomer_id,
+      groomer_name: groomers.find(g => g.id === booking.groomer_id)?.name || "Unknown Groomer",
       status: 'completed',
       services: servicesData,
-      feedback: null, // Will be updated after feedback submission
-      check_in_time: booking.check_in_time // Add check_in_time to historical booking
+      feedback: null,
+      check_in_time: booking.check_in_time,
+      payment_mode: paymentMode, // Use the payment mode passed directly to the function
+      payment_timestamp: new Date().toISOString()
     };
     
     // Log the data being inserted for debugging
-    console.log("Inserting historical booking:", historicalBookingData);
+    console.log("Inserting historical booking with payment_mode:", historicalBookingData.payment_mode);
     
     // Store the booking in historical_bookings
     const { data: historicalData, error: historicalError } = await supabase
@@ -513,6 +521,7 @@ const handleCompleteBooking = async () => {
     setSubmitting(false);
   }
 };
+
   
 // Handle feedback submission
 const handleFeedbackSubmit = async () => {
@@ -554,7 +563,7 @@ const handleFeedbackSubmit = async () => {
     setFeedbackSubmitting(false);
   }
 };
-  
+
   // Skip feedback and go home
   const skipFeedback = () => {
     navigate("/home");
@@ -681,7 +690,7 @@ const handlePrintSlip = (copyType) => {
                   return (
                     <motion.div
                       key={service.id}
-                      whileHover={{ scale: 1.02, boxShadow: "0 10px 20px -5px rgba(0, 0, 0, 0.15)" }}
+                      whileHover={{ scale: 1.01, boxShadow: "0 10px 20px -5px rgba(0, 0, 0, 0.15)" }}
                       whileTap={{ scale: 0.98 }}
                       initial={false}
                       animate={isSelected ? { 
@@ -691,7 +700,7 @@ const handlePrintSlip = (copyType) => {
                       className={`relative rounded-xl border-2 overflow-hidden transition-all duration-300 ${
                         isSelected
                           ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] transform -translate-y-1'
-                          : 'border-transparent hover:border-primary/50 hover:shadow-lg'
+                          : 'border-pink-100 hover:border-primary/50 hover:shadow-lg'
                       }`}
                       onClick={() => handleServiceSelection(service)}
                     >
@@ -1042,14 +1051,14 @@ const handlePrintSlip = (copyType) => {
             </Button>
           )}
           {(booking.status === "progressing" || booking.status === "checked_in") && (
-            <Button onClick={() => setShowConfirmDialog(true)} className="bg-green-500 hover:bg-green-600 text-white">
-              {submitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="mr-2 h-4 w-4" />
-              )}
-              Complete Booking
-            </Button>
+     <Button onClick={() => setShowPaymentDialog(true)} className="bg-green-500 hover:bg-green-600 text-white">
+     {submitting ? (
+       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+     ) : (
+       <Check className="mr-2 h-4 w-4" />
+     )}
+     Complete Booking
+   </Button>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1139,28 +1148,86 @@ const handlePrintSlip = (copyType) => {
       
       {/* Confirm Complete Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Complete Booking</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to mark this booking as completed? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                setShowConfirmDialog(false);
-                handleCompleteBooking();
-              }}
-            >
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Complete Booking</DialogTitle>
+      <DialogDescription>
+        Are you sure you want to mark this booking as completed? This action cannot be undone.
+      </DialogDescription>
+    </DialogHeader>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+        Cancel
+      </Button>
+      <Button
+        onClick={() => {
+          setShowConfirmDialog(false);
+          setShowPaymentDialog(true);
+        }}
+      >
+        Confirm
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+{/* Payment Mode Dialog */}
+<Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Select Payment Method</DialogTitle>
+      <DialogDescription>
+        Please select the payment method used by the customer.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="grid grid-cols-2 gap-4 py-4">
+      <Button
+        onClick={() => {
+          // Pass the payment mode directly to handleCompleteBooking
+          handleCompleteBooking('cash');
+        }}
+        className="flex flex-col items-center justify-center h-24 p-3"
+        variant={selectedPaymentMode === "cash" ? "default" : "outline"}
+      >
+        <span className="text-2xl mb-2">💵</span>
+        <span>Cash</span>
+      </Button>
+      <Button
+        onClick={() => {
+          // Pass the payment mode directly to handleCompleteBooking
+          handleCompleteBooking('UPI');
+        }}
+        className="flex flex-col items-center justify-center h-24 p-3"
+        variant={selectedPaymentMode === "UPI" ? "default" : "outline"}
+      >
+        <span className="text-2xl mb-2">📱</span>
+        <span>UPI</span>
+      </Button>
+      <Button
+        onClick={() => {
+          // Pass the payment mode directly to handleCompleteBooking
+          handleCompleteBooking('swipe');
+        }}
+        className="flex flex-col items-center justify-center h-24 p-3"
+        variant={selectedPaymentMode === "swipe" ? "default" : "outline"}
+      >
+        <span className="text-2xl mb-2">💳</span>
+        <span>Swipe</span>
+      </Button>
+      <Button
+        onClick={() => {
+          // Pass the payment mode directly to handleCompleteBooking
+          handleCompleteBooking('credit');
+        }}
+        className="flex flex-col items-center justify-center h-24 p-3"
+        variant={selectedPaymentMode === "credit" ? "default" : "outline"}
+      >
+        <span className="text-2xl mb-2">📝</span>
+        <span>Credit</span>
+      </Button>
+    </div>
+  </DialogContent>
+</Dialog>
 
       {/* Feedback Dialog */}
       <Dialog open={showFeedbackDialog} onOpenChange={setShowFeedbackDialog}>
@@ -1241,3 +1308,4 @@ const handlePrintSlip = (copyType) => {
     </Card>
   );
 }
+
