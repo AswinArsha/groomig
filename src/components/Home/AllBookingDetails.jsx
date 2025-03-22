@@ -1,4 +1,3 @@
-
 // src/components/AllBookingDetails.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -22,9 +21,33 @@ import {
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import toast from "react-hot-toast";
-import { Loader2, ArrowLeft, Star, Calendar, Clock, DogIcon, PawPrintIcon as Paw, User, Phone, Store, MapPin } from "lucide-react";
+import { Loader2, ArrowLeft, Star, Calendar, Clock, DogIcon, PawPrintIcon as Paw, User, Phone, Store, MapPin, CreditCard, CheckCircle, PlusCircle, History, ArrowDown, ArrowDownIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 
 export default function AllBookingDetails() {
   const { id } = useParams();
@@ -33,6 +56,12 @@ export default function AllBookingDetails() {
   const [loading, setLoading] = useState(true);
   const [serviceDetails, setServiceDetails] = useState([]);
   const [feedbackDetails, setFeedbackDetails] = useState(null);
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [lastPayment, setLastPayment] = useState(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [paymentMode, setPaymentMode] = useState("");
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentHistorySupported, setPaymentHistorySupported] = useState(true);
 
   // Fetch booking details from historical_bookings
   const fetchHistoricalBookingDetails = useCallback(async () => {
@@ -139,6 +168,11 @@ export default function AllBookingDetails() {
             setFeedbackDetails(null);
           }
         }
+
+        // Fetch payment history if payment_mode is credit or if it was credit before
+        if (historicalData.payment_mode) {
+          fetchPaymentHistory(historicalData.id);
+        }
       }
     } catch (error) {
       toast.error(`Error fetching booking details: ${error.message}`);
@@ -148,8 +182,146 @@ export default function AllBookingDetails() {
     }
   }, [id]);
 
+  // Check if payment_history table exists
+  const checkPaymentHistoryTable = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payment_history')
+        .select('id')
+        .limit(1);
+      
+      // If we get a specific error about the table not existing
+      if (error && error.code === '42P01') {
+        setPaymentHistorySupported(false);
+        console.warn("Payment history table does not exist yet");
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error checking payment_history table:", error);
+      setPaymentHistorySupported(false);
+      return false;
+    }
+  };
+
+  // Fetch payment history for credit payments
+  const fetchPaymentHistory = async (bookingId) => {
+    try {
+      // First check if the table exists
+      const tableExists = await checkPaymentHistoryTable();
+      if (!tableExists) {
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from("payment_history")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .order("payment_date", { ascending: false });
+
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setPaymentHistory(data);
+        // Set the most recent payment
+        setLastPayment(data[0]);
+      }
+    } catch (error) {
+      console.error("Error fetching payment history:", error);
+      // Don't show a toast here, as it might confuse users
+    }
+  };
+
+  // Handle credit payment submission
+  const handlePaymentSubmit = async () => {
+    if (!paymentMode) {
+      toast.error("Please select a payment mode");
+      return;
+    }
+
+    setProcessingPayment(true);
+    try {
+      const paymentTimestamp = new Date().toISOString();
+      const paymentAmount = serviceDetails.reduce((total, service) => total + Number(service.price), 0);
+      
+      // First check if the payment_history table exists
+      const tableExists = await checkPaymentHistoryTable();
+      
+      // If the table exists, create a payment history record
+      if (tableExists) {
+        const { data: historyData, error: historyError } = await supabase
+          .from("payment_history")
+          .insert({
+            booking_id: booking.id,
+            payment_mode: paymentMode,
+            payment_date: paymentTimestamp,
+            amount: paymentAmount
+          })
+          .select();
+
+        if (historyError) {
+          console.error("Error inserting payment history:", historyError);
+          // Continue with the main update even if this fails
+        } else if (historyData && historyData.length > 0) {
+          // Update the last payment in state
+          setLastPayment(historyData[0]);
+          
+          // Refresh payment history
+          fetchPaymentHistory(booking.id);
+        }
+      }
+
+      // Update the historical_bookings record with the payment mode
+      const { error: updateError } = await supabase
+        .from("historical_bookings")
+        .update({
+          payment_mode: paymentMode,
+          payment_timestamp: paymentTimestamp
+        })
+        .eq("id", booking.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Payment recorded successfully");
+      setIsPaymentDialogOpen(false);
+      
+      // Update the local booking state
+      setBooking(prev => ({
+        ...prev,
+        payment_mode: paymentMode,
+        payment_timestamp: paymentTimestamp
+      }));
+    } catch (error) {
+      toast.error(`Error recording payment: ${error.message}`);
+      console.error("Error recording payment:", error);
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  // Create payment_history table if it doesn't exist
+  const createPaymentHistoryTable = async () => {
+    try {
+      const { error } = await supabase.rpc('create_payment_history_table');
+      
+      if (!error) {
+        setPaymentHistorySupported(true);
+        toast.success("Payment history tracking has been set up");
+        return true;
+      } else {
+        console.error("Error creating payment_history table:", error);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error creating payment_history table:", error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchHistoricalBookingDetails();
+    checkPaymentHistoryTable();
   }, [fetchHistoricalBookingDetails]);
 
   if (loading) {
@@ -196,6 +368,173 @@ export default function AllBookingDetails() {
     }
   };
 
+  // Format payment mode for display
+  const formatPaymentMode = (mode) => {
+    if (!mode) return "Not Paid";
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
+  };
+
+  // Get payment badge color
+  const getPaymentBadgeColor = (mode) => {
+    switch (mode) {
+      case 'cash':
+        return "bg-green-100 text-green-700 border border-green-300";
+      case 'UPI':
+        return "bg-purple-100 text-purple-700 border border-purple-300";
+      case 'swipe':
+        return "bg-blue-100 text-blue-700 border border-blue-300";
+      case 'credit':
+        return "bg-orange-100 text-orange-700 border border-orange-300";
+      default:
+        return "bg-gray-100 text-gray-700 border border-gray-300";
+    }
+  };
+  
+  // Function to render the payment flow with badges
+  const renderPaymentFlow = () => {
+    // If no payment history available, just show current payment mode
+    if ((!paymentHistorySupported || !paymentHistory.length) && booking.payment_mode !== 'credit') {
+      return (
+        <div className="flex flex-col items-center">
+          <Badge className={`px-3 py-1.5 text-sm font-medium ${getPaymentBadgeColor(booking.payment_mode)}`}>
+            {formatPaymentMode(booking.payment_mode)}
+            
+          </Badge>
+          
+          {booking.payment_timestamp && (
+            <div className="text-xs text-gray-600 mt-1">
+              {format(new Date(booking.payment_timestamp), "PPP")}
+              <br/>
+              {format(new Date(booking.payment_timestamp), "hh:mm a")}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // If it's a credit booking with payment history or has been paid
+    if (booking.payment_mode === 'credit' || (lastPayment && booking.payment_mode !== 'credit')) {
+      return (
+        <div className="flex flex-col items-center space-y-2">
+          {/* First show the original credit badge */}
+          <div className="flex flex-col items-center">
+            <Badge className="px-3 py-1.5 text-sm font-medium bg-red-100 text-red-700 border border-red-300">
+              Credit
+            </Badge>
+            <div className="text-xs text-gray-600 mt-1">
+              {booking.completed_at ? format(new Date(booking.completed_at), "PPP p") : ""}
+            </div>
+          </div>
+          
+          {/* If it's been paid, show the arrow and the payment badge */}
+          {booking.payment_mode !== 'credit' && (
+            <>
+              <ArrowDownIcon className="h-5 w-5 text-gray-400" />
+              <div className="flex flex-col items-center">
+                <Badge className={`px-3 py-1.5 text-sm font-medium ${getPaymentBadgeColor(booking.payment_mode)}`}>
+                  {formatPaymentMode(booking.payment_mode)}
+                </Badge>
+                {booking.payment_timestamp && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    {format(new Date(booking.payment_timestamp), "PPP p")}
+              
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          
+          {/* If it's still on credit but has payment button, show it */}
+          {booking.payment_mode === 'credit' && (
+            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="mt-2 flex items-center gap-1">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>Record Payment</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Record Payment</DialogTitle>
+                  <DialogDescription>
+                    Update payment status for this credit booking
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Label htmlFor="payment-mode" className="block mb-2">
+                    Payment Mode
+                  </Label>
+                  <Select value={paymentMode} onValueChange={setPaymentMode}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select payment mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="UPI">UPI</SelectItem>
+                        <SelectItem value="swipe">Card/Swipe</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-600">
+                      Amount to be paid: ₹{totalBill}
+                    </p>
+                  </div>
+                  
+                  {!paymentHistorySupported && (
+                    <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                      <p className="text-sm text-amber-700">
+                        Note: Payment history tracking is not yet set up in the database. 
+                        The current payment will still be recorded, but detailed payment history will not be available.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handlePaymentSubmit} 
+                    disabled={processingPayment || !paymentMode}
+                  >
+                    {processingPayment ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing
+                      </>
+                    ) : (
+                      "Confirm Payment"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      );
+    }
+    
+    // Default case - just show the current payment mode
+    return (
+      <div className="flex flex-col items-center">
+        <Badge className={`px-3 py-1.5 text-sm font-medium ${getPaymentBadgeColor(booking.payment_mode)}`}>
+          {formatPaymentMode(booking.payment_mode)}
+        </Badge>
+        
+        {booking.payment_timestamp && (
+          <div className="text-xs text-gray-600 mt-1">
+            {format(new Date(booking.payment_timestamp), "PPP")}
+            <br/>
+            {format(new Date(booking.payment_timestamp), "hh:mm a")}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Card className="max-w-4xl mx-auto">
@@ -219,15 +558,12 @@ export default function AllBookingDetails() {
             <Card className="bg-gray-50 p-4 rounded-lg">
               <CardContent>
                 <h3 className="font-semibold text-lg text-primary mb-3">Personal Information</h3>
-                <div className="flex items-center space-x-2 mb-3 "
-                >
+                <div className="flex items-center space-x-2 mb-3">
                   <User className="h-5 w-5 text-primary" />
-                
                   <span>{booking.customer_name}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="h-5 w-5 text-primary" />
-               
                   <span>{booking.contact_number}</span>
                 </div>
               </CardContent>
@@ -237,15 +573,12 @@ export default function AllBookingDetails() {
             <Card className="bg-gray-50 p-4 rounded-lg">
               <CardContent>
                 <h3 className="font-semibold text-lg text-primary mb-3">Pet Information</h3>
-                <div className="flex items-center space-x-2 mb-3
-                ">
+                <div className="flex items-center space-x-2 mb-3">
                   <DogIcon className="h-5 w-5 text-primary" />
-           
                   <span>{booking.dog_name}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Paw className="h-5 w-5 text-primary" />
-                 
                   <span>{booking.dog_breed}</span>
                 </div>
               </CardContent>
@@ -255,15 +588,12 @@ export default function AllBookingDetails() {
             <Card className="bg-gray-50 p-4 rounded-lg">
               <CardContent>
                 <h3 className="font-semibold text-lg text-primary mb-3">Shop Details</h3>
-                <div className="flex items-center space-x-2 mb-3
-                ">
+                <div className="flex items-center space-x-2 mb-3">
                   <Store className="h-5 w-5 text-primary" />
-                 
                   <span>{booking.shop_name || "N/A"}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <User className="h-5 w-5 text-primary" />
-                 
                   <span>{booking.groomer_name || " "}</span>
                 </div>
               </CardContent>
@@ -276,7 +606,6 @@ export default function AllBookingDetails() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-5 w-5 text-primary" />
-              
                     <span>{format(new Date(booking.booking_date), "PPP")}</span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -307,14 +636,21 @@ export default function AllBookingDetails() {
               </CardContent>
             </Card>
 
-            {/* Status */}
+            {/* Status and Payment */}
             <Card className="bg-gray-50 p-4 rounded-lg">
               <CardContent className="flex flex-col items-center justify-center">
                 <h3 className="font-semibold text-lg text-primary mb-3">Booking Status</h3>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 mb-4">
                   <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${booking.status === "pending" ? "bg-yellow-200 text-yellow-700 border border-yellow-300" : booking.status === "checked_in" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "progressing" ? "bg-blue-200 text-blue-700 border border-blue-300" : booking.status === "completed" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "canceled" || booking.status === "cancelled" ? "bg-red-200 text-red-700 border border-red-300" : "bg-gray-200 text-gray-700 border border-gray-300"}`}>
                     {booking.status.replace("_", " ").toUpperCase()}
                   </span>
+                </div>
+
+                <h3 className="font-semibold text-lg text-primary mb-3">Payment Status</h3>
+                <div className="flex flex-col items-center">
+                  {renderPaymentFlow()}
+                  
+                  
                 </div>
               </CardContent>
             </Card>
@@ -332,33 +668,34 @@ export default function AllBookingDetails() {
           {serviceDetails && serviceDetails.length > 0 ? (
             <div className="space-y-6">
               <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
+              <Table className="border rounded-lg overflow-hidden">
+                  <TableHeader className="bg-primary">
                     <TableRow>
-                      <TableHead>Service</TableHead>
-                      <TableHead>Details</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="font-semibold text-primary-foreground">Service</TableHead>
+                      <TableHead className="font-semibold text-primary-foreground">Details</TableHead>
+                      <TableHead className="text-right font-semibold text-primary-foreground">Price</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {serviceDetails.map((service, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{service.name}</TableCell>
+                      <TableRow key={index} className="hover:bg-gray-50">
+                        <TableCell className="font-medium text-gray-800">{service.name}</TableCell>
                         <TableCell>
-                          {service.input_value && <div className="text-sm mb-1">Input: {service.input_value}</div>}
-                          {service.care_tip && <div className="text-sm text-gray-600">Care Tip: {service.care_tip}</div>}
+                          {service.input_value && <div className="text-sm mb-1 text-gray-600">Input: {service.input_value}</div>}
+                          {service.care_tip && <div className="text-sm text-gray-500">Care Tip: {service.care_tip}</div>}
                         </TableCell>
-                        <TableCell className="text-right">₹{service.price}</TableCell>
+                        <TableCell className="text-right text-gray-800">₹{service.price}</TableCell>
                       </TableRow>
                     ))}
-                    <TableRow>
-                      <TableCell className="font-bold">Total</TableCell>
+                    <TableRow className="bg-gray-50">
+                      <TableCell className="font-bold text-gray-900">Total</TableCell>
                       <TableCell></TableCell>
-                      <TableCell className="text-right font-bold">
+                      <TableCell className="text-right font-bold text-gray-900">
                         ₹{totalBill}
                       </TableCell>
                     </TableRow>
                   </TableBody>
+
                 </Table>
               </div>
             </div>

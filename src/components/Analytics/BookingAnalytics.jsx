@@ -317,187 +317,190 @@ function BookingAnalytics({ dateRange }) {
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Booking Analytics</h2>
       
-      <Tabs defaultValue="total">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="total">Total Bookings</TabsTrigger>
-   
-          <TabsTrigger value="cancellation">Cancellation Rate</TabsTrigger>
-        </TabsList>
-        
-        {/* Total Bookings Tab */}
-        <TabsContent value="total">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarClock className="h-5 w-5" />
-                    Total Bookings
-                  </CardTitle>
-                  <CardDescription>Monthly booking volume</CardDescription>
+      <div className="space-y-4">
+  
+        <Tabs defaultValue="total">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="total">Total Bookings</TabsTrigger>
+     
+            <TabsTrigger value="cancellation">Cancellation Rate</TabsTrigger>
+          </TabsList>
+          
+          {/* Total Bookings Tab */}
+          <TabsContent value="total">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarClock className="h-5 w-5" />
+                      Total Bookings
+                    </CardTitle>
+                    <CardDescription>Monthly booking volume</CardDescription>
+                  </div>
+                  <div className="text-2xl font-bold">{bookingCount}</div>
                 </div>
-                <div className="text-2xl font-bold">{bookingCount}</div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {totalBookingsData.length > 0 ? (
-                <ChartContainer config={totalBookingsConfig} className="h-[350px] w-full">
-                  <AreaChart
-                    accessibilityLayer
-                    data={totalBookingsData}
-                    margin={{
-                      left: 40,
-                      right: 40,
-                      top: 20,
-                      bottom: 20,
-                    }}
-                  >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tickFormatter={(value) => value.slice(0, 3)}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tickMargin={10}
-                    />
-                    <ChartTooltip
-                      content={(props) => {
-                        const { active, payload } = props;
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-card p-3 border shadow-lg rounded-lg">
-                              <p className="font-semibold text-card-foreground mb-1">{data.month}</p>
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <CalendarClock className="h-4 w-4" />
-                                <span className="font-medium text-card-foreground">
-                                  {data.bookings} bookings
-                                </span>
-                              </div>
-                              {totalBookingsData.length > 1 && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {bookingCount > 0 ? Math.round((data.bookings / bookingCount) * 100) : 0}% of total bookings
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-                        return null;
+              </CardHeader>
+              <CardContent>
+                {totalBookingsData.length > 0 ? (
+                  <ChartContainer config={totalBookingsConfig} className="h-[350px] w-full">
+                    <AreaChart
+                      accessibilityLayer
+                      data={totalBookingsData}
+                      margin={{
+                        left: 40,
+                        right: 40,
+                        top: 20,
+                        bottom: 20,
                       }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="bookings"
-                      stroke="hsl(var(--chart-6))"
-                      fill="hsl(var(--chart-6))"
-                      fillOpacity={0.2}
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  No booking data available for the selected period
-                </div>
-              )}
-            </CardContent>
-       
-          </Card>
-        </TabsContent>
-        
-
-        
-        {/* Cancellation Rate Tab */}
-        <TabsContent value="cancellation">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <XCircle className="h-5 w-5" />
-                    Cancellation Rate
-                  </CardTitle>
-                  <CardDescription>Monthly booking cancellations</CardDescription>
-                </div>
-                <div className="text-2xl font-bold">{cancellationRate}%</div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {cancellationRateData.length > 0 ? (
-                <ChartContainer config={cancellationRateConfig} className="h-[350px] w-full">
-                  <AreaChart
-                    accessibilityLayer
-                    data={cancellationRateData}
-                    margin={{
-                      left: 40,
-                      right: 40,
-                      top: 20,
-                      bottom: 20,
-                    }}
-                  >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tickFormatter={(value) => value.slice(0, 3)}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tickMargin={10}
-                      domain={[0, 100]}
-                    />
-                    <ChartTooltip
-                      content={(props) => {
-                        const { active, payload } = props;
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-card p-3 border shadow-lg rounded-lg">
-                              <p className="font-semibold text-card-foreground mb-1">{data.month}</p>
-                              <div className="flex flex-col gap-1">
+                    >
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="month"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tickFormatter={(value) => value.slice(0, 3)}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tickMargin={10}
+                      />
+                      <ChartTooltip
+                        content={(props) => {
+                          const { active, payload } = props;
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-card p-3 border shadow-lg rounded-lg">
+                                <p className="font-semibold text-card-foreground mb-1">{data.month}</p>
                                 <div className="flex items-center gap-2 text-muted-foreground">
-                                  <XCircle className="h-4 w-4" />
+                                  <CalendarClock className="h-4 w-4" />
                                   <span className="font-medium text-card-foreground">
-                                  {data.cancelled} out of {data.total} bookings cancelled
-                                   
+                                    {data.bookings} bookings
                                   </span>
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                {data.rate}% cancellation rate
+                                {totalBookingsData.length > 1 && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {bookingCount > 0 ? Math.round((data.bookings / bookingCount) * 100) : 0}% of total bookings
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="bookings"
+                        stroke="hsl(var(--chart-6))"
+                        fill="hsl(var(--chart-6))"
+                        fillOpacity={0.2}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                    No booking data available for the selected period
+                  </div>
+                )}
+              </CardContent>
+           
+            </Card>
+          </TabsContent>
+          
+
+          
+          {/* Cancellation Rate Tab */}
+          <TabsContent value="cancellation">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <XCircle className="h-5 w-5" />
+                      Cancellation Rate
+                    </CardTitle>
+                    <CardDescription>Monthly booking cancellations</CardDescription>
+                  </div>
+                  <div className="text-2xl font-bold">{cancellationRate}%</div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {cancellationRateData.length > 0 ? (
+                  <ChartContainer config={cancellationRateConfig} className="h-[350px] w-full">
+                    <AreaChart
+                      accessibilityLayer
+                      data={cancellationRateData}
+                      margin={{
+                        left: 40,
+                        right: 40,
+                        top: 20,
+                        bottom: 20,
+                      }}
+                    >
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="month"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tickFormatter={(value) => value.slice(0, 3)}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tickMargin={10}
+                        domain={[0, 100]}
+                      />
+                      <ChartTooltip
+                        content={(props) => {
+                          const { active, payload } = props;
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-card p-3 border shadow-lg rounded-lg">
+                                <p className="font-semibold text-card-foreground mb-1">{data.month}</p>
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2 text-muted-foreground">
+                                    <XCircle className="h-4 w-4" />
+                                    <span className="font-medium text-card-foreground">
+                                    {data.cancelled} out of {data.total} bookings cancelled
+                                     
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                  {data.rate}% cancellation rate
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="rate"
-                      stroke="hsl(var(--chart-8))"
-                      fill="hsl(var(--chart-8))"
-                      fillOpacity={0.2}
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  No cancellation data available for the selected period
-                </div>
-              )}
-            </CardContent>
-         
-          </Card>
-        </TabsContent>
-      </Tabs>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="rate"
+                        stroke="hsl(var(--chart-8))"
+                        fill="hsl(var(--chart-8))"
+                        fillOpacity={0.2}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                    No cancellation data available for the selected period
+                  </div>
+                )}
+              </CardContent>
+           
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

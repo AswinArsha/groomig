@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, X, Download, Check, RotateCcw } from "lucide-react";
+import { ArrowRight, ArrowLeft, X, Download, Check, RotateCcw, ArrowUpDown } from "lucide-react";
 import { format, parse, startOfMonth, endOfMonth } from "date-fns";
 import toast from "react-hot-toast";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +61,8 @@ export default function HistoricalBookingTable() {
   const [shopOptions, setShopOptions] = useState([]);
   const [selectedShop, setSelectedShop] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState(null);
+  const [selectedPaymentMode, setSelectedPaymentMode] = useState(null);
+  const [ratingSort, setRatingSort] = useState(null); // null, 'asc', or 'desc'
   const navigate = useNavigate();
 
   // Fetch available services
@@ -134,6 +135,8 @@ export default function HistoricalBookingTable() {
     setSearchTerm("");
     setSelectedShop(null);
     setSelectedStatus(null);
+    setSelectedPaymentMode(null);
+    setRatingSort(null);
     setSelectedDate({
       from: startOfMonth(new Date()),
       to: endOfMonth(new Date())
@@ -143,6 +146,16 @@ export default function HistoricalBookingTable() {
   const clearAllServices = () => {
     setSelectedServices([]);
     setSelectValue("");
+  };
+
+  const toggleRatingSort = () => {
+    if (ratingSort === null) {
+      setRatingSort('desc'); // First click: sort descending (highest first)
+    } else if (ratingSort === 'desc') {
+      setRatingSort('asc'); // Second click: sort ascending (lowest first)
+    } else {
+      setRatingSort(null); // Third click: remove sorting
+    }
   };
 
   const downloadPDF = async () => {
@@ -179,6 +192,11 @@ export default function HistoricalBookingTable() {
       yPosition += 7;
     }
 
+    if (selectedPaymentMode) {
+      doc.text(`Payment Mode: ${selectedPaymentMode.toUpperCase()}`, 14, yPosition);
+      yPosition += 7;
+    }
+
     // Define the table columns
     const columns = [
       'No.',
@@ -188,7 +206,9 @@ export default function HistoricalBookingTable() {
       'Breed',
       'Date',
       'Completed On',
-      'Status'
+      'Status',
+      'Rating',
+      'Payment Mode'
     ];
 
     // Prepare the data
@@ -200,7 +220,9 @@ export default function HistoricalBookingTable() {
       booking.dog_breed,
       format(new Date(booking.booking_date), "MMM dd, yyyy"),
       booking.completed_at ? format(new Date(booking.completed_at), "MMM dd, yyyy") : "N/A",
-      booking.status.replace("_", " ").toUpperCase()
+      booking.status.replace("_", " ").toUpperCase(),
+      booking.feedback && booking.feedback.rating ? booking.feedback.rating : "N/A",
+      booking.payment_mode ? booking.payment_mode.toUpperCase() : "N/A"
     ]);
 
     // Add the table
@@ -212,7 +234,8 @@ export default function HistoricalBookingTable() {
       styles: { fontSize: 8 },
       columnStyles: {
         0: { cellWidth: 15 },
-        7: { cellWidth: 25 }
+        7: { cellWidth: 20 },
+        9: { cellWidth: 25 }
       }
     });
 
@@ -251,6 +274,11 @@ export default function HistoricalBookingTable() {
         query = query.eq("status", selectedStatus.toLowerCase());
       }
 
+      // Add payment mode filter if selected
+      if (selectedPaymentMode) {
+        query = query.eq("payment_mode", selectedPaymentMode);
+      }
+
       // Execute the query
       const { data, error, count } = await query;
       
@@ -284,6 +312,18 @@ export default function HistoricalBookingTable() {
         });
       }
 
+      // Apply rating sort if selected
+      if (ratingSort) {
+        filteredData = [...filteredData].sort((a, b) => {
+          const ratingA = a.feedback && a.feedback.rating ? a.feedback.rating : 0;
+          const ratingB = b.feedback && b.feedback.rating ? b.feedback.rating : 0;
+          
+          return ratingSort === 'asc' 
+            ? ratingA - ratingB // ascending: lower ratings first
+            : ratingB - ratingA; // descending: higher ratings first
+        });
+      }
+
       // Update pagination based on filtered results
       const filteredCount = filteredData.length;
       const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -297,12 +337,12 @@ export default function HistoricalBookingTable() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, searchTerm, currentPage, selectedServices, selectedShop, selectedStatus]);
+  }, [selectedDate, searchTerm, currentPage, selectedServices, selectedShop, selectedStatus, selectedPaymentMode, ratingSort]);
 
   useEffect(() => {
     setCurrentPage(1);
     fetchHistoricalBookings();
-  }, [searchTerm, selectedDate, selectedServices, selectedShop, selectedStatus]);
+  }, [searchTerm, selectedDate, selectedServices, selectedShop, selectedStatus, selectedPaymentMode, ratingSort]);
 
   useEffect(() => {
     fetchHistoricalBookings();
@@ -344,15 +384,15 @@ export default function HistoricalBookingTable() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full"
               />
-                  {/* Clear All Filters Button */}
-            <Button
-              variant="outline"
-              onClick={clearAllFilters}
-              className="flex items-center space-x-2"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Clear All Filters</span>
-            </Button>
+              {/* Clear All Filters Button */}
+              <Button
+                variant="outline"
+                onClick={clearAllFilters}
+                className="flex items-center space-x-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span>Clear All Filters</span>
+              </Button>
             </div>
 
             {/* Download PDF Button */}
@@ -366,7 +406,7 @@ export default function HistoricalBookingTable() {
             </Button>
           </div>
 
-          {/* Filter Row: Shop, Services, Date */}
+          {/* First Filter Row: Shop, Status, Payment Mode */}
           <div className="flex flex-wrap items-center gap-4">
             {/* Shop Filter */}
             <div className="w-full sm:w-52">
@@ -402,6 +442,32 @@ export default function HistoricalBookingTable() {
               </Select>
             </div>
 
+            {/* Payment Mode Filter */}
+            <div className="w-full sm:w-52">
+              <Select value={selectedPaymentMode} onValueChange={setSelectedPaymentMode}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by payment..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={null}>All Payment Modes</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="UPI">UPI</SelectItem>
+                    <SelectItem value="swipe">Card/Swipe</SelectItem>
+                    <SelectItem value="credit">Credit</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Picker */}
+            <div className="w-full sm:w-52">
+              <CalendarDatePicker date={selectedDate} onDateSelect={setSelectedDate} />
+            </div>
+          </div>
+
+          {/* Second Filter Row: Services */}
+          <div className="flex flex-wrap items-center gap-4">
             {/* Service Filter */}
             <div className="w-full sm:w-52">
               <Select value={selectValue} onValueChange={handleServiceSelect}>
@@ -429,12 +495,19 @@ export default function HistoricalBookingTable() {
               </Select>
             </div>
 
-            {/* Date Picker */}
-            <div className="w-full sm:w-52">
-              <CalendarDatePicker date={selectedDate} onDateSelect={setSelectedDate} />
-            </div>
-
-        
+            {/* Rating Sort Button */}
+            <Button
+              variant={ratingSort ? "secondary" : "outline"}
+              onClick={toggleRatingSort}
+              className="flex items-center space-x-2"
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              <span>
+                {ratingSort === null && "Sort by Rating"}
+                {ratingSort === 'desc' && "Rating: High to Low"}
+                {ratingSort === 'asc' && "Rating: Low to High"}
+              </span>
+            </Button>
           </div>
 
           {/* Selected Services Display */}
@@ -461,7 +534,7 @@ export default function HistoricalBookingTable() {
                 onClick={clearAllServices}
                 className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-   <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -475,6 +548,8 @@ export default function HistoricalBookingTable() {
               {format(selectedDate.to, "PPP")}
               {selectedShop && shopOptions.find(shop => shop.value === selectedShop) && 
                 ` for ${shopOptions.find(shop => shop.value === selectedShop).label}`}
+              {selectedPaymentMode && 
+                ` with ${selectedPaymentMode.toUpperCase()} payment`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -499,7 +574,18 @@ export default function HistoricalBookingTable() {
                       <TableHead className="bg-gray-200 text-gray-800">Booking Date</TableHead>
                       <TableHead className="bg-gray-200 text-gray-800">Completed On</TableHead>
                       <TableHead className="bg-gray-200 text-gray-800">Status</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Rating</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        <div className="flex items-center">
+                          Rating
+                          <button 
+                            onClick={toggleRatingSort}
+                            className="ml-1 focus:outline-none"
+                          >
+                            <ArrowUpDown className="h-3 w-3 text-gray-500" />
+                          </button>
+                        </div>
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Payment Mode</TableHead>
                       <TableHead className="bg-gray-200 text-gray-800">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -537,6 +623,22 @@ export default function HistoricalBookingTable() {
                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                               </svg>
                             </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {booking.payment_mode ? (
+                            <Badge
+                              variant="outline"
+                              className={`${
+                                booking.payment_mode === 'credit'
+                                  ? 'bg-red-100 text-red-700 border border-red-300'
+                                  : 'bg-blue-100 text-blue-700 border border-blue-300'
+                              }`}
+                            >
+                              {booking.payment_mode.toUpperCase()}
+                            </Badge>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}

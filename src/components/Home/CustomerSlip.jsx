@@ -80,10 +80,12 @@ export const handleCustomerPrintSlip = (booking, selectedServices, serviceInputs
             body { 
               font-family: 'Courier New', monospace;
               margin: 0;
-              padding: 2mm;
+              padding: 4mm;
               width: 72mm;
               font-size: 10pt;
-              line-height: 1.2;
+              line-height: 1.4;
+              color: #000;
+              font-weight: bold;
             }
             .header { 
               text-align: center;
@@ -107,7 +109,7 @@ export const handleCustomerPrintSlip = (booking, selectedServices, serviceInputs
             }
             .info-section {
               margin: 3mm 0;
-              padding-bottom: 2mm;
+              padding: 2mm 1mm;
             }
             .info-row {
               display: flex;
@@ -170,10 +172,15 @@ export const handleCustomerPrintSlip = (booking, selectedServices, serviceInputs
               width: 100%;
             }
             .info-table td {
-              padding: 1px 0;
+              padding: 2px 4px;
+            }
+            .info-table td {
+              padding: 2px 4px;
+              font-weight: bold;
+              color: #000;
             }
             .info-table td:first-child {
-              font-weight: bold;
+              font-weight: 900;
             }
           </style>
         </head>

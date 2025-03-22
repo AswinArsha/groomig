@@ -263,97 +263,103 @@ function CustomerAnalytics({ dateRange }) {
     <div className="space-y-4">
      
       
-      <Tabs defaultValue="total">
-     
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold">Customer Analytics</h2>
         
-        {/* Total Unique Customers Tab */}
-        <TabsContent value="total">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Total Customers
-                  </CardTitle>
-                  <CardDescription>Monthly customer acquisition</CardDescription>
-                </div>
-             
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={uniqueCustomersConfig} className="h-[350px] w-full">
-                <BarChart accessibilityLayer data={uniqueCustomersData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                    tickFormatter={(value) => value.slice(0, 3)}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tickMargin={10}
-                  />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white p-4 border rounded-lg shadow-lg">
-                            <p className="font-bold text-lg mb-2">{label}</p>
-                            <div className="flex items-center gap-2 text-gray-600">
-                              <Users className="h-4 w-4" />
-                              <span>Total Bookings: {payload[0].value}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-gray-600">
-                              <TrendingUp className="h-4 w-4" />
-                              <span>New Customers: {payload[0].payload.newCustomers}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-gray-600">
-                              <Repeat className="h-4 w-4" />
-                              <span>Returning Customers: {payload[0].payload.returningCustomers}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-red-600">
-                              <TrendingUp className="h-4 w-4" />
-                              <span>Cancelled Bookings: {payload[0].payload.cancelledBookings}</span>
-                            </div>
-                            <p className={`mt-2 flex items-center gap-2 ${Number(payload[0].payload.percentageChange) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              <TrendingUp className="h-4 w-4" />
-                              <span>Change from previous month: {payload[0].payload.percentageChange}%</span>
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar 
-                    dataKey="customers" 
-                    fill="var(--color-customers)" 
-                    radius={4}
-                    onClick={(data) => {
-                      const currentYear = new Date().getFullYear();
-                      const monthDate = parse(data.month, 'MMMM', new Date(currentYear, 0));
-                      const from = startOfMonth(monthDate);
-                      const to = endOfMonth(monthDate);
-                      navigate('/all-bookings', {
-                        state: {
-                          selectedDate: { from, to }
-                        }
-                      });
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
+    
+        
+        <Tabs defaultValue="total">
+     
           
+          {/* Total Unique Customers Tab */}
+          <TabsContent value="total">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Total Customers
+                    </CardTitle>
+                    <CardDescription>Monthly customer acquisition</CardDescription>
+                  </div>
+             
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={uniqueCustomersConfig} className="h-[350px] w-full">
+                  <BarChart accessibilityLayer data={uniqueCustomersData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                      tickFormatter={(value) => value.slice(0, 3)}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tickMargin={10}
+                    />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-white p-4 border rounded-lg shadow-lg">
+                              <p className="font-bold text-lg mb-2">{label}</p>
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <Users className="h-4 w-4" />
+                                <span>Total Bookings: {payload[0].value}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <TrendingUp className="h-4 w-4" />
+                                <span>New Customers: {payload[0].payload.newCustomers}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <Repeat className="h-4 w-4" />
+                                <span>Returning Customers: {payload[0].payload.returningCustomers}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-red-600">
+                                <TrendingUp className="h-4 w-4" />
+                                <span>Cancelled Bookings: {payload[0].payload.cancelledBookings}</span>
+                              </div>
+                              <p className={`mt-2 flex items-center gap-2 ${Number(payload[0].payload.percentageChange) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                <TrendingUp className="h-4 w-4" />
+                                <span>Change from previous month: {payload[0].payload.percentageChange}%</span>
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="customers" 
+                      fill="var(--color-customers)" 
+                      radius={4}
+                      onClick={(data) => {
+                        const currentYear = new Date().getFullYear();
+                        const monthDate = parse(data.month, 'MMMM', new Date(currentYear, 0));
+                        const from = startOfMonth(monthDate);
+                        const to = endOfMonth(monthDate);
+                        navigate('/all-bookings', {
+                          state: {
+                            selectedDate: { from, to }
+                          }
+                        });
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            
           </Card>
         </TabsContent>
     
       </Tabs>
+    </div>
     </div>
   );
 }
