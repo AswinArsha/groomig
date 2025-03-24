@@ -7,7 +7,11 @@ import toast from "react-hot-toast";
 import { Badge } from "@/components/ui/badge";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Table,
   TableBody,
@@ -208,7 +212,8 @@ export default function HistoricalBookingTable() {
       'Completed On',
       'Status',
       'Rating',
-      'Payment Mode'
+      'Payment Mode',
+      'Total Bill'
     ];
 
     // Prepare the data
@@ -222,7 +227,8 @@ export default function HistoricalBookingTable() {
       booking.completed_at ? format(new Date(booking.completed_at), "MMM dd, yyyy") : "N/A",
       booking.status.replace("_", " ").toUpperCase(),
       booking.feedback && booking.feedback.rating ? booking.feedback.rating : "N/A",
-      booking.payment_mode ? booking.payment_mode.toUpperCase() : "N/A"
+      booking.payment_mode ? booking.payment_mode.toUpperCase() : "N/A",
+      booking.services ? booking.services.reduce((total, service) => total + (service.price || 0), 0).toFixed(2) : "N/A"
     ]);
 
     // Add the table
@@ -540,7 +546,7 @@ export default function HistoricalBookingTable() {
           )}
         </div>
 
-        <Card className="mt-4">
+        <Card className="mt-4 bg-white">
           <CardHeader>
             <CardTitle>Historical Bookings</CardTitle>
             <CardDescription>
@@ -585,15 +591,33 @@ export default function HistoricalBookingTable() {
                           </button>
                         </div>
                       </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Total Bill</TableHead>
                       <TableHead className="bg-gray-200 text-gray-800">Payment Mode</TableHead>
+                    
                       <TableHead className="bg-gray-200 text-gray-800">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {bookings.map((booking, index) => (
-                      <TableRow key={booking.id}>
-                        <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
-                        <TableCell>{booking.customer_name}</TableCell>
+                  <TableBody className="bg-gray-50">
+  {bookings.map((booking, index) => (
+    <TableRow 
+      key={booking.id}
+      className="cursor-pointer hover:bg-gray-100 transition-colors"
+      onClick={() => {
+        if (!booking?.id) {
+          toast.error("Invalid booking ID");
+          return;
+        }
+        // Ensure the ID is a valid UUID before navigation
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(booking.id)) {
+          toast.error("Invalid booking ID format");
+          return;
+        }
+        navigate(`/all-booking-details/${booking.id}`);
+      }}
+    >
+      <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
+      <TableCell>{booking.customer_name}</TableCell>
                         <TableCell>{booking.contact_number}</TableCell>
                         <TableCell>{booking.dog_name}</TableCell>
                         <TableCell>{booking.dog_breed}</TableCell>
@@ -628,6 +652,47 @@ export default function HistoricalBookingTable() {
                           )}
                         </TableCell>
                         <TableCell>
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button 
+        variant="ghost" 
+        className={`font-medium flex items-center gap-2 ${booking.payment_mode === "credit" ? "text-red-600" : ""}`}
+        onClick={(e) => e.stopPropagation()} // Prevent row click event propagation
+      >
+        {Array.isArray(booking.services) && booking.services.length > 0 ? 
+          `₹${booking.services.reduce((total, service) => total + (service.price || 0), 0).toFixed(2)}` 
+          : <span className="text-gray-400">—</span>}
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-[300px] p-6">
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <div className="text-sm font-medium">Services</div>
+          {Array.isArray(booking.services) && booking.services.length > 0 ? (
+            booking.services.map((service, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm py-1">
+                <span>{service.name}</span>
+                <span>₹{service.price.toFixed(2)}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">No services selected</p>
+          )}
+        </div>
+        {Array.isArray(booking.services) && booking.services.length > 0 && (
+          <div className="pt-4 border-t">
+            <div className="flex justify-between items-center font-semibold">
+              <span>Total Amount</span>
+              <span>₹{booking.services.reduce((total, service) => total + (service.price || 0), 0).toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </PopoverContent>
+  </Popover>
+</TableCell>
+
+<TableCell>
                           {booking.payment_mode ? (
                             <Badge
                               variant="outline"
@@ -643,30 +708,30 @@ export default function HistoricalBookingTable() {
                             <span className="text-gray-400">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              if (!booking?.id) {
-                                toast.error("Invalid booking ID");
-                                return;
-                              }
-                              // Ensure the ID is a valid UUID before navigation
-                              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                              if (!uuidRegex.test(booking.id)) {
-                                toast.error("Invalid booking ID format");
-                                return;
-                              }
-                              navigate(`/all-booking-details/${booking.id}`);
-                            }}
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!booking?.id) {
+              toast.error("Invalid booking ID");
+              return;
+            }
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(booking.id)) {
+              toast.error("Invalid booking ID format");
+              return;
+            }
+            navigate(`/all-booking-details/${booking.id}`);
+          }}
+        >
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  ))}
+</TableBody>
                 </Table>
               </div>
             )}
@@ -683,11 +748,39 @@ export default function HistoricalBookingTable() {
                     disabled={currentPage === 1}
                   />
                 </PaginationItem>
-                <PaginationItem>
-                  <span className="px-4">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                </PaginationItem>
+                {[...Array(totalPages)].map((_, index) => {
+                  const pageNumber = index + 1;
+                  // Show first page, last page, and pages around current page
+                  if (
+                    pageNumber === 1 ||
+                    pageNumber === totalPages ||
+                    (pageNumber >= currentPage - 2 && pageNumber <= currentPage + 2)
+                  ) {
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <Button
+                          variant={currentPage === pageNumber ? "secondary" : "ghost"}
+                          className="h-9 w-9"
+                          onClick={() => setCurrentPage(pageNumber)}
+                        >
+                          {pageNumber}
+                        </Button>
+                      </PaginationItem>
+                    );
+                  }
+                  // Show ellipsis
+                  if (
+                    (pageNumber === 2 && currentPage - 2 > 2) ||
+                    (pageNumber === totalPages - 1 && currentPage + 2 < totalPages - 1)
+                  ) {
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                  return null;
+                })}
                 <PaginationItem>
                   <PaginationNext
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}

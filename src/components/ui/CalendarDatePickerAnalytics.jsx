@@ -66,7 +66,7 @@ function CalendarDatePicker({
   ...props
 }) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const [selectedRange, setSelectedRange] = useState(numberOfMonths === 2 ? "This Month" : "Today");
+  const [selectedRange, setSelectedRange] = useState("This Year");
   const [monthFrom, setMonthFrom] = useState(date?.from || startOfMonth(new Date()));
   const [yearFrom, setYearFrom] = useState(date?.from ? date.from.getFullYear() : new Date().getFullYear());
   const [monthTo, setMonthTo] = useState(numberOfMonths === 2 ? (date?.to || endOfMonth(new Date())) : (date?.from || startOfMonth(new Date())));

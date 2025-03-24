@@ -185,7 +185,8 @@ export default function BookingTable() {
               start_time
             )
           ),
-          booking_services_selected (*, services(*))
+          booking_services_selected (*, services(*)),
+          historical_bookings!historical_bookings_original_booking_id_fkey (payment_mode)
         `, { count: "exact" })
         .eq("booking_date", formattedDate)
         .order("created_at", { ascending: false })
@@ -478,7 +479,7 @@ export default function BookingTable() {
           </div>
         )}
 
-      <Card>
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle>Bookings</CardTitle>
           <CardDescription>
@@ -507,10 +508,11 @@ export default function BookingTable() {
                     <TableHead className="bg-gray-200 text-gray-800">Sub Slot</TableHead>
                     <TableHead className="bg-gray-200 text-gray-800">Status</TableHead>
                     <TableHead className="bg-gray-200 text-gray-800">Total Bill</TableHead>
+                    <TableHead className="bg-gray-200 text-gray-800">Payment Mode</TableHead>
                     <TableHead className="bg-gray-200 text-gray-800">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody className="bg-gray-50">
                   {bookings.map((booking, index) => (
                     <TableRow key={booking.id}>
                       <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
@@ -524,29 +526,35 @@ export default function BookingTable() {
                       </TableCell>
                   
                       <TableCell>{getSubSlotDisplay(booking)}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${booking.status === "reserved"
-                            ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
-                            : booking.status === "checked_in"
-                            ? "bg-green-200 text-green-700 border border-green-300"
-                            : booking.status === "progressing"
-                            ? "bg-blue-200 text-blue-700 border border-blue-300"
-                            : booking.status === "completed"
-                            ? "bg-green-200 text-green-700 border border-green-300"
-                            : booking.status === "canceled" || booking.status === "cancelled"
-                            ? "bg-red-200 text-red-700 border border-red-300"
-                            : "bg-gray-200 text-gray-700 border border-gray-300"
-                          }`}
-                        >
-                          {booking.status.replace("_", " ").toUpperCase()}
-                        </span>
-                      </TableCell>
+                   
+                      <TableCell >
+  <span
+    className={`rounded-full font-medium p-1 text-xs ${
+      booking.status === "reserved"
+        ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
+        : booking.status === "checked_in"
+        ? "bg-green-200 text-green-700 border border-green-300"
+        : booking.status === "progressing"
+        ? "bg-blue-200 text-blue-700 border border-blue-300"
+        : booking.status === "completed"
+        ? "bg-green-200 text-green-700 border border-green-300"
+        : booking.status === "canceled" || booking.status === "cancelled"
+        ? "bg-red-200 text-red-700 border border-red-300"
+        : "bg-gray-200 text-gray-700 border border-gray-300"
+    }`}
+    style={{  whiteSpace: "nowrap" }} // Adjust padding and ensure no text wrapping
+  >
+    {booking.status.replace("_", " ").toUpperCase()}
+  </span>
+</TableCell>
+
                       <TableCell>
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="ghost" className="font-medium flex items-center gap-2">
-                            
+                            <Button 
+                              variant="ghost" 
+                              className={`font-medium flex items-center gap-2 ${booking.historical_bookings?.[0]?.payment_mode === "credit" ? "text-red-600" : ""}`}
+                            >
                               ₹{booking.booking_services_selected?.reduce((total, service) => 
                                 total + (service.services?.price || 0), 0).toFixed(2) || '0.00'}
                             </Button>
@@ -576,6 +584,16 @@ export default function BookingTable() {
                             </div>
                           </PopoverContent>
                         </Popover>
+                      </TableCell>
+                      <TableCell>
+                        {booking.historical_bookings?.[0]?.payment_mode && (
+                          <span
+                            className={`rounded-full font-medium p-1 text-xs ${booking.historical_bookings[0].payment_mode === "credit" ? "bg-red-200 text-red-700 border border-red-300" : "bg-blue-200 text-blue-700 border border-blue-300"}`}
+                            style={{ whiteSpace: "nowrap" }}
+                          >
+                            {booking.historical_bookings[0].payment_mode.toUpperCase()}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
@@ -723,3 +741,4 @@ export default function BookingTable() {
     </div>
   );
 }
+
