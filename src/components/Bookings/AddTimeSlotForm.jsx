@@ -118,35 +118,39 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
   };
 
   return (
-    <Card className="w-full max-w-5xl mx-auto">
-      <CardHeader>
+    <Card className="w-full mx-auto border-0">
+      <CardHeader className="pb-4">
         <CardTitle className="text-2xl font-bold">Add Time Slot</CardTitle>
         <CardDescription>Set up a new time slot with sub-slots for your schedule</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Left Column - Time Picker and Shop Selection */}
-            <div className="space-y-6">
+            <div className="space-y-8">
               {/* Time Picker */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <TimePicker onTimeSelect={handleTimeSelect} />
               </div>
 
               {/* Shop Multi-Select */}
               <div className="space-y-4">
-                <Label className="text-base font-semibold">Select Shops</Label>
+                <Label className="text-base font-semibold block mb-3">Select Shops</Label>
                 <div className="grid grid-cols-2 gap-4">
                   {shops.map((shop) => (
-                    <div key={shop.id} className="flex items-center space-x-2">
+                    <div 
+                      key={shop.id} 
+                      className="flex items-center space-x-3 p-2 rounded-md transition-colors hover:bg-secondary/10"
+                    >
                       <Checkbox
                         id={`shop-${shop.id}`}
                         checked={selectedShops.includes(shop.id)}
                         onCheckedChange={() => toggleShopSelection(shop.id)}
+                        className="data-[state=checked]:bg-primary"
                       />
                       <Label
-                        htmlFor={`shop-${shop.id}`} // Ensure htmlFor matches the Checkbox id
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        htmlFor={`shop-${shop.id}`}
+                        className="text-sm font-medium leading-none cursor-pointer select-none"
                       >
                         {shop.name}
                       </Label>
@@ -158,27 +162,27 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
 
             {/* Right Column - Sub-Time Slots */}
             <div className="space-y-4">
-              <Label className="text-lg font-semibold">Sub-Time Slots</Label>
-              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4">
+              <Label className="text-lg font-semibold block mb-3">Sub-Time Slots</Label>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-4 scrollbar-thin">
                 {subSlots.map((slot, index) => (
                   <div
                     key={index}
-                    className="flex items-center space-x-4 bg-secondary/20 p-3 rounded-lg"
+                    className="flex items-center space-x-4 bg-secondary/10 p-4 rounded-lg transition-all hover:bg-secondary/20"
                   >
-                    <span className="text-sm font-medium min-w-[60px]">Slot {slot.slot_number}:</span>
+                    <span className="text-sm font-medium min-w-[70px]">Slot {slot.slot_number}:</span>
                     <Input
                       type="text"
                       placeholder="Description"
                       value={slot.description}
                       onChange={(e) => handleSubSlotChange(index, "description", e.target.value)}
-                      className="flex-grow"
+                      className="flex-grow focus:ring-2 focus:ring-primary/20"
                     />
                     {subSlots.length > 1 && (
                       <Button
                         type="button"
                         variant="destructive"
-                       
                         onClick={() => handleRemoveSubSlot(index)}
+                        className="hover:bg-destructive/90 transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -186,13 +190,21 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
                   </div>
                 ))}
               </div>
-              <Button type="button" onClick={handleAddSubSlot} variant="outline" className="w-full">
+              <Button 
+                type="button" 
+                onClick={handleAddSubSlot} 
+                variant="outline" 
+                className="w-full hover:bg-secondary/10 transition-colors"
+              >
                 <Plus className="h-4 w-4 mr-2" /> Add Sub-Time Slot
               </Button>
             </div>
           </div>
 
-          <Button type="submit" className="w-full">
+          <Button 
+            type="submit" 
+            className="w-full bg-primary hover:bg-primary/90 transition-colors"
+          >
             Add Time Slot
           </Button>
         </form>

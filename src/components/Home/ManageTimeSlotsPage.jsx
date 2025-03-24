@@ -10,7 +10,7 @@ export default function ManageTimeSlotsPage({ onSlotAdded }) {
   const navigate = useNavigate();
   
   return (
-    <div className="">
+    <div >
 
       
       {/* Manage Time Slots Content */}

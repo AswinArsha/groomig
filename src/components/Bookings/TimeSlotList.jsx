@@ -141,47 +141,57 @@ export default function TimeSlotList() {
   }
 
   return (
-    <Card className="w-full max-w-5xl mx-auto ">
+    <Card className="w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <CardHeader>
-        <CardDescription>Manage your time slots and their sub-slots.</CardDescription>
+        <CardDescription className="text-lg font-medium">Manage your time slots and their sub-slots.</CardDescription>
       </CardHeader>
       <CardContent>
         {slots.length === 0 ? (
-          <div className="text-center ">
-            <p className="text-muted-foreground">No time slots found.</p>
-            <p className="text-sm text-muted-foreground ">
+          <div className="text-center p-8 border-2 border-dashed rounded-lg">
+            <p className="text-muted-foreground text-lg mb-2">No time slots found.</p>
+            <p className="text-sm text-muted-foreground">
               Add a time slot to get started.
             </p>
           </div>
         ) : (
-          <ScrollArea className="h-[24rem]">
+          <ScrollArea className="h-[28rem]">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {slots.map((slot) => (
-                <div key={slot.id} className="aspect-square">
-                  <Card className="h-full shadow-md">
-                    <CardContent className="p-4 h-full flex flex-col justify-between">
+                <div key={slot.id} className="aspect-square group">
+                  <Card className="h-full transition-all duration-200  hover:border-primary/50">
+                    <CardContent className="p-4 h-full flex flex-col justify-between relative">
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-primary/10 p-2 rounded-full">
-                            <Clock className="h-5 w-5 text-primary" />
+                        <div className="flex items-center gap-3">
+                          <div className="bg-primary/10 p-2.5 rounded-full transition-colors group-hover:bg-primary/20">
+                            <Clock className="h-6 w-6 text-primary" />
                           </div>
-                          <p className="font-medium text-lg">
-                            {formatTimeDisplay(slot.start_time)}
-                          </p>
+                          <div>
+                            <p className="font-medium text-lg text-foreground/90 group-hover:text-foreground">
+                              {formatTimeDisplay(slot.start_time)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {slot.sub_time_slots?.length || 0} sub-slots
+                            </p>
+                          </div>
                         </div>
                         <div className="space-y-2">
-                          <h4 className="font-semibold text-sm">Sub-Time Slots</h4>
+                          <h4 className="font-semibold text-sm flex items-center gap-2">
+                            Sub-Time Slots
+                            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-xs font-normal">
+                              {slot.sub_time_slots?.length || 0}
+                            </span>
+                          </h4>
                           {slot.sub_time_slots && slot.sub_time_slots.length > 0 ? (
-                            <ul className="text-sm space-y-1 overflow-y-auto max-h-[100px]">
+                            <ul className="text-sm space-y-1.5 overflow-y-auto max-h-[120px] pr-2">
                               {slot.sub_time_slots.map((subSlot) => (
-                                <li key={subSlot.id} className="flex items-center gap-1">
-                                  <span className="text-primary">•</span>
-                                  <span>Slot {subSlot.slot_number}: {subSlot.description || "No Description"}</span>
+                                <li key={subSlot.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                                  <span className="text-primary text-lg">•</span>
+                                  <span className="text-foreground/80">Slot {subSlot.slot_number}: {subSlot.description || "No Description"}</span>
                                 </li>
-                              ))}
+                              ))}                          
                             </ul>
                           ) : (
-                            <p className="text-sm text-muted-foreground">No sub-time slots added.</p>
+                            <p className="text-sm text-muted-foreground p-2 bg-muted/30 rounded-md">No sub-time slots added.</p>
                           )}
                         </div>
                       </div>
@@ -192,9 +202,9 @@ export default function TimeSlotList() {
                               size="sm"
                               variant="outline"
                               onClick={() => setEditingSlot(slot)}
-                              className="flex-1"
+                              className="flex-1 hover:border-primary hover:text-primary transition-colors"
                             >
-                              <Edit2 className="h-4 w-4 mr-1" />
+                              <Edit2 className="h-4 w-4 mr-1.5" />
                               Edit
                             </Button>
                           </DialogTrigger>
@@ -217,9 +227,9 @@ export default function TimeSlotList() {
                               size="sm"
                               variant="destructive"
                               onClick={() => setDeleteId(slot.id)}
-                              className="flex-1"
+                              className="flex-1 opacity-90 hover:opacity-100"
                             >
-                              <Trash2 className="h-4 w-4 mr-1" />
+                              <Trash2 className="h-4 w-4 mr-1.5" />
                               Delete
                             </Button>
                           </DialogTrigger>
