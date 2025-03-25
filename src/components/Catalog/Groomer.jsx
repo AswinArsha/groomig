@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import toast from "react-hot-toast";
@@ -30,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2 ,Search} from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 
 export default function Groomer() {
   const [groomers, setGroomers] = useState([]);
@@ -46,6 +45,7 @@ export default function Groomer() {
     address: "",
     shop_id: "",
   });
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch groomers and shops from Supabase
   const fetchData = async () => {
@@ -160,40 +160,41 @@ export default function Groomer() {
     }
   };
 
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredGroomers = groomers.filter(groomer =>
+  const filteredGroomers = groomers.filter((groomer) =>
     groomer.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="container mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <Button onClick={() => {
-          setEditingGroomer(null);
-          setFormData({
-            name: "",
-            phone_number: "",
-            address: "",
-            shop_id: "",
-          });
-          setDialogOpen(true);
-        }}>
+    <div className="container mx-auto px-4">
+      {/* Header with Add Button and Search */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <Button
+          onClick={() => {
+            setEditingGroomer(null);
+            setFormData({
+              name: "",
+              phone_number: "",
+              address: "",
+              shop_id: "",
+            });
+            setDialogOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" /> Add New Groomer
         </Button>
         <div className="relative w-full sm:w-64">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
             type="text"
             placeholder="Search groomers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-           className="pl-10 w-full"
+            className="pl-10 w-full"
           />
-          
         </div>
       </div>
 
+      {/* Groomers Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredGroomers.map((groomer) => (
           <Card key={groomer.id}>
@@ -261,7 +262,7 @@ export default function Groomer() {
             </div>
             <div>
               <Label htmlFor="shop">
-                Shop <span style={{ color: 'red' }}>*</span>
+                Shop <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={formData.shop_id}

@@ -54,6 +54,7 @@ export default function BookingDetails() {
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedServices, setSelectedServices] = useState([]);
+  const [servicesUpdated, setServicesUpdated] = useState(false);
   const [serviceInputs, setServiceInputs] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
@@ -94,7 +95,14 @@ export default function BookingDetails() {
         .single();
       if (error) throw error;
       setBooking(data);
-
+  
+      // Check if services exist in the database for this booking
+      if (data.booking_services_selected && data.booking_services_selected.length > 0) {
+        setServicesUpdated(true);
+      } else {
+        setServicesUpdated(false);
+      }
+  
       // Initialize selectedServices from booking_services_selected without duplicates
       if (data.booking_services_selected) {
         const uniqueServices = data.booking_services_selected.reduce(
@@ -115,7 +123,7 @@ export default function BookingDetails() {
           []
         );
         setSelectedServices(uniqueServices);
-
+  
         // Initialize service inputs
         const inputs = {};
         const tips = {};
@@ -271,8 +279,6 @@ export default function BookingDetails() {
             : null,
       }));
       
-   
-      
       const { error: insertError } = await supabase
         .from("booking_services_selected")
         .insert(bookingServices);
@@ -287,6 +293,9 @@ export default function BookingDetails() {
         if (updateError) throw updateError;
       }
   
+      // Set services updated to true after successful update
+      setServicesUpdated(true);
+      
       toast.success("Booking updated successfully!");
       fetchBookingDetails();
      
@@ -296,6 +305,7 @@ export default function BookingDetails() {
       setSubmitting(false);
     }
   }, [id, selectedServices, serviceInputs, careTips, booking?.status, fetchBookingDetails]);
+  
   
 
   // Handle initial submission (for non-edit mode)
@@ -316,8 +326,6 @@ export default function BookingDetails() {
             : null,
       }));
       
-      
-      
       const { error: insertError } = await supabase
         .from("booking_services_selected")
         .insert(bookingServices);
@@ -329,6 +337,9 @@ export default function BookingDetails() {
         .eq("id", id);
       if (updateError) throw updateError;
   
+      // Set services updated to true after successful insertion
+      setServicesUpdated(true);
+      
       toast.success("Booking confirmed successfully!");
       navigate("/home");
     } catch (error) {
@@ -1050,16 +1061,20 @@ const handlePrintSlip = (copyType) => {
               )}
             </Button>
           )}
-          {(booking.status === "progressing" || booking.status === "checked_in") && (
-     <Button onClick={() => setShowPaymentDialog(true)} className="bg-green-500 hover:bg-green-600 text-white">
-     {submitting ? (
-       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-     ) : (
-       <Check className="mr-2 h-4 w-4" />
-     )}
-     Complete Booking
-   </Button>
-          )}
+        {(booking.status === "progressing" || booking.status === "checked_in") && (
+  <Button 
+    onClick={() => setShowPaymentDialog(true)} 
+    className="bg-green-500 hover:bg-green-600 text-white"
+    disabled={!servicesUpdated || submitting}
+  >
+    {submitting ? (
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+    ) : (
+      <Check className="mr-2 h-4 w-4" />
+    )}
+    Complete Booking
+  </Button>
+)}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="bg-white text-gray-800">

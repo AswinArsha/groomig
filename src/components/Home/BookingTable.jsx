@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import {
   CardContent,
   CardHeader,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -35,6 +35,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+
 import {
   Pagination,
   PaginationContent,
@@ -44,6 +45,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -63,15 +65,11 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 
-const ITEMS_PER_PAGE = 10;
-
 export default function BookingTable() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [cancelId, setCancelId] = useState(null);
   const [editingBooking, setEditingBooking] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   // Use a single date picker (default today)
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -85,10 +83,13 @@ export default function BookingTable() {
   const [shopOptions, setShopOptions] = useState([]);
   const [selectedShop, setSelectedShop] = useState(null);
 
-  const navigate = useNavigate();
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 10; // Number of bookings per page
 
-  // Calculate total pages
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+  const navigate = useNavigate();
 
   // Fetch available shops for filtering
   const fetchShopOptions = useCallback(async () => {
@@ -169,11 +170,30 @@ export default function BookingTable() {
     setSelectValue("");
   };
 
-  // Fetch bookings with filters applied
+  // Calculate pagination info
+  useEffect(() => {
+    if (totalCount > 0) {
+      setTotalPages(Math.ceil(totalCount / itemsPerPage));
+    } else {
+      setTotalPages(1);
+    }
+    
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
+  }, [totalCount, itemsPerPage, searchTerm, selectedDate, selectedServiceFilters, selectedShop]);
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Fetch bookings with filters and pagination applied
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
       const formattedDate = format(selectedDate, "yyyy-MM-dd");
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
 
       let query = supabase
         .from("bookings")
@@ -187,10 +207,10 @@ export default function BookingTable() {
           ),
           booking_services_selected (*, services(*)),
           historical_bookings!historical_bookings_original_booking_id_fkey (payment_mode)
-        `, { count: "exact" })
+        `, { count: 'exact' })
         .eq("booking_date", formattedDate)
         .order("created_at", { ascending: false })
-        .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
+        .range(from, to);
 
       if (searchTerm) {
         query = query.or(
@@ -231,17 +251,11 @@ export default function BookingTable() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, searchTerm, currentPage, selectedServiceFilters, selectedShop]);
-
-  useEffect(() => {
-    // Reset to page 1 when search term, date, service filters, or shop filter changes
-    setCurrentPage(1);
-    fetchBookings();
-  }, [searchTerm, selectedDate, selectedServiceFilters, selectedShop, fetchBookings]);
+  }, [selectedDate, searchTerm, selectedServiceFilters, selectedShop, currentPage, itemsPerPage]);
 
   useEffect(() => {
     fetchBookings();
-  }, [currentPage, fetchBookings]);
+  }, [searchTerm, selectedDate, selectedServiceFilters, selectedShop, currentPage, fetchBookings]);
 
   // Real-time subscription to bookings changes
   useEffect(() => {
@@ -258,7 +272,7 @@ export default function BookingTable() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentPage, searchTerm, selectedDate, selectedServiceFilters, fetchBookings]);
+  }, [searchTerm, selectedDate, selectedServiceFilters, currentPage, fetchBookings]);
 
   async function handleCancel(booking) {
     setLoading(true);
@@ -366,23 +380,6 @@ export default function BookingTable() {
     }
   }
 
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisiblePages = 5;
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      let startPage = Math.max(2, currentPage - 1);
-      let endPage = Math.min(totalPages - 1, currentPage + 1);
-      if (startPage > 2) pages.push("...");
-      for (let i = startPage; i <= endPage; i++) pages.push(i);
-      if (endPage < totalPages - 1) pages.push("...");
-      pages.push(totalPages);
-    }
-    return pages;
-  };
-
   const formatTimeIST = (timeStr) => {
     try {
       return format(parse(timeStr, "HH:mm:ss", new Date()), "hh:mm a");
@@ -391,95 +388,186 @@ export default function BookingTable() {
     }
   };
 
+  // Generate pagination items
+  const renderPaginationItems = () => {
+    // If total pages is less than 7, show all pages
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => (
+        <PaginationItem key={i + 1}>
+          <PaginationLink
+            href="#"
+            isActive={currentPage === i + 1}
+            onClick={(e) => {
+              e.preventDefault();
+              handlePageChange(i + 1);
+            }}
+          >
+            {i + 1}
+          </PaginationLink>
+        </PaginationItem>
+      ));
+    }
+
+    // Show first page, last page, and pages around current page
+    const items = [];
+
+    // Always show first page
+    items.push(
+      <PaginationItem key={1}>
+        <PaginationLink
+          href="#"
+          isActive={currentPage === 1}
+          onClick={(e) => {
+            e.preventDefault();
+            handlePageChange(1);
+          }}
+        >
+          1
+        </PaginationLink>
+      </PaginationItem>
+    );
+
+    // Calculate range of visible page numbers
+    let startPage = Math.max(2, currentPage - 2);
+    let endPage = Math.min(totalPages - 1, currentPage + 2);
+
+    // Show ellipsis after first page if needed
+    if (startPage > 2) {
+      items.push(
+        <PaginationItem key="ellipsis-1">
+          <PaginationEllipsis />
+        </PaginationItem>
+      );
+    }
+
+    // Add page numbers
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            href="#"
+            isActive={currentPage === i}
+            onClick={(e) => {
+              e.preventDefault();
+              handlePageChange(i);
+            }}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    // Show ellipsis before last page if needed
+    if (endPage < totalPages - 1) {
+      items.push(
+        <PaginationItem key="ellipsis-2">
+          <PaginationEllipsis />
+        </PaginationItem>
+      );
+    }
+
+    // Always show last page if there is more than one page
+    if (totalPages > 1) {
+      items.push(
+        <PaginationItem key={totalPages}>
+          <PaginationLink
+            href="#"
+            isActive={currentPage === totalPages}
+            onClick={(e) => {
+              e.preventDefault();
+              handlePageChange(totalPages);
+            }}
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    return items;
+  };
+
   return (
     <div className="container mx-auto p-4">
-      <div className="flex mb-2 flex-col sm:flex-row sm:items-center sm:space-x-4">
-        <Input
-          type="text"
-          placeholder="Search by customer, breed, contact, dog name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full sm:w-64"
-          aria-label="Search Bookings"
-        />
+    
+    
 
-        {/* Shop Filter Select */}
-        <div className="sm:w-72">
-          <Select value={selectedShop} onValueChange={setSelectedShop}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Filter by shop..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {shopOptions.map((shop) => (
-                  <SelectItem
-                    key={shop.value || 'all'}
-                    value={shop.value}
-                  >
-                    {shop.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
+<div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-4 mb-2">
+  <Input
+    type="text"
+    placeholder="Search by customer, breed, contact, dog name..."
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    className="w-full sm:w-64"
+    aria-label="Search Bookings"
+  />
 
-        {/* Service Filter Select */}
-        <div className="sm:w-72">
-          <Select value={selectValue} onValueChange={(val) => { handleServiceSelect(val); }}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Filter by services..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {serviceOptions.map((service) => (
-                  <SelectItem
-                    key={service.value}
-                    value={service.value}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex">
-                    <span>{service.label}</span>
-                    {selectedServiceFilters.some(s => s.value === service.value) && (
-                      <Check className="h-4 w-4 ml-2 text-primary" />
-                    )}</div>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
-      </div>
+  {/* Shop Filter Select */}
+  <div className="w-full sm:w-72">
+    <Select value={selectedShop} onValueChange={setSelectedShop}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Filter by shop..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {shopOptions.map((shop) => (
+            <SelectItem key={shop.value || 'all'} value={shop.value}>
+              {shop.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  </div>
 
-       
-         {/* Display selected service filters as badges */}
-         {selectedServiceFilters.length > 0 && (
-          <div className="my-2 flex flex-wrap gap-2">
-            {selectedServiceFilters.map(service => (
-              <Badge key={service.value} variant="secondary" className="flex items-center">
-                {service.label}
-                <button
-                  onClick={() => removeServiceFilter(service.value)}
-                  className="ml-1 text-sm"
-                  aria-label={`Remove filter for ${service.label}`}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </Badge>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearAllServiceFilters}
-              className="text-sm"
-            >
-                <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+  {/* Service Filter Select */}
+  <div className="w-full sm:w-72">
+    <Select value={selectValue} onValueChange={(val) => { handleServiceSelect(val); }}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Filter by services..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {serviceOptions.map((service) => (
+            <SelectItem key={service.value} value={service.value} className="flex items-center justify-between">
+              <div className="flex">
+                <span>{service.label}</span>
+                {selectedServiceFilters.some(s => s.value === service.value) && (
+                  <Check className="h-4 w-4 ml-2 text-primary" />
+                )}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  </div>
+  <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
+</div>
 
-      <Card className="bg-white">
+{/* Display selected service filters as badges */}
+{selectedServiceFilters.length > 0 && (
+  <div className="flex flex-wrap gap-2 my-2">
+    {selectedServiceFilters.map(service => (
+      <Badge key={service.value} variant="secondary" className="flex items-center">
+        {service.label}
+        <button
+          onClick={() => removeServiceFilter(service.value)}
+          className="ml-1 text-sm"
+          aria-label={`Remove filter for ${service.label}`}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </Badge>
+    ))}
+    <Button variant="outline" size="sm" onClick={clearAllServiceFilters} className="text-sm">
+      <RotateCcw className="h-4 w-4" />
+    </Button>
+  </div>
+)}
+
+      <Card className="bg-white ">
         <CardHeader>
           <CardTitle>Bookings</CardTitle>
           <CardDescription>
@@ -495,27 +583,28 @@ export default function BookingTable() {
             <p className="text-center text-muted-foreground py-4">No bookings found.</p>
           ) : (
             <div className="border rounded-lg overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="bg-gray-200 text-gray-800"  >No.</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Customer</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Contact</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Dog</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Breed</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Date</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Time Slot</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Sub Slot</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Status</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Total Bill</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Payment Mode</TableHead>
-                    <TableHead className="bg-gray-200 text-gray-800">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="bg-gray-50">
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="bg-gray-200 text-gray-800"  >No.</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Customer</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Contact</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Dog</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Breed</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Date</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Time Slot</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Sub Slot</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Status</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Total Bill</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Payment Mode</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="bg-gray-50">
                   {bookings.map((booking, index) => (
                     <TableRow key={booking.id}>
-                      <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
+                      <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                       <TableCell>{booking.customer_name}</TableCell>
                       <TableCell>{booking.contact_number}</TableCell>
                       <TableCell>{booking.dog_name}</TableCell>
@@ -695,50 +784,225 @@ export default function BookingTable() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden space-y-4">
+                {bookings.map((booking, index) => (
+                  <Card key={booking.id} className="bg-white ">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg">{booking.customer_name}</CardTitle>
+                          <CardDescription>{booking.contact_number}</CardDescription>
+                        </div>
+                        <span
+                          className={`rounded-full font-medium p-1 text-xs ${booking.status === "reserved" ? "bg-yellow-200 text-yellow-700 border border-yellow-300" : booking.status === "checked_in" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "progressing" ? "bg-blue-200 text-blue-700 border border-blue-300" : booking.status === "completed" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "canceled" || booking.status === "cancelled" ? "bg-red-200 text-red-700 border border-red-300" : "bg-gray-200 text-gray-700 border border-gray-300"}`}
+                        >
+                          {booking.status.replace("_", " ").toUpperCase()}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Dog:</span>
+                          <span className="font-medium">{booking.dog_name} ({booking.dog_breed})</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Date:</span>
+                          <span className="font-medium">{format(new Date(booking.booking_date), "MMM dd, yyyy")}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Time:</span>
+                          <span className="font-medium">{booking.slot_time ? formatTimeIST(booking.slot_time) : "N/A"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Sub Slot:</span>
+                          <span className="font-medium">{getSubSlotDisplay(booking)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-500">Total Bill:</span>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                className={`font-medium text-sm flex items-center gap-2 ${booking.historical_bookings?.[0]?.payment_mode === "credit" ? "text-red-600" : ""}`}
+                              >
+                                ₹{booking.booking_services_selected?.reduce((total, service) => total + (service.services?.price || 0), 0).toFixed(2) || '0.00'}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[300px] p-6">
+                              <div className="space-y-6">
+                                <div className="space-y-3">
+                                  <div className="text-sm font-medium">Services</div>
+                                  {booking.booking_services_selected?.map((service, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm py-1">
+                                      <span>{service.services?.name}</span>
+                                      <span>₹{service.services?.price.toFixed(2)}</span>
+                                    </div>
+                                  )) || <p className="text-sm text-muted-foreground">No services selected</p>}
+                                </div>
+                                {booking.booking_services_selected?.length > 0 && (
+                                  <div className="pt-4 border-t">
+                                    <div className="flex justify-between items-center font-semibold">
+                                      <span>Total Amount</span>
+                                      <span>₹{booking.booking_services_selected?.reduce((total, service) => total + (service.services?.price || 0), 0).toFixed(2)}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        {booking.historical_bookings?.[0]?.payment_mode && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-500">Payment Mode:</span>
+                            <span className={`rounded-full font-medium p-1 text-xs ${booking.historical_bookings[0].payment_mode === "credit" ? "bg-red-200 text-red-700 border border-red-300" : "bg-blue-200 text-blue-700 border border-blue-300"}`}>
+                              {booking.historical_bookings[0].payment_mode.toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-end space-x-2 pt-2">
+                      {booking.status !== 'cancelled' && booking.status !== 'canceled' && booking.status !== 'completed' && (
+                        <>
+                          <Dialog
+                            open={Boolean(editingBooking && editingBooking.id === booking.id)}
+                            onOpenChange={(open) => {
+                              if (!open) setEditingBooking(null);
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingBooking(booking)}
+                                aria-label={`Edit booking ${booking.id}`}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              {editingBooking && (
+                                <BookingForm
+                                  booking={editingBooking}
+                                  onSuccess={() => {
+                                    setEditingBooking(null);
+                                    fetchBookings();
+                                  }}
+                                  onCancel={() => setEditingBooking(null)}
+                                />
+                              )}
+                            </DialogContent>
+                          </Dialog>
+
+                          <Dialog
+                            open={cancelId === booking.id}
+                            onOpenChange={(open) => {
+                              if (!open) setCancelId(null);
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setCancelId(booking.id)}
+                                aria-label={`Cancel booking ${booking.id}`}
+                              >
+                                <Ban className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Confirm Cancellation</DialogTitle>
+                                <DialogDescription>
+                                  Are you sure you want to cancel this booking? This action cannot be undone.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setCancelId(null)}>
+                                  No, keep booking
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  onClick={() => cancelId && handleCancel(bookings.find(b => b.id === cancelId))}
+                                >
+                                  Yes, cancel booking
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </>
+                      )}
+                      {booking.status === "reserved" && (
+                        <motion.button
+                          onClick={() => handleCheckIn(booking.id)}
+                          whileTap={{ scale: 0.95 }}
+                          aria-label={`Check in booking ${booking.id}`}
+                          className="flex items-center justify-center p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition"
+                        >
+                          <Check className="h-4 w-4" />
+                        </motion.button>
+                      )}
+                      {(booking.status === "checked_in" || booking.status === "progressing" || booking.status === "completed") && (
+                        <motion.button
+                          onClick={() => navigate(`/bookings/${booking.id}`)}
+                          whileTap={{ scale: 0.95 }}
+                          aria-label={`View details for booking ${booking.id}`}
+                          className="flex items-center justify-center p-2 bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50 hover:border-gray-400 transition"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </motion.button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            
             </div>
           )}
         </CardContent>
-        {totalCount > ITEMS_PER_PAGE && !loading && (
-          <div className="mt-4 flex justify-center">
+        <CardFooter className="flex justify-between items-center">
+      
+
+          {totalPages > 1 && (
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  <PaginationPrevious 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) handlePageChange(currentPage - 1);
+                    }}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
-                {getPageNumbers().map((pageNum, index) => (
-                  <PaginationItem key={index}>
-                    {pageNum === "..." ? (
-                      <PaginationEllipsis />
-                    ) : (
-                      <PaginationLink
-                        onClick={() => setCurrentPage(pageNum)}
-                        isActive={currentPage === pageNum}
-                        className={currentPage === pageNum ? "pointer-events-none bg-primary text-white" : "cursor-pointer"}
-                      >
-                        {pageNum}
-                      </PaginationLink>
-                    )}
-                  </PaginationItem>
-                ))}
+                
+                {renderPaginationItems()}
+                
                 <PaginationItem>
-                  <PaginationNext
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  <PaginationNext 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) handlePageChange(currentPage + 1);
+                    }}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
-          </div>
-        )}
-      </Card>
+          )}
+        </CardFooter>
+              </Card>
     </div>
   );
 }
+
+
 

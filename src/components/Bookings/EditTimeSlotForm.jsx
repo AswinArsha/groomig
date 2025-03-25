@@ -131,8 +131,9 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-2 gap-6">
+    <form onSubmit={handleSubmit} className="space-y-6 px-4">
+      {/* Use a single-column layout on mobile and two columns on md+ screens */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Column - Time Picker and Shop Selection */}
         <div className="space-y-6">
           {/* Time Picker */}
@@ -143,21 +144,22 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
           {/* Shop Multi-Select with Shadcn Checkbox */}
           <div className="space-y-4">
             <Label className="text-base font-semibold">Select Shops</Label>
-            <div className="grid grid-cols-2 gap-4">
+            {/* On extra-small screens, show one column; on small and above, two columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {shops.map((shop) => (
-                       <div key={shop.id} className="flex items-center space-x-2">
-                       <Checkbox
-                         id={`shop-${shop.id}`}
-                         checked={selectedShops.includes(shop.id)}
-                         onCheckedChange={() => toggleShopSelection(shop.id)}
-                       />
-                       <Label
-                         htmlFor={`shop-${shop.id}`} // Ensure htmlFor matches the Checkbox id
-                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 "
-                       >
-                         {shop.name}
-                       </Label>
-                     </div>
+                <div key={shop.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`shop-${shop.id}`}
+                    checked={selectedShops.includes(shop.id)}
+                    onCheckedChange={() => toggleShopSelection(shop.id)}
+                  />
+                  <Label
+                    htmlFor={`shop-${shop.id}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {shop.name}
+                  </Label>
+                </div>
               ))}
             </div>
           </div>
