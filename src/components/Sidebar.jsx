@@ -16,6 +16,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import toast from "react-hot-toast";
 import { supabase } from "../supabase";
 import { AnimatePresence, motion,LayoutGroup  } from "framer-motion";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -230,7 +236,13 @@ function Sidebar() {
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
           >
-            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+            <motion.div
+              initial={false}
+              animate={{ rotate: isCollapsed ? 0 : 180 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </motion.div>
           </Button>
         </div>
 
@@ -238,16 +250,18 @@ function Sidebar() {
         <div className="flex-1 py-4 overflow-y-auto">
           <nav className="space-y-1 px-2">
             {navigationItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.path}
-                className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
-                  isLinkActive(item.path)
-                    ? "bg-pink-100 dark:bg-pink-900/30"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-                style={{ color: isLinkActive(item.path) ? "#c93b7d" : "" }}
-              >
+              <TooltipProvider key={item.name}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      to={item.path}
+                      className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
+                        isLinkActive(item.path)
+                          ? "bg-pink-100 dark:bg-pink-900/30"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                      style={{ color: isLinkActive(item.path) ? "#c93b7d" : "" }}
+                    >
                 {/* Fixed layout to prevent icon movement during collapse */}
                 <div className="relative flex items-center w-full">
                   {/* Position icon absolutely for collapsed state to maintain position */}
@@ -284,6 +298,12 @@ function Sidebar() {
                   </AnimatePresence>
                 </div>
               </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-white">
+              {item.name}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
             ))}
           </nav>
         </div>
@@ -376,65 +396,81 @@ function Sidebar() {
       </div>
       
       {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-40">
-  <LayoutGroup>
-    <nav className="flex items-center justify-around p-2">
-      {navigationItems.map((item) => (
-        <Link
-          key={item.name}
-          to={item.path}
-          className="flex flex-col items-center p-2 flex-1"
-        >
-          <motion.div 
-            whileTap={{ scale: 0.9 }}
-            className="p-2 rounded-full relative"
-            layout
-          >
-            {isLinkActive(item.path) && (
-              <motion.div
-                layoutId="nav-indicator"
-                className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
-                style={{ zIndex: -1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              />
-            )}
-            {React.cloneElement(item.icon, {
-              className: `${item.icon.props.className}`,
-              style: { color: isLinkActive(item.path) ? "#c93b7d" : "" }
-            })}
-          </motion.div>
-          <span className={`text-xs mt-1 ${ isLinkActive(item.path) ? "text-pink-600 dark:text-pink-400 font-medium" : "text-gray-600 dark:text-gray-400"}`}>
-            {item.name}
-          </span>
-        </Link>
-      ))}
-      
-      {/* User Profile Button */}
-      <button
-        onClick={() => setShowMobileProfile(!showMobileProfile)}
-        className="flex flex-col items-center p-2 flex-1"
-      >
-        <motion.div 
-          whileTap={{ scale: 0.9 }}
-          className="p-2 rounded-full relative"
-          layout
-        >
-          {showMobileProfile && (
-            <motion.div
-              layoutId="nav-indicator"
-              className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
-              style={{ zIndex: -1 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            />
-          )}
-          <User className="w-5 h-5" style={{ color: showMobileProfile ? "#c93b7d" : "" }} />
-        </motion.div>
-        <span className={`text-xs mt-1 ${ showMobileProfile ? "text-pink-600 dark:text-pink-400 font-medium" : "text-gray-600 dark:text-gray-400"}`}>
-          Profile
-        </span>
-      </button>
-    </nav>
-  </LayoutGroup>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
+        <LayoutGroup>
+          <nav className="flex items-center justify-around p-2">
+            {navigationItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.path}
+                className="flex flex-col items-center p-2 flex-1 min-w-[64px] touch-manipulation"
+              >
+                <motion.div 
+                  whileTap={{ scale: 0.85 }}
+                  className="p-2.5 rounded-full relative"
+                  layout
+                  transition={{
+                    layout: { type: "spring", stiffness: 400, damping: 25 }
+                  }}
+                >
+                  {isLinkActive(item.path) && (
+                    <motion.div
+                      layoutId="nav-indicator"
+                      className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
+                      style={{ zIndex: -1 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 400, 
+                        damping: 25,
+                        bounce: 0.25
+                      }}
+                    />
+                  )}
+                  {React.cloneElement(item.icon, {
+                    className: `w-6 h-6 ${isLinkActive(item.path) ? "text-pink-600 dark:text-pink-400" : "text-gray-600 dark:text-gray-400"} transition-colors duration-200`,
+                    style: { color: isLinkActive(item.path) ? "#c93b7d" : "" }
+                  })}
+                </motion.div>
+                <span className={`text-xs mt-1 ${ isLinkActive(item.path) ? "text-pink-600 dark:text-pink-400 font-medium" : "text-gray-600 dark:text-gray-400"}`}>
+                  {item.name}
+                </span>
+              </Link>
+            ))}
+            
+            {/* User Profile Button */}
+            <button
+              onClick={() => setShowMobileProfile(!showMobileProfile)}
+              className="flex flex-col items-center p-2 flex-1 min-w-[64px] touch-manipulation"
+            >
+              <motion.div 
+                whileTap={{ scale: 0.85 }}
+                className="p-2.5 rounded-full relative"
+                layout
+                transition={{
+                  layout: { type: "spring", stiffness: 400, damping: 25 }
+                }}
+              >
+                {showMobileProfile && (
+                  <motion.div
+                    layoutId="nav-indicator"
+                    className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
+                    style={{ zIndex: -1 }}
+                    transition={{ 
+                      type: "spring", 
+                      stiffness: 400, 
+                      damping: 25,
+                      bounce: 0.25
+                    }}
+                  />
+                )}
+                <User className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-colors duration-200" style={{ color: showMobileProfile ? "#c93b7d" : "" }} />
+              </motion.div>
+              <span className={`text-xs mt-1 ${ showMobileProfile ? "text-pink-600 dark:text-pink-400 font-medium" : "text-gray-600 dark:text-gray-400"}`}>
+                Profile
+              </span>
+            </button>
+          </nav>
+        </LayoutGroup>
   
   {/* Mobile Profile Drawer remains unchanged */}
   <AnimatePresence>

@@ -3,8 +3,10 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, Calendar, XCircle, DollarSign, CreditCard } from "lucide-react";
 import { supabase } from "../../supabase";
+import { useNavigate } from "react-router-dom";
 
 const SummaryCards = ({ dateRange }) => {
+  const navigate = useNavigate();
   const [summaryData, setSummaryData] = useState({
     totalCustomers: 0,
     totalBookings: 0,
@@ -93,7 +95,15 @@ const SummaryCards = ({ dateRange }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       {/* Total Customers Card */}
-      <Card className="bg-white shadow-md">
+      <Card 
+        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        onClick={() => navigate('/all-bookings', { 
+          state: { 
+            dateRange,
+            filters: {}
+          }
+        })}
+      >
         <CardContent className="p-4 flex flex-col items-center justify-center">
           <div className="rounded-full bg-blue-100 p-3 mb-2">
             <Users className="h-6 w-6 text-blue-600" />
@@ -106,7 +116,15 @@ const SummaryCards = ({ dateRange }) => {
       </Card>
 
       {/* Total Bookings Card */}
-      <Card className="bg-white shadow-md">
+      <Card 
+        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        onClick={() => navigate('/all-bookings', { 
+          state: { 
+            dateRange,
+            filters: {}
+          }
+        })}
+      >
         <CardContent className="p-4 flex flex-col items-center justify-center">
           <div className="rounded-full bg-green-100 p-3 mb-2">
             <Calendar className="h-6 w-6 text-green-600" />
@@ -119,7 +137,15 @@ const SummaryCards = ({ dateRange }) => {
       </Card>
 
       {/* Cancelled Bookings Card */}
-      <Card className="bg-white shadow-md">
+      <Card 
+        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        onClick={() => navigate('/all-bookings', { 
+          state: { 
+            dateRange,
+            filters: { status: 'cancelled' }
+          }
+        })}
+      >
         <CardContent className="p-4 flex flex-col items-center justify-center">
           <div className="rounded-full bg-red-100 p-3 mb-2">
             <XCircle className="h-6 w-6 text-red-600" />
@@ -132,7 +158,15 @@ const SummaryCards = ({ dateRange }) => {
       </Card>
 
       {/* Total Revenue Card */}
-      <Card className="bg-white shadow-md">
+      <Card 
+        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        onClick={() => navigate('/all-bookings', { 
+          state: { 
+            dateRange,
+            filters: {}
+          }
+        })}
+      >
         <CardContent className="p-4 flex flex-col items-center justify-center">
           <div className="rounded-full bg-purple-100 p-3 mb-2">
             <DollarSign className="h-6 w-6 text-purple-600" />
@@ -145,7 +179,15 @@ const SummaryCards = ({ dateRange }) => {
       </Card>
 
       {/* Received Revenue Card */}
-      <Card className="bg-white shadow-md">
+      <Card 
+        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        onClick={() => navigate('/all-bookings', { 
+          state: { 
+            dateRange,
+            filters: { paymentMode: ['cash', 'UPI', 'swipe'] }
+          }
+        })}
+      >
         <CardContent className="p-4 flex flex-col items-center justify-center">
           <div className="rounded-full bg-emerald-100 p-3 mb-2">
             <DollarSign className="h-6 w-6 text-emerald-600" />
@@ -159,7 +201,15 @@ const SummaryCards = ({ dateRange }) => {
       </Card>
 
       {/* Pending Revenue Card */}
-      <Card className="bg-white shadow-md">
+      <Card 
+        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        onClick={() => navigate('/all-bookings', { 
+          state: { 
+            dateRange,
+            filters: { paymentMode: 'credit' }
+          }
+        })}
+      >
         <CardContent className="p-4 flex flex-col items-center justify-center">
           <div className="rounded-full bg-yellow-100 p-3 mb-2">
             <CreditCard className="h-6 w-6 text-yellow-600" />

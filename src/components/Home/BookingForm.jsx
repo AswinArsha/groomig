@@ -502,7 +502,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                   {availableShops.map((shop) => (
                     <div
                       key={shop.id}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      className={`p-4 border rounded-lg cursor-pointer bg-white transition-all ${
                         selectedShop === shop.id
                           ? "border-primary bg-primary/10"
                           : "border-gray-200 hover:border-primary/50"

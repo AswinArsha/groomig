@@ -232,6 +232,10 @@ function CustomerAnalytics({ dateRange }) {
         { rating: "1 Star", count: ratingsCount['1'], fill: "var(--color-1star)" }
       ];
       
+      const [satisfactionData, setSatisfactionData] = useState([]);
+      const [totalRatings, setTotalRatings] = useState(0);
+      const [averageRating, setAverageRating] = useState(0);
+      const [ratingChange, setRatingChange] = useState(0);
       setSatisfactionData(chartData);
       setTotalRatings(validRatings);
       

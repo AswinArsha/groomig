@@ -1,7 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, X, Download, Check, RotateCcw, ArrowUpDown } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowLeft,
+  X,
+  Download,
+  Check,
+  RotateCcw,
+  ArrowUpDown,
+} from "lucide-react";
 import { format, parse, startOfMonth, endOfMonth } from "date-fns";
 import toast from "react-hot-toast";
 import { Badge } from "@/components/ui/badge";
@@ -29,14 +37,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
-import {
   Select,
   SelectContent,
   SelectGroup,
@@ -46,30 +46,57 @@ import {
 } from "@/components/ui/select";
 import CalendarDatePicker from "@/components/ui/CalendarDatePicker";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "react-router-dom";
-
-const ITEMS_PER_PAGE = 10;
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export default function HistoricalBookingTable() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date())
+    from: location.state?.dateRange?.from ? new Date(location.state.dateRange.from) : startOfMonth(new Date()),
+    to: location.state?.dateRange?.to ? new Date(location.state.dateRange.to) : endOfMonth(new Date()),
   });
   const [serviceOptions, setServiceOptions] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
   const [selectValue, setSelectValue] = useState("");
   const [shopOptions, setShopOptions] = useState([]);
   const [selectedShop, setSelectedShop] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState(null);
-  const [selectedPaymentMode, setSelectedPaymentMode] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState(location.state?.filters?.status || null);
+  const [selectedPaymentMode, setSelectedPaymentMode] = useState(
+    Array.isArray(location.state?.filters?.paymentMode)
+      ? location.state.filters.paymentMode[0]
+      : location.state?.filters?.paymentMode || null
+  );
   const [ratingSort, setRatingSort] = useState(null); // null, 'asc', or 'desc'
-  const navigate = useNavigate();
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10; // number of bookings per page
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchTerm,
+    selectedDate,
+    selectedServices,
+    selectedShop,
+    selectedStatus,
+    selectedPaymentMode,
+    ratingSort,
+  ]);
 
   // Fetch available services
   const fetchServiceOptions = useCallback(async () => {
@@ -79,9 +106,9 @@ export default function HistoricalBookingTable() {
         .select("id, name")
         .order("name");
       if (error) throw error;
-      const options = data.map(service => ({
+      const options = data.map((service) => ({
         value: service.id,
-        label: service.name
+        label: service.name,
       }));
       setServiceOptions(options);
     } catch (error) {
@@ -98,7 +125,7 @@ export default function HistoricalBookingTable() {
         .order("name");
       if (error) throw error;
       const options = [{ value: null, label: "All Shops" }].concat(
-        data.map(shop => ({
+        data.map((shop) => ({
           value: shop.id,
           label: shop.name,
         }))
@@ -115,12 +142,14 @@ export default function HistoricalBookingTable() {
   }, [fetchServiceOptions, fetchShopOptions]);
 
   const handleServiceSelect = (serviceId) => {
-    const selectedService = serviceOptions.find(service => service.value === serviceId);
+    const selectedService = serviceOptions.find(
+      (service) => service.value === serviceId
+    );
     if (selectedService) {
-      setSelectedServices(prev => {
+      setSelectedServices((prev) => {
         // Toggle service selection
-        if (prev.some(s => s.value === serviceId)) {
-          return prev.filter(s => s.value !== serviceId);
+        if (prev.some((s) => s.value === serviceId)) {
+          return prev.filter((s) => s.value !== serviceId);
         }
         return [...prev, selectedService];
       });
@@ -129,8 +158,11 @@ export default function HistoricalBookingTable() {
   };
 
   const removeService = (serviceId) => {
-    setSelectedServices(selectedServices.filter(service => service.value !== serviceId));
+    setSelectedServices(
+      selectedServices.filter((service) => service.value !== serviceId)
+    );
   };
+  
 
   const clearAllFilters = () => {
     setSelectedServices([]);
@@ -142,7 +174,7 @@ export default function HistoricalBookingTable() {
     setRatingSort(null);
     setSelectedDate({
       from: startOfMonth(new Date()),
-      to: endOfMonth(new Date())
+      to: endOfMonth(new Date()),
     });
   };
 
@@ -166,10 +198,19 @@ export default function HistoricalBookingTable() {
     doc.setFontSize(16);
     doc.text("Historical Bookings Report", 14, 15);
     doc.setFontSize(10);
-    doc.text(`Date Range: ${format(selectedDate.from, "MMM dd, yyyy")} - ${format(selectedDate.to, "MMM dd, yyyy")}`, 14, 25);
+    doc.text(
+      `Date Range: ${format(selectedDate.from, "MMM dd, yyyy")} - ${format(
+        selectedDate.to,
+        "MMM dd, yyyy"
+      )}`,
+      14,
+      25
+    );
     let yPosition = 32;
     if (selectedServices.length > 0) {
-      const servicesText = `Services: ${selectedServices.map(s => s.label).join(", ")}`;
+      const servicesText = `Services: ${selectedServices
+        .map((s) => s.label)
+        .join(", ")}`;
       doc.text(servicesText, 14, yPosition);
       yPosition += 7;
     }
@@ -182,12 +223,18 @@ export default function HistoricalBookingTable() {
       yPosition += 7;
     }
     if (selectedShop) {
-      const shopName = shopOptions.find(shop => shop.value === selectedShop)?.label || "Unknown Shop";
+      const shopName =
+        shopOptions.find((shop) => shop.value === selectedShop)?.label ||
+        "Unknown Shop";
       doc.text(`Shop: ${shopName}`, 14, yPosition);
       yPosition += 7;
     }
     if (selectedPaymentMode) {
-      doc.text(`Payment Mode: ${selectedPaymentMode.toUpperCase()}`, 14, yPosition);
+      doc.text(
+        `Payment Mode: ${selectedPaymentMode.toUpperCase()}`,
+        14,
+        yPosition
+      );
       yPosition += 7;
     }
     const columns = [
@@ -204,18 +251,29 @@ export default function HistoricalBookingTable() {
       "Total Bill",
     ];
     const data = bookings.map((booking, index) => [
-      (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
+      index + 1,
       booking.customer_name,
       booking.contact_number,
       booking.dog_name,
       booking.dog_breed,
       format(new Date(booking.booking_date), "MMM dd, yyyy"),
-      booking.completed_at ? format(new Date(booking.completed_at), "MMM dd, yyyy") : "N/A",
+      booking.completed_at
+        ? format(new Date(booking.completed_at), "MMM dd, yyyy")
+        : "N/A",
       booking.status.replace("_", " ").toUpperCase(),
-      booking.feedback && booking.feedback.rating ? booking.feedback.rating : "N/A",
-      booking.payment_mode ? booking.payment_mode.toUpperCase() : "N/A",
+      booking.feedback && booking.feedback.rating
+        ? booking.feedback.rating
+        : "N/A",
+      booking.payment_mode
+        ? booking.payment_mode.toUpperCase()
+        : "N/A",
       booking.services
-        ? booking.services.reduce((total, service) => total + (service.price || 0), 0).toFixed(2)
+        ? booking.services
+            .reduce(
+              (total, service) => total + (service.price || 0),
+              0
+            )
+            .toFixed(2)
         : "N/A",
     ]);
     doc.autoTable({
@@ -233,6 +291,7 @@ export default function HistoricalBookingTable() {
     doc.save("historical-bookings-report.pdf");
   };
 
+  // Fetch bookings and apply client-side filtering & pagination
   const fetchHistoricalBookings = useCallback(async () => {
     setLoading(true);
     try {
@@ -258,9 +317,10 @@ export default function HistoricalBookingTable() {
       if (selectedPaymentMode) {
         query = query.eq("payment_mode", selectedPaymentMode);
       }
-      const { data, error, count } = await query;
+      const { data, error } = await query;
       if (error) throw error;
       let filteredData = data || [];
+      // Client-side filter for selected services
       if (selectedServices.length > 0) {
         filteredData = filteredData.filter((booking) => {
           if (!booking.services) return false;
@@ -275,7 +335,8 @@ export default function HistoricalBookingTable() {
             }
             return selectedServices.some((selectedService) =>
               bookingServices.some(
-                (bookingService) => bookingService.id === selectedService.value
+                (bookingService) =>
+                  bookingService.id === selectedService.value
               )
             );
           } catch (e) {
@@ -286,17 +347,24 @@ export default function HistoricalBookingTable() {
       }
       if (ratingSort) {
         filteredData = [...filteredData].sort((a, b) => {
-          const ratingA = a.feedback && a.feedback.rating ? a.feedback.rating : 0;
-          const ratingB = b.feedback && b.feedback.rating ? b.feedback.rating : 0;
+          const ratingA =
+            a.feedback && a.feedback.rating ? a.feedback.rating : 0;
+          const ratingB =
+            b.feedback && b.feedback.rating ? b.feedback.rating : 0;
           return ratingSort === "asc" ? ratingA - ratingB : ratingB - ratingA;
         });
       }
-      const filteredCount = filteredData.length;
-      const start = (currentPage - 1) * ITEMS_PER_PAGE;
-      const end = start + ITEMS_PER_PAGE;
-      setBookings(filteredData.slice(start, end));
-      setTotalCount(filteredCount);
-      setTotalPages(Math.ceil(filteredCount / ITEMS_PER_PAGE));
+      // Set total pages and paginate the filtered data
+      const total = filteredData.length;
+      const pages = Math.ceil(total / pageSize) || 1;
+      setTotalPages(pages);
+      // Ensure currentPage is valid
+      if (currentPage > pages) {
+        setCurrentPage(1);
+      }
+      const startIndex = (currentPage - 1) * pageSize;
+      const paginatedData = filteredData.slice(startIndex, startIndex + pageSize);
+      setBookings(paginatedData);
     } catch (error) {
       toast.error(`Error fetching historical bookings: ${error.message}`);
     } finally {
@@ -305,16 +373,15 @@ export default function HistoricalBookingTable() {
   }, [
     selectedDate,
     searchTerm,
-    currentPage,
     selectedServices,
     selectedShop,
     selectedStatus,
     selectedPaymentMode,
     ratingSort,
+    currentPage,
   ]);
 
   useEffect(() => {
-    setCurrentPage(1);
     fetchHistoricalBookings();
   }, [
     searchTerm,
@@ -324,12 +391,9 @@ export default function HistoricalBookingTable() {
     selectedStatus,
     selectedPaymentMode,
     ratingSort,
+    currentPage,
     fetchHistoricalBookings,
   ]);
-
-  useEffect(() => {
-    fetchHistoricalBookings();
-  }, [currentPage, fetchHistoricalBookings]);
 
   const formatTimeIST = (timeStr) => {
     if (!timeStr) return "N/A";
@@ -343,78 +407,6 @@ export default function HistoricalBookingTable() {
   // Updated helper to get sub-slot display using the slot_description column
   const getSubSlotDisplay = (booking) => {
     return booking.slot_description || "N/A";
-  };
-
-  // Generate pagination items
-  const renderPaginationItems = () => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => (
-        <PaginationItem key={i + 1}>
-          <Button
-            variant={currentPage === i + 1 ? "outline" : "ghost"}
-            className="h-9 w-9"
-            onClick={() => setCurrentPage(i + 1)}
-          >
-            {i + 1}
-          </Button>
-        </PaginationItem>
-      ));
-    }
-    const items = [];
-    items.push(
-      <PaginationItem key={1}>
-        <Button
-          variant={currentPage === 1 ? "outline" : "ghost"}
-          className="h-9 w-9"
-          onClick={() => setCurrentPage(1)}
-        >
-          1
-        </Button>
-      </PaginationItem>
-    );
-    let startPage = Math.max(2, currentPage - 2);
-    let endPage = Math.min(totalPages - 1, currentPage + 2);
-    if (startPage > 2) {
-      items.push(
-        <PaginationItem key="ellipsis-1">
-          <PaginationEllipsis />
-        </PaginationItem>
-      );
-    }
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <PaginationItem key={i}>
-          <Button
-            variant={currentPage === i ? "outline" : "ghost"}
-            className="h-9 w-9"
-            onClick={() => setCurrentPage(i)}
-          >
-            {i}
-          </Button>
-        </PaginationItem>
-      );
-    }
-    if (endPage < totalPages - 1) {
-      items.push(
-        <PaginationItem key="ellipsis-2">
-          <PaginationEllipsis />
-        </PaginationItem>
-      );
-    }
-    if (totalPages > 1) {
-      items.push(
-        <PaginationItem key={totalPages}>
-          <Button
-            variant={currentPage === totalPages ? "outline" : "ghost"}
-            className="h-9 w-9"
-            onClick={() => setCurrentPage(totalPages)}
-          >
-            {totalPages}
-          </Button>
-        </PaginationItem>
-      );
-    }
-    return items;
   };
 
   return (
@@ -468,7 +460,10 @@ export default function HistoricalBookingTable() {
               <SelectContent>
                 <SelectGroup>
                   {shopOptions.map((shop) => (
-                    <SelectItem key={shop.value || "all"} value={shop.value}>
+                    <SelectItem
+                      key={shop.value || "all"}
+                      value={shop.value}
+                    >
                       {shop.label}
                     </SelectItem>
                   ))}
@@ -491,7 +486,10 @@ export default function HistoricalBookingTable() {
             </Select>
           </div>
           <div className="w-full sm:w-52">
-            <Select value={selectedPaymentMode} onValueChange={setSelectedPaymentMode}>
+            <Select
+              value={selectedPaymentMode}
+              onValueChange={setSelectedPaymentMode}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by payment..." />
               </SelectTrigger>
@@ -507,13 +505,19 @@ export default function HistoricalBookingTable() {
             </Select>
           </div>
           <div className="w-full sm:w-52">
-            <CalendarDatePicker date={selectedDate} onDateSelect={setSelectedDate} />
+            <CalendarDatePicker
+              date={selectedDate}
+              onDateSelect={setSelectedDate}
+            />
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
           <div className="w-full sm:w-52">
-            <Select value={selectValue} onValueChange={(val) => handleServiceSelect(val)}>
+            <Select
+              value={selectValue}
+              onValueChange={(val) => handleServiceSelect(val)}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by services..." />
               </SelectTrigger>
@@ -586,7 +590,8 @@ export default function HistoricalBookingTable() {
           <CardDescription>
             Viewing {selectedStatus ? selectedStatus.toLowerCase() : "all"} bookings from{" "}
             {format(selectedDate.from, "PPP")} to {format(selectedDate.to, "PPP")}
-            {selectedShop && shopOptions.find((shop) => shop.value === selectedShop) &&
+            {selectedShop &&
+              shopOptions.find((shop) => shop.value === selectedShop) &&
               ` for ${shopOptions.find((shop) => shop.value === selectedShop).label}`}
             {selectedPaymentMode &&
               ` with ${selectedPaymentMode.toUpperCase()} payment`}
@@ -599,7 +604,9 @@ export default function HistoricalBookingTable() {
             </div>
           ) : bookings.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No historical bookings found matching your criteria.</p>
+              <p className="text-muted-foreground">
+                No historical bookings found matching your criteria.
+              </p>
             </div>
           ) : (
             <div className="border rounded-lg overflow-x-auto">
@@ -608,45 +615,78 @@ export default function HistoricalBookingTable() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="bg-gray-200 text-gray-800">No.</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Customer</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Contact</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Dog</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Breed</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Date</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Time Slot</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Sub Slot</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Status</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Total Bill</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Payment Mode</TableHead>
-                      <TableHead className="bg-gray-200 text-gray-800">Actions</TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        No.
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Customer
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Contact
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Dog
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Breed
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Date
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Time Slot
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Sub Slot
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Status
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Total Bill
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Payment Mode
+                      </TableHead>
+                      <TableHead className="bg-gray-200 text-gray-800">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody className="bg-gray-50">
-                    {bookings.map((booking, index) => (
-                      <TableRow
-                        key={booking.id}
-                        className="cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => {
-                          if (!booking?.id) {
-                            toast.error("Invalid booking ID");
-                            return;
-                          }
-                          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                          if (!uuidRegex.test(booking.id)) {
-                            toast.error("Invalid booking ID format");
-                            return;
-                          }
-                          navigate(`/all-booking-details/${booking.id}`);
-                        }}
-                      >
-                        <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
+  {bookings.map((booking, index) => (
+    <TableRow
+      key={booking.id}
+      className="cursor-pointer hover:bg-gray-100 transition-colors"
+      onClick={() => {
+        if (!booking?.id) {
+          toast.error("Invalid booking ID");
+          return;
+        }
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(booking.id)) {
+          toast.error("Invalid booking ID format");
+          return;
+        }
+        navigate(`/all-booking-details/${booking.id}`);
+      }}
+    >
+      <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell>
+
+
+
                         <TableCell>{booking.customer_name}</TableCell>
                         <TableCell>{booking.contact_number}</TableCell>
                         <TableCell>{booking.dog_name}</TableCell>
                         <TableCell>{booking.dog_breed}</TableCell>
-                        <TableCell>{format(new Date(booking.booking_date), "MMM dd, yyyy")}</TableCell>
-                        <TableCell>{booking.slot_time ? formatTimeIST(booking.slot_time) : "N/A"}</TableCell>
+                        <TableCell>
+                          {format(new Date(booking.booking_date), "MMM dd, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          {booking.slot_time
+                            ? formatTimeIST(booking.slot_time)
+                            : "N/A"}
+                        </TableCell>
                         <TableCell>{getSubSlotDisplay(booking)}</TableCell>
                         <TableCell>
                           <span
@@ -659,7 +699,8 @@ export default function HistoricalBookingTable() {
                                 ? "bg-blue-200 text-blue-700 border border-blue-300"
                                 : booking.status === "completed"
                                 ? "bg-green-200 text-green-700 border border-green-300"
-                                : booking.status === "canceled" || booking.status === "cancelled"
+                                : booking.status === "canceled" ||
+                                  booking.status === "cancelled"
                                 ? "bg-red-200 text-red-700 border border-red-300"
                                 : "bg-gray-200 text-gray-700 border border-gray-300"
                             }`}
@@ -674,48 +715,97 @@ export default function HistoricalBookingTable() {
                               <Button
                                 variant="ghost"
                                 className={`font-medium flex items-center gap-2 ${
-                                  booking.payment_mode === "credit" ? "text-red-600" : ""
+                                  booking.payment_mode === "credit"
+                                    ? "text-red-600"
+                                    : ""
                                 }`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 ₹
-                                {booking.services
-                                  ? booking.services.reduce(
-                                      (total, service) => total + (service.price || 0),
-                                      0
-                                    ).toFixed(2)
-                                  : "0.00"}
+                                {(() => {
+                                  try {
+                                    const services =
+                                      typeof booking.services === "string"
+                                        ? JSON.parse(booking.services)
+                                        : booking.services;
+                                    return Array.isArray(services)
+                                      ? services
+                                          .reduce(
+                                            (total, service) =>
+                                              total + (service.price || 0),
+                                            0
+                                          )
+                                          .toFixed(2)
+                                      : "0.00";
+                                  } catch (e) {
+                                    return "0.00";
+                                  }
+                                })()}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[300px] p-6">
                               <div className="space-y-6">
                                 <div className="space-y-3">
-                                  <div className="text-sm font-medium">Services</div>
-                                  {booking.services && booking.services.length > 0 ? (
-                                    booking.services.map((service, idx) => (
-                                      <div key={idx} className="flex justify-between items-center text-sm py-1">
-                                        <span>{service.name}</span>
-                                        <span>₹{service.price.toFixed(2)}</span>
-                                      </div>
-                                    ))
+                                  <div className="text-sm font-medium">
+                                    Services
+                                  </div>
+                                  {booking.services ? (
+                                    (() => {
+                                      const services = Array.isArray(booking.services)
+                                        ? booking.services
+                                        : typeof booking.services === "string"
+                                        ? JSON.parse(booking.services)
+                                        : [];
+                                      return services.length > 0 ? (
+                                        services.map((service, idx) => (
+                                          <div
+                                            key={idx}
+                                            className="flex justify-between items-center text-sm py-1"
+                                          >
+                                            <span>{service.name}</span>
+                                            <span>
+                                              ₹{service.price.toFixed(2)}
+                                            </span>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                          No services selected
+                                        </p>
+                                      );
+                                    })()
                                   ) : (
-                                    <p className="text-sm text-muted-foreground">No services selected</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      No services selected
+                                    </p>
                                   )}
                                 </div>
-                                {booking.services && booking.services.length > 0 && (
-                                  <div className="pt-4 border-t">
-                                    <div className="flex justify-between items-center font-semibold">
-                                      <span>Total Amount</span>
-                                      <span>
-                                        ₹
-                                        {booking.services.reduce(
-                                          (total, service) => total + (service.price || 0),
-                                          0
-                                        ).toFixed(2)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
+                                {(() => {
+                                  const services = Array.isArray(booking.services)
+                                    ? booking.services
+                                    : typeof booking.services === "string"
+                                    ? JSON.parse(booking.services)
+                                    : [];
+                                  return (
+                                    services.length > 0 && (
+                                      <div className="pt-4 border-t">
+                                        <div className="flex justify-between items-center font-semibold">
+                                          <span>Total Amount</span>
+                                          <span>
+                                            ₹
+                                            {services
+                                              .reduce(
+                                                (total, service) =>
+                                                  total + (service.price || 0),
+                                                0
+                                              )
+                                              .toFixed(2)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )
+                                  );
+                                })()}
                               </div>
                             </PopoverContent>
                           </Popover>
@@ -769,8 +859,12 @@ export default function HistoricalBookingTable() {
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">{booking.customer_name}</CardTitle>
-                          <CardDescription>{booking.contact_number}</CardDescription>
+                          <CardTitle className="text-lg">
+                            {booking.customer_name}
+                          </CardTitle>
+                          <CardDescription>
+                            {booking.contact_number}
+                          </CardDescription>
                         </div>
                         <span
                           className={`rounded-full font-medium p-1 text-xs ${
@@ -782,7 +876,8 @@ export default function HistoricalBookingTable() {
                               ? "bg-blue-200 text-blue-700 border border-blue-300"
                               : booking.status === "completed"
                               ? "bg-green-200 text-green-700 border border-green-300"
-                              : booking.status === "canceled" || booking.status === "cancelled"
+                              : booking.status === "canceled" ||
+                                booking.status === "cancelled"
                               ? "bg-red-200 text-red-700 border border-red-300"
                               : "bg-gray-200 text-gray-700 border border-gray-300"
                           }`}
@@ -808,12 +903,16 @@ export default function HistoricalBookingTable() {
                         <div className="flex justify-between">
                           <span className="text-gray-500">Time:</span>
                           <span className="font-medium">
-                            {booking.slot_time ? formatTimeIST(booking.slot_time) : "N/A"}
+                            {booking.slot_time
+                              ? formatTimeIST(booking.slot_time)
+                              : "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-500">Sub Slot:</span>
-                          <span className="font-medium">{getSubSlotDisplay(booking)}</span>
+                          <span className="font-medium">
+                            {getSubSlotDisplay(booking)}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-500">Total Bill:</span>
@@ -822,54 +921,105 @@ export default function HistoricalBookingTable() {
                               <Button
                                 variant="ghost"
                                 className={`font-medium text-sm flex items-center gap-2 ${
-                                  booking.payment_mode === "credit" ? "text-red-600" : ""
+                                  booking.payment_mode === "credit"
+                                    ? "text-red-600"
+                                    : ""
                                 }`}
                               >
                                 ₹
-                                {booking.services
-                                  ? booking.services.reduce(
-                                      (total, service) => total + (service.price || 0),
-                                      0
-                                    ).toFixed(2)
-                                  : "0.00"}
+                                {(() => {
+                                  try {
+                                    const services =
+                                      typeof booking.services === "string"
+                                        ? JSON.parse(booking.services)
+                                        : booking.services;
+                                    return Array.isArray(services)
+                                      ? services
+                                          .reduce(
+                                            (total, service) =>
+                                              total + (service.price || 0),
+                                            0
+                                          )
+                                          .toFixed(2)
+                                      : "0.00";
+                                  } catch (e) {
+                                    return "0.00";
+                                  }
+                                })()}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[300px] p-6">
                               <div className="space-y-6">
                                 <div className="space-y-3">
-                                  <div className="text-sm font-medium">Services</div>
-                                  {booking.services && booking.services.length > 0 ? (
-                                    booking.services.map((service, idx) => (
-                                      <div key={idx} className="flex justify-between items-center text-sm py-1">
-                                        <span>{service.name}</span>
-                                        <span>₹{service.price.toFixed(2)}</span>
-                                      </div>
-                                    ))
+                                  <div className="text-sm font-medium">
+                                    Services
+                                  </div>
+                                  {booking.services ? (
+                                    (() => {
+                                      const services = Array.isArray(booking.services)
+                                        ? booking.services
+                                        : typeof booking.services === "string"
+                                        ? JSON.parse(booking.services)
+                                        : [];
+                                      return services.length > 0 ? (
+                                        services.map((service, idx) => (
+                                          <div
+                                            key={idx}
+                                            className="flex justify-between items-center text-sm py-1"
+                                          >
+                                            <span>{service.name}</span>
+                                            <span>
+                                              ₹{service.price.toFixed(2)}
+                                            </span>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                          No services selected
+                                        </p>
+                                      );
+                                    })()
                                   ) : (
-                                    <p className="text-sm text-muted-foreground">No services selected</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      No services selected
+                                    </p>
                                   )}
                                 </div>
-                                {booking.services && booking.services.length > 0 && (
-                                  <div className="pt-4 border-t">
-                                    <div className="flex justify-between items-center font-semibold">
-                                      <span>Total Amount</span>
-                                      <span>
-                                        ₹
-                                        {booking.services.reduce(
-                                          (total, service) => total + (service.price || 0),
-                                          0
-                                        ).toFixed(2)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
+                                {(() => {
+                                  const services = Array.isArray(booking.services)
+                                    ? booking.services
+                                    : typeof booking.services === "string"
+                                    ? JSON.parse(booking.services)
+                                    : [];
+                                  return (
+                                    services.length > 0 && (
+                                      <div className="pt-4 border-t">
+                                        <div className="flex justify-between items-center font-semibold">
+                                          <span>Total Amount</span>
+                                          <span>
+                                            ₹
+                                            {services
+                                              .reduce(
+                                                (total, service) =>
+                                                  total + (service.price || 0),
+                                                0
+                                              )
+                                              .toFixed(2)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )
+                                  );
+                                })()}
                               </div>
                             </PopoverContent>
                           </Popover>
                         </div>
                         {booking.payment_mode && (
                           <div className="flex justify-between items-center">
-                            <span className="text-gray-500">Payment Mode:</span>
+                            <span className="text-gray-500">
+                              Payment Mode:
+                            </span>
                             <span
                               className={`rounded-full font-medium p-1 text-xs ${
                                 booking.payment_mode === "credit"
@@ -897,7 +1047,6 @@ export default function HistoricalBookingTable() {
                               }}
                               aria-label={`Edit booking ${booking.id}`}
                             >
-                              {/* Implement Edit Icon as needed */}
                               <span>Edit</span>
                             </Button>
                             <Button
@@ -945,33 +1094,122 @@ export default function HistoricalBookingTable() {
                   </Card>
                 ))}
               </div>
-         
-          </div>
-             )}
-        </CardContent>
-        <CardFooter className="flex justify-between items-center">
-          {totalPages > 1 && !loading && (
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                  />
-                </PaginationItem>
-                {renderPaginationItems()}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+            </div>
           )}
-        </CardFooter>
+          {/* Pagination Component */}
+          <div className="mt-4 flex justify-center">
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent className="flex-wrap justify-center gap-2">
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    />
+                  </PaginationItem>
+                
+                  {/* Desktop View */}
+                  <div className="hidden md:flex gap-2">
+                    {(() => {
+                      const pages = [];
+                      if (totalPages <= 15) {
+                        // Show all pages if total pages are 15 or less
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(
+                            <PaginationItem key={i}>
+                              <PaginationLink
+                                onClick={() => setCurrentPage(i)}
+                                isActive={currentPage === i}
+                              >
+                                {i}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        }
+                      } else {
+                        // Show first 9 pages, ellipsis, and last 2 pages
+                        for (let i = 1; i <= 9; i++) {
+                          pages.push(
+                            <PaginationItem key={i}>
+                              <PaginationLink
+                                onClick={() => setCurrentPage(i)}
+                                isActive={currentPage === i}
+                              >
+                                {i}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        }
+                        pages.push(
+                          <PaginationItem key="ellipsis1">
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        );
+                        for (let i = totalPages - 1; i <= totalPages; i++) {
+                          pages.push(
+                            <PaginationItem key={i}>
+                              <PaginationLink
+                                onClick={() => setCurrentPage(i)}
+                                isActive={currentPage === i}
+                              >
+                                {i}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        }
+                      }
+                      return pages;
+                    })()}
+                  </div>
+                
+                  {/* Mobile View */}
+                  <div className="flex md:hidden gap-2">
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(1)}
+                        isActive={currentPage === 1}
+                      >
+                        1
+                      </PaginationLink>
+                    </PaginationItem>
+                    {totalPages > 2 && currentPage > 2 && (
+                      <PaginationItem>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )}
+                    {currentPage > 1 && currentPage < totalPages && (
+                      <PaginationItem>
+                        <PaginationLink isActive>{currentPage}</PaginationLink>
+                      </PaginationItem>
+                    )}
+                    {totalPages > 2 && currentPage < totalPages - 1 && (
+                      <PaginationItem>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )}
+                    {totalPages > 1 && (
+                      <PaginationItem>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(totalPages)}
+                          isActive={currentPage === totalPages}
+                        >
+                          {totalPages}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )}
+                  </div>
+                
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

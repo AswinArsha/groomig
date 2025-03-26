@@ -34,7 +34,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
-import AnimationTickWebM from "../../assets/AnimationTick.webm";
+import Lottie from "lottie-react";
+import greenTickAnimation from "../../assets/greenTick.json"
 import { sendWhatsAppConfirmation } from "../../services/twilioService";
 
 export default function UserBookingForm() {
@@ -297,8 +298,9 @@ export default function UserBookingForm() {
                 slot_time: formatTimeIST(slotTime)
               };
               
-               await sendWhatsAppConfirmation(bookingData, shopData);
-              console.log("WhatsApp notification sent successfully");
+              await sendWhatsAppConfirmation(bookingData, shopData);
+               
+               console.log("WhatsApp notification sent successfully");
             } catch (whatsappError) {
               console.error("Failed to send WhatsApp notification:", whatsappError);
               // Continue with the booking process even if WhatsApp notification fails
@@ -388,17 +390,19 @@ export default function UserBookingForm() {
   if (bookingComplete) {
     return (
       <div className="fixed inset-0 z-50 bg-white">
-        {/* Animated Video Tick */}
+        {/* Animated Lottie Tick */}
         <motion.div
           initial="initial"
           animate="animate"
           variants={tickVariants}
           className="flex justify-center pt-44 md:pt-60"
         >
-          <video autoPlay muted playsInline className="w-60 md:w-72 md:-mt-50">
-            <source src={AnimationTickWebM} type="video/webm" />
-            Your browser does not support the video tag.
-          </video>
+        <Lottie
+  animationData={greenTickAnimation}
+  loop={false}
+  autoplay={true}
+  className="w-[30rem] -mt-20 md:-mt-50" // Increased from w-60/w-72
+/>
         </motion.div>
         {/* Animated Booking Details */}
         <motion.div
@@ -588,7 +592,7 @@ export default function UserBookingForm() {
                   {availableShops.map((shop) => (
                     <div
                       key={shop.id}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                      className={`p-4 border rounded-lg cursor-pointer bg-white transition-all hover:shadow-md ${
                         selectedShop === shop.id
                           ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                           : "border-gray-200 hover:border-primary/50"
@@ -963,7 +967,7 @@ export default function UserBookingForm() {
           <div className="mt-6">
             <Progress value={calculateProgress()} className="h-2" />
             <div className="flex justify-between mt-2">
-              <span className="text-xs text-gray-500">Step {step} of 4</span>
+              <span className="text-xs text-gray-500">Step {step} of 5</span>
               <span className="text-xs text-gray-500">
                 {step === 1
                   ? "Select Date"
