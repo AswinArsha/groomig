@@ -111,8 +111,13 @@ function ShopAnalytics({ dateRange }) {
   };
 
   const fetchShopPerformanceData = async () => {
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    // Convert dates to IST by adding 5:30 hours before converting to date string
+    const from = dateRange?.from
+      ? new Date(dateRange.from.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0]
+      : '2010-01-01';
+    const to = dateRange?.to
+      ? new Date(dateRange.to.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0]
+      : new Date(Date.now() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
     
     try {
       // Fetch bookings with shop, status, and feedback data
@@ -196,8 +201,13 @@ function ShopAnalytics({ dateRange }) {
   };
 
   const fetchShopRevenueData = async () => {
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    // Convert dates to IST by adding 5:30 hours before converting to date string
+    const from = dateRange?.from
+      ? new Date(dateRange.from.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0]
+      : '2010-01-01';
+    const to = dateRange?.to
+      ? new Date(dateRange.to.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0]
+      : new Date(Date.now() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
     
     try {
       // Fetch bookings with shop and services data

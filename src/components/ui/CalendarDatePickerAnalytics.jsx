@@ -1,4 +1,3 @@
-// src/components/CalendarDatePicker.jsx
 import React, { useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import {
@@ -9,10 +8,9 @@ import {
   endOfMonth,
   startOfYear,
   endOfYear,
-  startOfDay,
-  endOfDay,
+  format,
+  addDays
 } from "date-fns";
-import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -52,9 +50,27 @@ const multiSelectVariants = cva(
   }
 );
 
-// This component receives a "date" prop as a DateRange object: { from: Date, to: Date }
-// and an onDateSelect callback which is called with an object { from: Date, to: Date }
-function CalendarDatePicker({
+// Timezone-adjusted utility functions for India (IST - UTC+5:30)
+const INDIA_OFFSET = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+
+// Gets the start of day in IST timezone
+function startOfDayIST(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  // No need to adjust for timezone since we're setting local time
+  return d;
+}
+
+// Gets the end of day in IST timezone
+function endOfDayIST(date) {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  // No need to adjust for timezone since we're setting local time
+  return d;
+}
+
+// Date range picker component
+function CalendarDatePickerAnalytics({
   id = "calendar-date-picker",
   className,
   date, // Expected shape: { from: Date, to: Date }
@@ -81,42 +97,70 @@ function CalendarDatePicker({
   );
   const [highlightedPart, setHighlightedPart] = useState(null);
 
-  // Preset ranges 
+  // Current date in local timezone (India)
   const today = new Date();
+
+  // Preset ranges with IST timezone adjustments
   const dateRanges = [
-    { label: "Today", start: today, end: today },
-    { label: "Yesterday", start: subDays(today, 1), end: subDays(today, 1) },
+    { 
+      label: "Today", 
+      start: startOfDayIST(today), 
+      end: endOfDayIST(today) 
+    },
+    { 
+      label: "Yesterday", 
+      start: startOfDayIST(subDays(today, 1)), 
+      end: endOfDayIST(subDays(today, 1)) 
+    },
     {
       label: "This Week",
-      start: startOfWeek(today, { weekStartsOn: 1 }),
-      end: endOfWeek(today, { weekStartsOn: 1 }),
+      start: startOfDayIST(startOfWeek(today, { weekStartsOn: 1 })),
+      end: endOfDayIST(endOfWeek(today, { weekStartsOn: 1 })),
     },
     {
       label: "Last Week",
-      start: startOfWeek(subDays(today, 7), { weekStartsOn: 1 }),
-      end: endOfWeek(subDays(today, 7), { weekStartsOn: 1 }),
+      start: startOfDayIST(startOfWeek(subDays(today, 7), { weekStartsOn: 1 })),
+      end: endOfDayIST(endOfWeek(subDays(today, 7), { weekStartsOn: 1 })),
     },
-    { label: "This Month", start: startOfMonth(today), end: endOfMonth(today) },
+    { 
+      label: "This Month", 
+      start: startOfDayIST(startOfMonth(today)), 
+      end: endOfDayIST(endOfMonth(today)) 
+    },
     {
       label: "Last Month",
-      start: startOfMonth(subDays(today, today.getDate())),
-      end: endOfMonth(subDays(today, today.getDate())),
+      start: startOfDayIST(startOfMonth(subDays(today, today.getDate()))),
+      end: endOfDayIST(endOfMonth(subDays(today, today.getDate()))),
     },
-    { label: "This Year", start: startOfYear(today), end: endOfYear(today) },
+    { 
+      label: "This Year", 
+      start: startOfDayIST(startOfYear(today)), 
+      end: endOfDayIST(endOfYear(today)) 
+    },
     {
       label: "Last Year",
-      start: startOfYear(subDays(today, 365)),
-      end: endOfYear(subDays(today, 365)),
+      start: startOfDayIST(startOfYear(subDays(today, 365))),
+      end: endOfDayIST(endOfYear(subDays(today, 365))),
     },
   ];
 
   const handleClose = () => setIsPopoverOpen(false);
   const handleTogglePopover = () => setIsPopoverOpen((prev) => !prev);
 
-  // Remove extra time zone conversion – use the dates directly
+  // Updated to ensure proper time boundaries in IST
   const selectDateRange = (from, to, rangeLabel) => {
-    const startDate = startOfDay(from);
-    const endDate = numberOfMonths === 2 ? endOfDay(to) : startDate;
+    // Use our timezone-adjusted functions for India
+    const startDate = from;
+    const endDate = to;
+    
+    // Log the selected range
+    console.log(`Selected range: ${rangeLabel}`, {
+      from: startDate.toISOString(),
+      to: endDate.toISOString(),
+      fromLocal: startDate.toString(),
+      toLocal: endDate.toString()
+    });
+    
     onDateSelect({ from: startDate, to: endDate });
     setSelectedRange(rangeLabel);
     setMonthFrom(from);
@@ -126,13 +170,16 @@ function CalendarDatePicker({
     if (closeOnSelect) setIsPopoverOpen(false);
   };
 
+  // Updated handler to ensure proper time boundaries
   const handleDateSelect = (range) => {
     if (range) {
-      let from = startOfDay(range.from);
-      let to = range.to ? endOfDay(range.to) : from;
+      let from = startOfDayIST(range.from);
+      let to = range.to ? endOfDayIST(range.to) : endOfDayIST(range.from);
+      
       if (numberOfMonths === 1) {
-        to = from;
+        to = endOfDayIST(from);
       }
+      
       onDateSelect({ from, to });
       setMonthFrom(from);
       setYearFrom(from.getFullYear());
@@ -142,15 +189,16 @@ function CalendarDatePicker({
     setSelectedRange(null);
   };
 
+  // Updated to ensure proper time boundaries
   const handleMonthChange = (newMonthIndex, part) => {
     setSelectedRange(null);
     if (part === "from") {
       if (yearFrom !== undefined) {
         if (newMonthIndex < 0 || newMonthIndex > 11) return;
         const newMonth = new Date(yearFrom, newMonthIndex, 1);
-        // Always update using the start of the month
-        const from = startOfMonth(newMonth);
-        const to = numberOfMonths === 2 ? endOfMonth(newMonth) : from;
+        // Always update using the start of the month and end of month
+        const from = startOfDayIST(startOfMonth(newMonth));
+        const to = numberOfMonths === 2 ? endOfDayIST(endOfMonth(newMonth)) : endOfDayIST(from);
         onDateSelect({ from, to });
         setMonthFrom(newMonth);
       }
@@ -158,27 +206,28 @@ function CalendarDatePicker({
       if (yearTo !== undefined) {
         if (newMonthIndex < 0 || newMonthIndex > 11) return;
         const newMonth = new Date(yearTo, newMonthIndex, 1);
-        const from = startOfMonth(newMonth);
-        const to = numberOfMonths === 2 ? endOfMonth(newMonth) : from;
+        const from = startOfDayIST(startOfMonth(newMonth));
+        const to = numberOfMonths === 2 ? endOfDayIST(endOfMonth(newMonth)) : endOfDayIST(from);
         onDateSelect({ from, to });
         setMonthTo(newMonth);
       }
     }
   };
 
+  // Updated to ensure proper time boundaries
   const handleYearChange = (newYear, part) => {
     setSelectedRange(null);
     if (part === "from") {
       const newMonth = monthFrom ? new Date(newYear, monthFrom.getMonth(), 1) : new Date(newYear, 0, 1);
-      const from = startOfMonth(newMonth);
-      const to = numberOfMonths === 2 ? endOfMonth(newMonth) : from;
+      const from = startOfDayIST(startOfMonth(newMonth));
+      const to = numberOfMonths === 2 ? endOfDayIST(endOfMonth(newMonth)) : endOfDayIST(from);
       onDateSelect({ from, to });
       setYearFrom(newYear);
       setMonthFrom(newMonth);
     } else {
       const newMonth = monthTo ? new Date(newYear, monthTo.getMonth(), 1) : new Date(newYear, 0, 1);
-      const from = startOfMonth(newMonth);
-      const to = numberOfMonths === 2 ? endOfMonth(newMonth) : from;
+      const from = startOfDayIST(startOfMonth(newMonth));
+      const to = numberOfMonths === 2 ? endOfDayIST(endOfMonth(newMonth)) : endOfDayIST(from);
       onDateSelect({ from, to });
       setYearTo(newYear);
       setMonthTo(newMonth);
@@ -429,4 +478,4 @@ function CalendarDatePicker({
   );
 }
 
-export default CalendarDatePicker;
+export default CalendarDatePickerAnalytics;

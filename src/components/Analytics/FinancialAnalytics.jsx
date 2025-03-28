@@ -58,8 +58,14 @@ function FinancialAnalytics({ dateRange }) {
   const fetchRevenueData = async () => {
     setIsLoading(true);
     try {
-      const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-      const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      // Convert dates to IST by adding 5 hours and 30 minutes
+      const getISTDate = (date) => {
+        const d = new Date(date);
+        return new Date(d.getTime() + (5.5 * 60 * 60 * 1000));
+      };
+
+      const from = dateRange?.from ? getISTDate(dateRange.from).toISOString().split('T')[0] : '2010-01-01';
+      const to = dateRange?.to ? getISTDate(dateRange.to).toISOString().split('T')[0] : getISTDate(new Date()).toISOString().split('T')[0];
       
       // Fetch bookings with date and services data
       const { data, error } = await supabase
@@ -78,7 +84,8 @@ function FinancialAnalytics({ dateRange }) {
       data.forEach(booking => {
         if (!booking.booking_date) return;
         
-        const bookingDate = new Date(booking.booking_date);
+        // Convert booking date to IST
+        const bookingDate = new Date(new Date(booking.booking_date).getTime() + (5.5 * 60 * 60 * 1000));
         const monthYear = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
         
         if (!monthlyRevenue[monthYear]) {

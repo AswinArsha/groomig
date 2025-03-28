@@ -103,9 +103,15 @@ function BookingAnalytics({ dateRange }) {
     }
   };
 
-  const fetchTotalBookingsData = async () => {
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+  // Helper function to convert date to IST string
+const getISTDateString = (date) => {
+  const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
+  return istDate.toISOString().split('T')[0];
+};
+
+const fetchTotalBookingsData = async () => {
+    const from = dateRange?.from ? getISTDateString(dateRange.from) : '2010-01-01';
+    const to = dateRange?.to ? getISTDateString(dateRange.to) : getISTDateString(new Date());
     
     try {
       // Fetch bookings within date range
@@ -172,8 +178,8 @@ function BookingAnalytics({ dateRange }) {
   };
 
   const fetchCompletionRateData = async () => {
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const from = dateRange?.from ? getISTDateString(dateRange.from) : '2010-01-01';
+    const to = dateRange?.to ? getISTDateString(dateRange.to) : getISTDateString(new Date());
     
     try {
       // Fetch bookings with status
@@ -229,8 +235,8 @@ function BookingAnalytics({ dateRange }) {
   };
 
   const fetchCancellationRateData = async () => {
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const from = dateRange?.from ? getISTDateString(dateRange.from) : '2010-01-01';
+    const to = dateRange?.to ? getISTDateString(dateRange.to) : getISTDateString(new Date());
     
     try {
       // Fetch bookings with status and date

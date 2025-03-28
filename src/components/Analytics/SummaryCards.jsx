@@ -1,4 +1,3 @@
-// src/components/Analytics/SummaryCards.jsx
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, Calendar, XCircle, DollarSign, CreditCard } from "lucide-react";
@@ -21,18 +20,46 @@ const SummaryCards = ({ dateRange }) => {
     const fetchSummaryData = async () => {
       setIsLoading(true);
       try {
-        // Format dates for Supabase query
-        const fromDate = dateRange.from.toISOString().split('T')[0];
-        const toDate = dateRange.to.toISOString().split('T')[0];
+        console.log("Fetching data with date range:", {
+          from: dateRange.from.toISOString(),
+          to: dateRange.to.toISOString(),
+          fromLocal: dateRange.from.toString(),
+          toLocal: dateRange.to.toString()
+        });
 
-        // Get all bookings in date range
-        const { data: bookings, error } = await supabase
+        // Convert dates to India local date strings (YYYY-MM-DD format)
+        // This ensures we're working with dates in India's timezone
+        const fromDateStr = dateRange.from.toLocaleDateString('en-CA'); // en-CA uses YYYY-MM-DD format
+        const toDateStr = dateRange.to.toLocaleDateString('en-CA');
+        
+        console.log("Date strings for filtering:", { fromDateStr, toDateStr });
+        
+        // Check if it's a single day query (Today, Yesterday)
+        const isSingleDayQuery = fromDateStr === toDateStr;
+        
+        let bookingsQuery = supabase
           .from('historical_bookings')
-          .select('*')
-          .gte('booking_date', fromDate)
-          .lte('booking_date', toDate);
+          .select('*');
+          
+        // Use exact date match for single day queries, range for multiple days
+        if (isSingleDayQuery) {
+          // For single day (Today, Yesterday) - use exact match
+          console.log(`Using exact match query for date: ${fromDateStr}`);
+          bookingsQuery = bookingsQuery.eq('booking_date', fromDateStr);
+        } else {
+          // For date ranges (This Week, This Month, etc.) - use range
+          console.log(`Using range query from ${fromDateStr} to ${toDateStr}`);
+          bookingsQuery = bookingsQuery
+            .gte('booking_date', fromDateStr)
+            .lte('booking_date', toDateStr);
+        }
+        
+        // Execute the query
+        const { data: bookings, error } = await bookingsQuery;
 
         if (error) throw error;
+
+        console.log(`Query returned ${bookings?.length || 0} bookings`);
 
         // Calculate summary metrics
         const uniqueCustomers = new Set(bookings.map(booking => booking.contact_number)).size;
@@ -70,6 +97,13 @@ const SummaryCards = ({ dateRange }) => {
           totalRevenue,
           paidRevenue,
           creditRevenue,
+        });
+
+        console.log("Summary data calculated:", {
+          customers: uniqueCustomers,
+          bookings: totalBookings,
+          cancelled: cancelledBookings,
+          revenue: totalRevenue
         });
       } catch (error) {
         console.error("Error fetching summary data:", error);

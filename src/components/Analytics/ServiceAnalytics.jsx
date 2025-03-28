@@ -84,8 +84,13 @@ function ServiceAnalytics({ dateRange }) {
   };
 
   const fetchPopularServicesData = async () => {
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    // Convert dates to IST by adding 5 hours and 30 minutes
+    const fromDate = dateRange?.from ? new Date(dateRange.from.getTime() + (5.5 * 60 * 60 * 1000)) : new Date('2010-01-01');
+    const toDate = dateRange?.to ? new Date(dateRange.to.getTime() + (5.5 * 60 * 60 * 1000)) : new Date();
+    
+    // Format dates in YYYY-MM-DD format for Supabase query
+    const from = fromDate.toISOString().split('T')[0];
+    const to = toDate.toISOString().split('T')[0];
     
     try {
       // Fetch bookings with services data
@@ -142,8 +147,13 @@ function ServiceAnalytics({ dateRange }) {
   };
 
   const fetchRevenueByServiceData = async () => {
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    // Convert dates to IST by adding 5 hours and 30 minutes
+    const fromDate = dateRange?.from ? new Date(dateRange.from.getTime() + (5.5 * 60 * 60 * 1000)) : new Date('2010-01-01');
+    const toDate = dateRange?.to ? new Date(dateRange.to.getTime() + (5.5 * 60 * 60 * 1000)) : new Date();
+    
+    // Format dates in YYYY-MM-DD format for Supabase query
+    const from = fromDate.toISOString().split('T')[0];
+    const to = toDate.toISOString().split('T')[0];
     
     try {
       // Fetch bookings with services data

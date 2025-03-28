@@ -1,4 +1,3 @@
-// src/components/Analytics/CustomerAnalytics.jsx
 import React, { useState, useEffect } from "react";
 import { TrendingUp, Users, Repeat, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -27,7 +26,6 @@ import {
 } from "@/components/ui/card";
 
 import {
-
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
@@ -44,6 +42,10 @@ function CustomerAnalytics({ dateRange }) {
   const [totalUniqueCustomers, setTotalUniqueCustomers] = useState(0);
   const [customerGrowth, setCustomerGrowth] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [satisfactionData, setSatisfactionData] = useState([]);
+  const [totalRatings, setTotalRatings] = useState(0);
+  const [averageRating, setAverageRating] = useState(0);
+  const [ratingChange, setRatingChange] = useState(0);
 
   // Chart configurations with proper colors
   const uniqueCustomersConfig = {
@@ -70,18 +72,27 @@ function CustomerAnalytics({ dateRange }) {
   };
 
   const fetchUniqueCustomersData = async () => {
-    // Set the from and to dates based on dateRange
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-
     try {
+      // Use local date strings (IST) for querying
+      // Convert dates to India local date strings (YYYY-MM-DD format)
+      const from = dateRange?.from ? dateRange.from.toLocaleDateString('en-CA') : '2010-01-01';
+      const to = dateRange?.to ? dateRange.to.toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA');
+      
+      console.log("Fetching customer analytics with date range:", { from, to });
+
       // Fetch total unique customers
-      const { data: uniqueCustomersCount, error: countError } = await supabase
+      let query = supabase
         .from('historical_bookings')
-        .select('contact_number')
-        .gte('booking_date', from)
-        .lte('booking_date', to)
-        .order('contact_number');
+        .select('contact_number, booking_date')
+        
+      // Use exact match for single day queries
+      if (from === to) {
+        query = query.eq('booking_date', from);
+      } else {
+        query = query.gte('booking_date', from).lte('booking_date', to);
+      }
+      
+      const { data: uniqueCustomersCount, error: countError } = await query.order('contact_number');
 
       if (countError) throw countError;
 
@@ -90,12 +101,18 @@ function CustomerAnalytics({ dateRange }) {
       setTotalUniqueCustomers(uniqueCustomers.length);
 
       // Fetch monthly data for the chart including cancellation status
-      const { data: bookingsData, error: bookingsError } = await supabase
+      let bookingsQuery = supabase
         .from('historical_bookings')
-        .select('booking_date, contact_number, status')
-        .gte('booking_date', from)
-        .lte('booking_date', to)
-        .order('booking_date');
+        .select('booking_date, contact_number, status');
+        
+      // Use exact match for single day queries  
+      if (from === to) {
+        bookingsQuery = bookingsQuery.eq('booking_date', from);
+      } else {
+        bookingsQuery = bookingsQuery.gte('booking_date', from).lte('booking_date', to);
+      }
+      
+      const { data: bookingsData, error: bookingsError } = await bookingsQuery.order('booking_date');
 
       if (bookingsError) throw bookingsError;
 
@@ -109,6 +126,7 @@ function CustomerAnalytics({ dateRange }) {
       );
       
       sortedBookings.forEach(booking => {
+        // Parse the date in local timezone
         const bookingDate = new Date(booking.booking_date);
         const monthYear = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
         
@@ -184,19 +202,25 @@ function CustomerAnalytics({ dateRange }) {
     }
   };
 
-
-
   const fetchSatisfactionData = async () => {
-    const from = dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '2010-01-01';
-    const to = dateRange?.to ? dateRange.to.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-    
     try {
-      const { data, error } = await supabase
+      // Use local date strings (IST) for querying
+      const from = dateRange?.from ? dateRange.from.toLocaleDateString('en-CA') : '2010-01-01';
+      const to = dateRange?.to ? dateRange.to.toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA');
+      
+      let query = supabase
         .from('historical_bookings')
         .select('feedback')
-        .gte('booking_date', from)
-        .lte('booking_date', to)
         .not('feedback', 'is', null);
+        
+      // Use exact match for single day queries
+      if (from === to) {
+        query = query.eq('booking_date', from);
+      } else {
+        query = query.gte('booking_date', from).lte('booking_date', to);
+      }
+        
+      const { data, error } = await query;
         
       if (error) throw error;
       
@@ -232,10 +256,6 @@ function CustomerAnalytics({ dateRange }) {
         { rating: "1 Star", count: ratingsCount['1'], fill: "var(--color-1star)" }
       ];
       
-      const [satisfactionData, setSatisfactionData] = useState([]);
-      const [totalRatings, setTotalRatings] = useState(0);
-      const [averageRating, setAverageRating] = useState(0);
-      const [ratingChange, setRatingChange] = useState(0);
       setSatisfactionData(chartData);
       setTotalRatings(validRatings);
       
@@ -265,16 +285,10 @@ function CustomerAnalytics({ dateRange }) {
 
   return (
     <div className="space-y-4">
-     
-      
       <div className="space-y-4">
         <h2 className="text-2xl font-bold">Customer Analytics</h2>
         
-    
-        
         <Tabs defaultValue="total">
-     
-          
           {/* Total Unique Customers Tab */}
           <TabsContent value="total">
             <Card>
@@ -287,7 +301,6 @@ function CustomerAnalytics({ dateRange }) {
                     </CardTitle>
                     <CardDescription>Monthly customer acquisition</CardDescription>
                   </div>
-             
                 </div>
               </CardHeader>
               <CardContent>
@@ -345,11 +358,17 @@ function CustomerAnalytics({ dateRange }) {
                       onClick={(data) => {
                         const currentYear = new Date().getFullYear();
                         const monthDate = parse(data.month, 'MMMM', new Date(currentYear, 0));
+                        
+                        // Use local timezone for navigation dates
                         const from = startOfMonth(monthDate);
                         const to = endOfMonth(monthDate);
+                        
+                        from.setHours(0, 0, 0, 0);
+                        to.setHours(23, 59, 59, 999);
+                        
                         navigate('/all-bookings', {
                           state: {
-                            selectedDate: { from, to }
+                            dateRange: { from, to }
                           }
                         });
                       }}
@@ -358,12 +377,10 @@ function CustomerAnalytics({ dateRange }) {
                   </BarChart>
                 </ChartContainer>
               </CardContent>
-            
-          </Card>
-        </TabsContent>
-    
-      </Tabs>
-    </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
