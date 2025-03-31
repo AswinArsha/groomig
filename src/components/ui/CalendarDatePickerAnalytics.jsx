@@ -192,11 +192,20 @@ function CalendarDatePickerAnalytics({
   // Updated to ensure proper time boundaries
   const handleMonthChange = (newMonthIndex, part) => {
     setSelectedRange(null);
-    if (part === "from") {
+    if (part === "both") {
       if (yearFrom !== undefined) {
         if (newMonthIndex < 0 || newMonthIndex > 11) return;
         const newMonth = new Date(yearFrom, newMonthIndex, 1);
-        // Always update using the start of the month and end of month
+        const from = startOfDayIST(startOfMonth(newMonth));
+        const to = endOfDayIST(endOfMonth(newMonth));
+        onDateSelect({ from, to });
+        setMonthFrom(newMonth);
+        setMonthTo(newMonth);
+      }
+    } else if (part === "from") {
+      if (yearFrom !== undefined) {
+        if (newMonthIndex < 0 || newMonthIndex > 11) return;
+        const newMonth = new Date(yearFrom, newMonthIndex, 1);
         const from = startOfDayIST(startOfMonth(newMonth));
         const to = numberOfMonths === 2 ? endOfDayIST(endOfMonth(newMonth)) : endOfDayIST(from);
         onDateSelect({ from, to });
@@ -217,7 +226,16 @@ function CalendarDatePickerAnalytics({
   // Updated to ensure proper time boundaries
   const handleYearChange = (newYear, part) => {
     setSelectedRange(null);
-    if (part === "from") {
+    if (part === "both") {
+      const newMonth = monthFrom ? new Date(newYear, monthFrom.getMonth(), 1) : new Date(newYear, 0, 1);
+      const from = startOfDayIST(startOfMonth(newMonth));
+      const to = endOfDayIST(endOfMonth(newMonth));
+      onDateSelect({ from, to });
+      setYearFrom(newYear);
+      setYearTo(newYear);
+      setMonthFrom(newMonth);
+      setMonthTo(newMonth);
+    } else if (part === "from") {
       const newMonth = monthFrom ? new Date(newYear, monthFrom.getMonth(), 1) : new Date(newYear, 0, 1);
       const from = startOfDayIST(startOfMonth(newMonth));
       const to = numberOfMonths === 2 ? endOfDayIST(endOfMonth(newMonth)) : endOfDayIST(from);
@@ -344,49 +362,46 @@ function CalendarDatePickerAnalytics({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto"
+        className="w-[80vw] md:w-auto p-2 md:p-4"
         align="center"
         avoidCollisions={false}
         onInteractOutside={handleClose}
         onEscapeKeyDown={handleClose}
         style={{
-          maxHeight: "var(--radix-popover-content-available-height)",
+          maxHeight: "90vh",
           overflowY: "auto",
         }}
       >
-        <div className="flex">
-          {numberOfMonths === 2 && (
-            <div className="hidden md:flex flex-col gap-1 pr-4 text-left border-r border-foreground/10">
-              {dateRanges.map(({ label, start, end }) => (
-                <Button
-                  key={label}
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "justify-start hover:bg-primary/90 hover:text-background",
-                    selectedRange === label &&
-                      "bg-primary text-background hover:bg-primary/90 hover:text-background"
-                  )}
-                  onClick={() => {
-                    selectDateRange(start, end, label);
-                  }}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-          )}
-          <div className="flex flex-col">
-            <div className="flex items-center gap-4">
-              <div className="flex gap-2 ml-3">
+        <div className="flex flex-col md:flex-row gap-4 ">
+          <div className="flex flex-row md:flex-col gap-2 md:gap-1 p-2 md:pr-4 overflow-x-auto md:overflow-x-visible border-b md:border-b-0 md:border-r border-foreground/10 md:min-w-[200px]">
+            {dateRanges.map(({ label, start, end }) => (
+              <Button
+                key={label}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "justify-start hover:bg-primary/90 hover:text-background",
+                  selectedRange === label &&
+                    "bg-primary text-background hover:bg-primary/90 hover:text-background"
+                )}
+                onClick={() => {
+                  selectDateRange(start, end, label);
+                }}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <div className="flex flex-row gap-2 w-full md:w-auto px-2 md:px-0 justify-center">
                 <Select
                   onValueChange={(value) => {
-                    handleMonthChange(months.indexOf(value), "from");
+                    handleMonthChange(months.indexOf(value), window.innerWidth < 768 ? "both" : "from");
                     setSelectedRange(null);
                   }}
                   value={monthFrom ? months[monthFrom.getMonth()] : undefined}
                 >
-                  {/* Removed "hidden" so the select is always visible */}
                   <SelectTrigger className="w-[122px] focus:ring-0 focus:ring-offset-0 font-medium hover:bg-accent hover:text-accent-foreground">
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
@@ -400,7 +415,7 @@ function CalendarDatePickerAnalytics({
                 </Select>
                 <Select
                   onValueChange={(value) => {
-                    handleYearChange(Number(value), "from");
+                    handleYearChange(Number(value), window.innerWidth < 768 ? "both" : "from");
                     setSelectedRange(null);
                   }}
                   value={yearFrom ? yearFrom.toString() : undefined}
@@ -417,8 +432,8 @@ function CalendarDatePickerAnalytics({
                   </SelectContent>
                 </Select>
               </div>
-              {numberOfMonths === 2 && (
-                <div className="flex gap-2">
+              {numberOfMonths === 2 && window.innerWidth >= 768 && (
+                <div className="flex flex-row gap-2 w-full md:w-auto px-2 md:px-0 justify-center">
                   <Select
                     onValueChange={(value) => {
                       handleMonthChange(months.indexOf(value), "to");
@@ -458,7 +473,7 @@ function CalendarDatePickerAnalytics({
                 </div>
               )}
             </div>
-            <div className="flex">
+            <div className="flex justify-center overflow-x-auto md:-ml-72 md:overflow-x-visible">
               <Calendar
                 mode="range"
                 defaultMonth={monthFrom}
@@ -466,7 +481,7 @@ function CalendarDatePickerAnalytics({
                 onMonthChange={setMonthFrom}
                 selected={date}
                 onSelect={handleDateSelect}
-                numberOfMonths={numberOfMonths}
+                numberOfMonths={window.innerWidth < 768 ? 1 : numberOfMonths}
                 showOutsideDays={false}
                 className={className}
               />

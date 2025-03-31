@@ -410,7 +410,7 @@ export default function HistoricalBookingTable() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto ">
       {/* Controls */}
       <div className="flex flex-col space-y-4">
         <div className="flex flex-col gap-4 flex-wrap sm:flex-row sm:items-center sm:space-x-4">
@@ -504,7 +504,7 @@ export default function HistoricalBookingTable() {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-full sm:w-52">
+          <div className="w-full flex justify-center  sm:w-52">
             <CalendarDatePicker
               date={selectedDate}
               onDateSelect={setSelectedDate}
@@ -853,9 +853,9 @@ export default function HistoricalBookingTable() {
               </div>
 
               {/* Mobile View */}
-              <div className="md:hidden space-y-4">
+              <div className="md:hidden space-y-2">
                 {bookings.map((booking) => (
-                  <Card key={booking.id} className="bg-white">
+                  <Card key={booking.id} className="bg-white mb-0">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>

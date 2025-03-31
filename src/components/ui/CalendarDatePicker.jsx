@@ -295,19 +295,19 @@ function CalendarDatePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto"
+        className="w-[80vw] md:w-auto p-2 md:p-4"
         align="center"
         avoidCollisions={false}
         onInteractOutside={handleClose}
         onEscapeKeyDown={handleClose}
         style={{
-          maxHeight: "var(--radix-popover-content-available-height)",
+          maxHeight: "90vh",
           overflowY: "auto",
         }}
       >
-        <div className="flex">
+        <div className="flex flex-col md:flex-row gap-4">
           {numberOfMonths === 2 && (
-            <div className="hidden md:flex flex-col gap-1 pr-4 text-left border-r border-foreground/10">
+            <div className="flex flex-row md:flex-col gap-2 md:gap-1 p-2 md:pr-4 overflow-x-auto md:overflow-x-visible border-b md:border-b-0 md:border-r border-foreground/10 md:min-w-[200px]">
               {dateRanges.map(({ label, start, end }) => (
                 <Button
                   key={label}
@@ -327,9 +327,9 @@ function CalendarDatePicker({
               ))}
             </div>
           )}
-          <div className="flex flex-col">
-            <div className="flex items-center gap-4">
-              <div className="flex gap-2 ml-3">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <div className="flex flex-row gap-2 w-full md:w-auto px-2 md:px-0 justify-center">
                 <Select
                   onValueChange={(value) => {
                     handleMonthChange(months.indexOf(value), "from");
@@ -368,8 +368,8 @@ function CalendarDatePicker({
                   </SelectContent>
                 </Select>
               </div>
-              {numberOfMonths === 2 && (
-                <div className="flex gap-2">
+              {numberOfMonths === 2 && window.innerWidth >= 768 && (
+                <div className="flex flex-row gap-2 w-full md:w-auto px-2 md:px-0 justify-center">
                   <Select
                     onValueChange={(value) => {
                       handleMonthChange(months.indexOf(value), "to");
@@ -409,7 +409,7 @@ function CalendarDatePicker({
                 </div>
               )}
             </div>
-            <div className="flex">
+            <div className="flex justify-center overflow-x-auto md:overflow-x-visible">
               <Calendar
                 mode="range"
                 defaultMonth={monthFrom}
@@ -417,7 +417,7 @@ function CalendarDatePicker({
                 onMonthChange={setMonthFrom}
                 selected={date}
                 onSelect={handleDateSelect}
-                numberOfMonths={numberOfMonths}
+                numberOfMonths={window.innerWidth < 768 ? 1 : numberOfMonths}
                 showOutsideDays={false}
                 className={className}
               />
