@@ -362,7 +362,7 @@ function CalendarDatePickerAnalytics({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[80vw] md:w-auto p-2 md:p-4"
+        className="w-[80vw] md:w-auto p-2"
         align="center"
         avoidCollisions={false}
         onInteractOutside={handleClose}
@@ -370,6 +370,7 @@ function CalendarDatePickerAnalytics({
         style={{
           maxHeight: "90vh",
           overflowY: "auto",
+          overflowX: "hidden"
         }}
       >
         <div className="flex flex-col md:flex-row gap-4 ">
@@ -394,7 +395,7 @@ function CalendarDatePickerAnalytics({
           </div>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row items-center gap-4">
-              <div className="flex flex-row gap-2 w-full md:w-auto px-2 md:px-0 justify-center">
+              <div className="flex flex-row gap-2 w-full md:w-auto justify-center">
                 <Select
                   onValueChange={(value) => {
                     handleMonthChange(months.indexOf(value), window.innerWidth < 768 ? "both" : "from");
@@ -433,7 +434,7 @@ function CalendarDatePickerAnalytics({
                 </Select>
               </div>
               {numberOfMonths === 2 && window.innerWidth >= 768 && (
-                <div className="flex flex-row gap-2 w-full md:w-auto px-2 md:px-0 justify-center">
+                <div className="flex flex-row gap-2 w-full md:w-auto justify-center">
                   <Select
                     onValueChange={(value) => {
                       handleMonthChange(months.indexOf(value), "to");
@@ -473,7 +474,7 @@ function CalendarDatePickerAnalytics({
                 </div>
               )}
             </div>
-            <div className="flex justify-center overflow-x-auto md:-ml-72 md:overflow-x-visible">
+            <div className="flex justify-center md:justify-start md:-ml-4 overflow-x-hidden">
               <Calendar
                 mode="range"
                 defaultMonth={monthFrom}
