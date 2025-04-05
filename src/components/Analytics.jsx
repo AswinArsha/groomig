@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import CalendarDatePickerAnalytics from "@/components/ui/calendardatepickeranalytics.jsx";
+import CalendarDatePickerAnalytics from "../components/ui/calendardatepickeranalytics.jsx";
 import {
   startOfYear,
   endOfYear,
