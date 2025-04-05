@@ -295,11 +295,11 @@ function CustomerAnalytics({ dateRange }) {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
                       <Users className="h-5 w-5" />
                       Total Customers
                     </CardTitle>
-                    <CardDescription>Monthly customer acquisition</CardDescription>
+                    <CardDescription className="hidden md:block">Monthly customer acquisition</CardDescription>
                   </div>
                 </div>
               </CardHeader>

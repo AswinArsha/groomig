@@ -381,12 +381,15 @@ function CalendarDatePickerAnalytics({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "justify-start hover:bg-primary/90 hover:text-background",
+                  "justify-start hover:bg-primary/90 hover:text-background w-full md:w-auto py-4 md:py-2 text-base md:text-sm",
                   selectedRange === label &&
                     "bg-primary text-background hover:bg-primary/90 hover:text-background"
                 )}
                 onClick={() => {
                   selectDateRange(start, end, label);
+                  if (window.innerWidth < 768) {
+                    setIsPopoverOpen(false);
+                  }
                 }}
               >
                 {label}

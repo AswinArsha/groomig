@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { X, Edit2, Check, ArrowRight, Loader2, Ban, RotateCcw, Receipt } from "lucide-react";
 import { format, parse } from "date-fns";
 import toast from "react-hot-toast";
-import BookingForm from "./BookingForm"; // Ensure correct import
+import BookingForm from "./BookingForm";
 import {
   Table,
   TableBody,
@@ -274,6 +274,46 @@ export default function BookingTable() {
     };
   }, [searchTerm, selectedDate, selectedServiceFilters, currentPage, fetchBookings]);
 
+  // Get user role from session
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    const userSession = JSON.parse(localStorage.getItem('userSession'));
+    if (userSession) {
+      setUserRole(userSession.type === 'staff' ? 'staff' : 'admin');
+    }
+  }, []);
+
+  // Function to handle undoing a cancellation or completed status
+  async function handleUndoCancel(booking) {
+    setLoading(true);
+    try {
+      // First, delete the record from historical_bookings
+      const { error: deleteError } = await supabase
+        .from("historical_bookings")
+        .delete()
+        .eq("original_booking_id", booking.id)
+        .in("status", ["cancelled", "completed"]);
+      
+      if (deleteError) throw deleteError;
+      
+      // Then, update the status in bookings to progressing
+      const { error: updateError } = await supabase
+        .from("bookings")
+        .update({ status: "progressing" })
+        .eq("id", booking.id);
+        
+      if (updateError) throw updateError;
+      
+      toast.success("Booking restoration successful! Status set to progressing.");
+      fetchBookings();
+    } catch (error) {
+      toast.error(`Error restoring booking: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleCancel(booking) {
     setLoading(true);
     try {
@@ -491,81 +531,79 @@ export default function BookingTable() {
   return (
     <div className="container mx-auto p-4">
     
-    
+    <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-4 mb-2">
+      <Input
+        type="text"
+        placeholder="Search by customer, breed, contact, dog name..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full sm:w-64"
+        aria-label="Search Bookings"
+      />
 
-<div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-4 mb-2">
-  <Input
-    type="text"
-    placeholder="Search by customer, breed, contact, dog name..."
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-    className="w-full sm:w-64"
-    aria-label="Search Bookings"
-  />
+      {/* Shop Filter Select */}
+      <div className="w-full sm:w-72">
+        <Select value={selectedShop} onValueChange={setSelectedShop}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Filter by shop..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {shopOptions.map((shop) => (
+                <SelectItem key={shop.value || 'all'} value={shop.value}>
+                  {shop.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
 
-  {/* Shop Filter Select */}
-  <div className="w-full sm:w-72">
-    <Select value={selectedShop} onValueChange={setSelectedShop}>
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Filter by shop..." />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {shopOptions.map((shop) => (
-            <SelectItem key={shop.value || 'all'} value={shop.value}>
-              {shop.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  </div>
+      {/* Service Filter Select */}
+      <div className="w-full sm:w-72">
+        <Select value={selectValue} onValueChange={(val) => { handleServiceSelect(val); }}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Filter by services..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {serviceOptions.map((service) => (
+                <SelectItem key={service.value} value={service.value} className="flex items-center justify-between">
+                  <div className="flex">
+                    <span>{service.label}</span>
+                    {selectedServiceFilters.some(s => s.value === service.value) && (
+                      <Check className="h-4 w-4 ml-2 text-primary" />
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+      <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
+    </div>
 
-  {/* Service Filter Select */}
-  <div className="w-full sm:w-72">
-    <Select value={selectValue} onValueChange={(val) => { handleServiceSelect(val); }}>
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Filter by services..." />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {serviceOptions.map((service) => (
-            <SelectItem key={service.value} value={service.value} className="flex items-center justify-between">
-              <div className="flex">
-                <span>{service.label}</span>
-                {selectedServiceFilters.some(s => s.value === service.value) && (
-                  <Check className="h-4 w-4 ml-2 text-primary" />
-                )}
-              </div>
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  </div>
-  <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
-</div>
-
-{/* Display selected service filters as badges */}
-{selectedServiceFilters.length > 0 && (
-  <div className="flex flex-wrap gap-2 my-2">
-    {selectedServiceFilters.map(service => (
-      <Badge key={service.value} variant="secondary" className="flex items-center">
-        {service.label}
-        <button
-          onClick={() => removeServiceFilter(service.value)}
-          className="ml-1 text-sm"
-          aria-label={`Remove filter for ${service.label}`}
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </Badge>
-    ))}
-    <Button variant="outline" size="sm" onClick={clearAllServiceFilters} className="text-sm">
-      <RotateCcw className="h-4 w-4" />
-    </Button>
-  </div>
-)}
+    {/* Display selected service filters as badges */}
+    {selectedServiceFilters.length > 0 && (
+      <div className="flex flex-wrap gap-2 my-2">
+        {selectedServiceFilters.map(service => (
+          <Badge key={service.value} variant="secondary" className="flex items-center">
+            {service.label}
+            <button
+              onClick={() => removeServiceFilter(service.value)}
+              className="ml-1 text-sm"
+              aria-label={`Remove filter for ${service.label}`}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </Badge>
+        ))}
+        <Button variant="outline" size="sm" onClick={clearAllServiceFilters} className="text-sm">
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+      </div>
+    )}
 
       <Card className="bg-white ">
         <CardHeader>
@@ -617,25 +655,25 @@ export default function BookingTable() {
                       <TableCell>{getSubSlotDisplay(booking)}</TableCell>
                    
                       <TableCell >
-  <span
-    className={`rounded-full font-medium p-1 text-xs ${
-      booking.status === "reserved"
-        ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
-        : booking.status === "checked_in"
-        ? "bg-green-200 text-green-700 border border-green-300"
-        : booking.status === "progressing"
-        ? "bg-blue-200 text-blue-700 border border-blue-300"
-        : booking.status === "completed"
-        ? "bg-green-200 text-green-700 border border-green-300"
-        : booking.status === "canceled" || booking.status === "cancelled"
-        ? "bg-red-200 text-red-700 border border-red-300"
-        : "bg-gray-200 text-gray-700 border border-gray-300"
-    }`}
-    style={{  whiteSpace: "nowrap" }} // Adjust padding and ensure no text wrapping
-  >
-    {booking.status.replace("_", " ").toUpperCase()}
-  </span>
-</TableCell>
+                        <span
+                          className={`rounded-full font-medium p-1 text-xs ${
+                            booking.status === "reserved"
+                              ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
+                              : booking.status === "checked_in"
+                              ? "bg-green-200 text-green-700 border border-green-300"
+                              : booking.status === "progressing"
+                              ? "bg-blue-200 text-blue-700 border border-blue-300"
+                              : booking.status === "completed"
+                              ? "bg-green-200 text-green-700 border border-green-300"
+                              : booking.status === "canceled" || booking.status === "cancelled"
+                              ? "bg-red-200 text-red-700 border border-red-300"
+                              : "bg-gray-200 text-gray-700 border border-gray-300"
+                          }`}
+                          style={{  whiteSpace: "nowrap" }} // Adjust padding and ensure no text wrapping
+                        >
+                          {booking.status.replace("_", " ").toUpperCase()}
+                        </span>
+                      </TableCell>
 
                       <TableCell>
                         <Popover>
@@ -650,8 +688,6 @@ export default function BookingTable() {
                           </PopoverTrigger>
                           <PopoverContent className="w-[300px] p-6">
                             <div className="space-y-6">
-                        
-                    
                               <div className="space-y-3">
                                 <div className="text-sm font-medium">Services</div>
                                 {booking.booking_services_selected?.map((service, idx) => (
@@ -701,7 +737,7 @@ export default function BookingTable() {
                                   onClick={() => setEditingBooking(booking)}
                                   aria-label={`Edit booking ${booking.id}`}
                                 >
-                                  <Edit2 className="h-4 w-4 mr-1" />
+                                  <Edit2 className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
                             <DialogContent>
@@ -718,6 +754,41 @@ export default function BookingTable() {
                             </DialogContent>
                           </Dialog>
                           )}
+                          
+                          {/* Undo Cancel Button - New feature */}
+                          {(booking.status === "cancelled" || booking.status === "canceled" || booking.status === "completed") && userRole === 'admin' && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-700"
+                                  aria-label={`Undo cancellation for booking ${booking.id}`}
+                                >
+                                  <RotateCcw className="h-4 w-4 mr-1" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Confirm Restoration</DialogTitle>
+                                  <DialogDescription>
+                                    Are you sure you want to restore this booking? This will set the status back to progressing.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                 
+                                  <Button 
+                                    variant="default"
+                                    className="bg-amber-600 hover:bg-amber-700" 
+                                    onClick={() => handleUndoCancel(booking)}
+                                  >
+                                    Yes, restore booking
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                          
                           {/* Check-in or View Details Button */}
                           {booking.status === "reserved" ? (
                             <motion.button
@@ -756,29 +827,27 @@ export default function BookingTable() {
                                   onClick={() => setCancelId(booking.id)}
                                   aria-label={`Cancel booking ${booking.id}`}
                                 >
-                                  <Ban className="h-4 w-4 mr-1" />
+                                  <Ban className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Confirm Cancellation</DialogTitle>
-                                <DialogDescription>
-                                  Are you sure you want to cancel this booking? This action cannot be undone.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <Button variant="outline" onClick={() => setCancelId(null)}>
-                                  No, keep booking
-                                </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  onClick={() => cancelId && handleCancel(bookings.find(b => b.id === cancelId))}
-                                >
-                                  Yes, cancel booking
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Confirm Cancellation</DialogTitle>
+                                  <DialogDescription>
+                                    Are you sure you want to cancel this booking? This action cannot be undone.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                 
+                                  <Button 
+                                    variant="destructive" 
+                                    onClick={() => cancelId && handleCancel(bookings.find(b => b.id === cancelId))}
+                                  >
+                                    Yes, cancel booking
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
                           )}
                         </div>
                       </TableCell>
@@ -791,7 +860,7 @@ export default function BookingTable() {
               {/* Mobile View */}
               <div className="md:hidden space-y-4">
                 {bookings.map((booking, index) => (
-                  <Card key={booking.id} className="bg-white ">
+                  <Card key={booking.id} className="bg-white">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
@@ -868,6 +937,40 @@ export default function BookingTable() {
                       </div>
                     </CardContent>
                     <CardFooter className="flex justify-end space-x-2 pt-2">
+                      {/* Undo Cancel Button for Mobile View */}
+                      {(booking.status === "cancelled" || booking.status === "canceled" || booking.status === "completed") && userRole === 'admin' && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-700"
+                              aria-label={`Undo cancellation for booking ${booking.id}`}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Confirm Restoration</DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to restore this booking? This will set the status back to progressing.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                            
+                              <Button 
+                                variant="default"
+                                className="bg-amber-600 hover:bg-amber-700" 
+                                onClick={() => handleUndoCancel(booking)}
+                              >
+                                Yes, restore booking
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                      
                       {booking.status !== 'cancelled' && booking.status !== 'canceled' && booking.status !== 'completed' && (
                         <>
                           <Dialog
@@ -924,8 +1027,7 @@ export default function BookingTable() {
                                 </DialogDescription>
                               </DialogHeader>
                               <DialogFooter>
-                                <Button variant="outline" onClick={() => setCancelId(null)}>
-                                  No, keep booking
+                                <Button variant="outline" onClick={() => setCancelId(null)}>No, keep booking
                                 </Button>
                                 <Button 
                                   variant="destructive" 
@@ -968,7 +1070,6 @@ export default function BookingTable() {
         </CardContent>
         <CardFooter className="flex justify-between items-center">
       
-
           {totalPages > 1 && (
             <Pagination>
               <PaginationContent>
@@ -999,10 +1100,7 @@ export default function BookingTable() {
             </Pagination>
           )}
         </CardFooter>
-              </Card>
+      </Card>
     </div>
   );
 }
-
-
-

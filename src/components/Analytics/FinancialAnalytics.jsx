@@ -14,7 +14,8 @@ import {
   CartesianGrid, 
   XAxis,
   YAxis,
-  Tooltip
+  Tooltip,
+  ResponsiveContainer
 } from "recharts";
 
 import {
@@ -202,7 +203,7 @@ function FinancialAnalytics({ dateRange }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Financial Analytics</h2>
+        <h2 className="text-xl font-bold">Financial Analytics</h2>
         <div className="p-8 text-center">Loading financial data...</div>
       </div>
     );
@@ -210,7 +211,7 @@ function FinancialAnalytics({ dateRange }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Financial Analytics</h2>
+      <h2 className="text-xl font-bold">Financial Analytics</h2>
       
       <div className="space-y-4">
  
@@ -218,11 +219,11 @@ function FinancialAnalytics({ dateRange }) {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
                   <IndianRupee className="h-5 w-5" />
-                  Total Revenue Over Time
+                  Total Revenue <span className="hidden sm:block">Over Time</span> 
                 </CardTitle>
-                <CardDescription>Monthly revenue trend</CardDescription>
+                <CardDescription className="hidden sm:block">Monthly revenue trend</CardDescription>
               </div>
               <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
             </div>
@@ -230,64 +231,65 @@ function FinancialAnalytics({ dateRange }) {
           <CardContent>
             {revenueData.length > 0 ? (
               <ChartContainer config={revenueConfig} className="h-[300px] w-full">
-                <AreaChart
-                  accessibilityLayer
-                  data={revenueData}
-                  width={800}
-                  margin={{
-                    left: 40,
-                    right: 40,
-                    top: 20,
-                    bottom: 20,
-                  }}
-                >
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="shortMonth"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
-                  <YAxis
-                    tickFormatter={(value) => `₹${value.toLocaleString('en-IN', { notation: 'compact', compactDisplay: 'short' })}`}
-                    axisLine={false}
-                    tickLine={false}
-                    tickMargin={8}
-                  />
-                  <ChartTooltip
-                    content={(props) => {
-                      const { active, payload } = props;
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-card p-3 border shadow-lg rounded-lg">
-                            <p className="font-semibold text-card-foreground mb-1">{data.month}</p>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <IndianRupee className="h-4 w-4" />
-                              <span className="font-medium text-card-foreground">
-                                {data.revenue.toLocaleString('en-IN')}
-                              </span>
-                            </div>
-                            {revenueData && revenueData.length > 1 && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {Math.round((data.revenue / totalRevenue) * 100)}% of total revenue
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-                      return null;
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    accessibilityLayer
+                    data={revenueData}
+                    margin={{
+                      left: 40,
+                      right: 40,
+                      top: 20,
+                      bottom: 20,
                     }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    fill="hsl(var(--chart-2))"
-                    fillOpacity={0.4}
-                    stroke="hsl(var(--chart-2))"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
+                  >
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="shortMonth"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                    />
+                    <YAxis
+                      tickFormatter={(value) => `₹${value.toLocaleString('en-IN', { notation: 'compact', compactDisplay: 'short' })}`}
+                      axisLine={false}
+                      tickLine={false}
+                      tickMargin={8}
+                    />
+                    <ChartTooltip
+                      content={(props) => {
+                        const { active, payload } = props;
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-card p-3 border shadow-lg rounded-lg">
+                              <p className="font-semibold text-card-foreground mb-1">{data.month}</p>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <IndianRupee className="h-4 w-4" />
+                                <span className="font-medium text-card-foreground">
+                                  {data.revenue.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              {revenueData && revenueData.length > 1 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {Math.round((data.revenue / totalRevenue) * 100)}% of total revenue
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      fill="hsl(var(--chart-2))"
+                      fillOpacity={0.4}
+                      stroke="hsl(var(--chart-2))"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </ChartContainer>
             ) : (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground">

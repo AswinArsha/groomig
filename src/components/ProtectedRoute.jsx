@@ -10,14 +10,36 @@ function ProtectedRoute() {
 
   React.useEffect(() => {
     const fetchUser = async () => {
+      // Check for stored session first
+      const storedSession = localStorage.getItem('userSession');
+      if (storedSession) {
+        const sessionData = JSON.parse(storedSession);
+        setUser(sessionData);
+        setLoading(false);
+        return;
+      }
+
+      // If no stored session, check Supabase auth
       const {
         data: { session },
         error,
       } = await supabase.auth.getSession();
+      
       if (error) {
         console.error("Error fetching session:", error.message);
+        setLoading(false);
+        return;
       }
-      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        const sessionData = {
+          type: 'admin',
+          email: session.user.email
+        };
+        localStorage.setItem('userSession', JSON.stringify(sessionData));
+        setUser(sessionData);
+      }
+      
       setLoading(false);
     };
 
@@ -25,7 +47,17 @@ function ProtectedRoute() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setUser(session?.user ?? null);
+        if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('userSession');
+          setUser(null);
+        } else if (session?.user) {
+          const sessionData = {
+            type: 'admin',
+            email: session.user.email
+          };
+          localStorage.setItem('userSession', JSON.stringify(sessionData));
+          setUser(sessionData);
+        }
       }
     );
 
@@ -45,6 +77,7 @@ function ProtectedRoute() {
       </div>
     );
   }
+
   return user ? <Outlet /> : <Navigate to="/" replace />;
 }
 

@@ -42,6 +42,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "../../supabase"; // Adjust path as needed
 
+
+
 function ServiceAnalytics({ dateRange }) {
   const [popularServicesData, setPopularServicesData] = useState([]);
   const [revenueByServiceData, setRevenueByServiceData] = useState([]);
@@ -221,7 +223,7 @@ function ServiceAnalytics({ dateRange }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Service Analytics</h2>
+        <h2 className="text-xl font-bold">Service Analytics</h2>
         <div className="p-8 text-center">Loading service analytics data...</div>
       </div>
     );
@@ -229,7 +231,7 @@ function ServiceAnalytics({ dateRange }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Service Analytics</h2>
+      <h2 className="text-xl font-bold">Service Analytics</h2>
       
       <Tabs defaultValue="popular">
         <TabsList className="grid w-full grid-cols-2">
@@ -243,46 +245,82 @@ function ServiceAnalytics({ dateRange }) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
                     <Package className="h-5 w-5" />
-                    Most Popular Services
+                    <span className="hidden md:inline">Most</span> Popular Services
                   </CardTitle>
-                  <CardDescription>Services by booking frequency</CardDescription>
+                  <CardDescription className="hidden sm:block">Services by booking frequency</CardDescription>
                 </div>
                 <div className="text-lg font-medium">
-                  {topService.name ? `Top: ${topService.name}` : 'No data'}
+                  {topService.name ? (
+                    <>
+                      <span className="hidden md:inline">Top: </span>
+                      {topService.name}
+                    </>
+                  ) : 'No data'}
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               {popularServicesData.length > 0 ? (
-                <ChartContainer config={popularServicesConfig} className="h-[300px] mt-10 -mb-14">
-                  <BarChart
-                    accessibilityLayer
-                    data={popularServicesData.slice(0, 8)} // Show top 8 services
-                    layout="horizontal"
-                    margin={{ left: 60, right: 20, top: 20, bottom: 60 }}
-                  >
-                    <CartesianGrid vertical strokeDasharray="3 3" />
-                    <XAxis 
-                      type="category" 
-                      dataKey="name"
-                      height={40}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis type="number" />
-                    <ChartTooltip
-                      content={<ChartTooltipContent />}
-                    />
-                    <Bar 
-                      dataKey="count" 
-                      fill="hsl(var(--chart-3))" 
-                      radius={[4, 4, 0, 0]} 
-                    >
-                      <LabelList dataKey="count" position="top" />
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
+                <div>
+                <div className="overflow-x-auto overflow-y-hidden">
+                  <div className="-ml-28 sm:flex sm:justify-center">
+                  <ChartContainer config={popularServicesConfig} className="h-[300px] mt-10 -mb-14 min-w-[600px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        accessibilityLayer
+                        data={popularServicesData.slice(0, 8)} // Show top 8 services
+                        layout="horizontal"
+                        margin={{ left: 60, right: 20, top: 20, bottom: 60 }}
+                      >
+                        <CartesianGrid vertical strokeDasharray="3 3" />
+                        <XAxis 
+                          type="category" 
+                          dataKey="name"
+                          height={40}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis type="number" />
+                        <ChartTooltip
+                          content={<ChartTooltipContent />}
+                        />
+                        <Bar 
+                          dataKey="count" 
+                          fill="hsl(var(--chart-3))" 
+                          radius={[4, 4, 0, 0]} 
+                        >
+                          <LabelList dataKey="count" position="top" />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+               
+                </div>
+                <div className="w-full mt-8">
+                  <div className="h-[250px] overflow-y-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-2">Service</th>
+                          <th className="text-right p-2">Bookings</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {popularServicesData.map((service, index) => (
+                          <tr key={index} className="border-b">
+                            <td className="p-2">{service.name}</td>
+                            <td className="text-right p-2">{service.count}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                </div>
+
+                
               ) : (
                 <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                   No service data available for the selected period
@@ -310,11 +348,12 @@ function ServiceAnalytics({ dateRange }) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl ">
                     <IndianRupee className="h-5 w-5" />
-                    Revenue by Service
+                    <span className="block md:hidden">Revenue</span>
+                    <span className="hidden md:block">Revenue by Service</span>
                   </CardTitle>
-                  <CardDescription>Service revenue distribution</CardDescription>
+                  <CardDescription className="hidden sm:block">Service revenue distribution</CardDescription>
                 </div>
                 <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
               </div>
@@ -322,7 +361,7 @@ function ServiceAnalytics({ dateRange }) {
             <CardContent className="flex flex-col items-center">
               {revenueByServiceData.length > 0 ? (
                 <div className="w-full flex flex-col sm:flex-row gap-4">
-                  <div className="w-full sm:w-1/2">
+                  <div className="w-full -ml-20 sm:w-1/2">
                     <ChartContainer
                       config={revenueConfig}
                       className="h-[250px]"

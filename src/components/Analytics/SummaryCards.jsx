@@ -4,7 +4,7 @@ import { Users, Calendar, XCircle, DollarSign, CreditCard } from "lucide-react";
 import { supabase } from "../../supabase";
 import { useNavigate } from "react-router-dom";
 
-const SummaryCards = ({ dateRange }) => {
+const SummaryCards = ({ dateRange, selectedShop }) => {
   const navigate = useNavigate();
   const [summaryData, setSummaryData] = useState({
     totalCustomers: 0,
@@ -24,7 +24,8 @@ const SummaryCards = ({ dateRange }) => {
           from: dateRange.from.toISOString(),
           to: dateRange.to.toISOString(),
           fromLocal: dateRange.from.toString(),
-          toLocal: dateRange.to.toString()
+          toLocal: dateRange.to.toString(),
+          selectedShop
         });
 
         // Convert dates to India local date strings (YYYY-MM-DD format)
@@ -41,6 +42,11 @@ const SummaryCards = ({ dateRange }) => {
           .from('historical_bookings')
           .select('*');
           
+        // Add shop filter if a shop is selected
+        if (selectedShop) {
+          bookingsQuery = bookingsQuery.eq('shop_id', selectedShop);
+        }
+
         // Use exact date match for single day queries, range for multiple days
         if (isSingleDayQuery) {
           // For single day (Today, Yesterday) - use exact match
@@ -115,7 +121,7 @@ const SummaryCards = ({ dateRange }) => {
     if (dateRange.from && dateRange.to) {
       fetchSummaryData();
     }
-  }, [dateRange]);
+  }, [dateRange, selectedShop]);
 
   // Format currency
   const formatCurrency = (amount) => {
@@ -127,10 +133,10 @@ const SummaryCards = ({ dateRange }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 p-1 sm:p-2">
       {/* Total Customers Card */}
       <Card 
-        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        className="bg-white shadow-sm hover:shadow-md active:shadow-inner cursor-pointer transition-all duration-200 ease-in-out"
         onClick={() => navigate('/all-bookings', { 
           state: { 
             dateRange,
@@ -138,12 +144,12 @@ const SummaryCards = ({ dateRange }) => {
           }
         })}
       >
-        <CardContent className="p-4 flex flex-col items-center justify-center">
-          <div className="rounded-full bg-blue-100 p-3 mb-2">
-            <Users className="h-6 w-6 text-blue-600" />
+        <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center space-y-2 sm:space-y-3">
+          <div className="rounded-full bg-blue-100 p-2 sm:p-4 mb-0 sm:mb-1">
+            <Users className="h-5 w-5 sm:h-7 sm:w-7 text-blue-600" />
           </div>
-          <p className="text-sm text-gray-500 font-medium">Total Customers</p>
-          <h3 className="text-2xl font-bold mt-1">
+          <p className="text-sm sm:text-base text-gray-600 font-medium text-center">Total Customers</p>
+          <h3 className="text-xl sm:text-3xl font-bold">
             {isLoading ? "..." : summaryData.totalCustomers}
           </h3>
         </CardContent>
@@ -151,7 +157,7 @@ const SummaryCards = ({ dateRange }) => {
 
       {/* Total Bookings Card */}
       <Card 
-        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        className="bg-white shadow-sm hover:shadow-md active:shadow-inner cursor-pointer transition-all duration-200 ease-in-out"
         onClick={() => navigate('/all-bookings', { 
           state: { 
             dateRange,
@@ -159,12 +165,12 @@ const SummaryCards = ({ dateRange }) => {
           }
         })}
       >
-        <CardContent className="p-4 flex flex-col items-center justify-center">
-          <div className="rounded-full bg-green-100 p-3 mb-2">
-            <Calendar className="h-6 w-6 text-green-600" />
+        <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center space-y-2 sm:space-y-3">
+          <div className="rounded-full bg-green-100 p-2 sm:p-4 mb-0 sm:mb-1">
+            <Calendar className="h-5 w-5 sm:h-7 sm:w-7 text-green-600" />
           </div>
-          <p className="text-sm text-gray-500 font-medium">Total Bookings</p>
-          <h3 className="text-2xl font-bold mt-1">
+          <p className="text-sm sm:text-base text-gray-600 font-medium text-center">Total Bookings</p>
+          <h3 className="text-xl sm:text-3xl font-bold">
             {isLoading ? "..." : summaryData.totalBookings}
           </h3>
         </CardContent>
@@ -172,7 +178,7 @@ const SummaryCards = ({ dateRange }) => {
 
       {/* Cancelled Bookings Card */}
       <Card 
-        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        className="bg-white shadow-sm hover:shadow-md active:shadow-inner cursor-pointer transition-all duration-200 ease-in-out"
         onClick={() => navigate('/all-bookings', { 
           state: { 
             dateRange,
@@ -180,12 +186,12 @@ const SummaryCards = ({ dateRange }) => {
           }
         })}
       >
-        <CardContent className="p-4 flex flex-col items-center justify-center">
-          <div className="rounded-full bg-red-100 p-3 mb-2">
-            <XCircle className="h-6 w-6 text-red-600" />
+        <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center space-y-2 sm:space-y-3">
+          <div className="rounded-full bg-red-100 p-2 sm:p-4 mb-0 sm:mb-1">
+            <XCircle className="h-5 w-5 sm:h-7 sm:w-7 text-red-600" />
           </div>
-          <p className="text-sm text-gray-500 font-medium">Cancelled</p>
-          <h3 className="text-2xl font-bold mt-1">
+          <p className="text-sm sm:text-base text-gray-600 font-medium text-center">Cancelled</p>
+          <h3 className="text-xl sm:text-3xl font-bold">
             {isLoading ? "..." : summaryData.totalCancelled}
           </h3>
         </CardContent>
@@ -193,7 +199,7 @@ const SummaryCards = ({ dateRange }) => {
 
       {/* Total Revenue Card */}
       <Card 
-        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        className="bg-white shadow-sm hover:shadow-md active:shadow-inner cursor-pointer transition-all duration-200 ease-in-out"
         onClick={() => navigate('/all-bookings', { 
           state: { 
             dateRange,
@@ -201,12 +207,12 @@ const SummaryCards = ({ dateRange }) => {
           }
         })}
       >
-        <CardContent className="p-4 flex flex-col items-center justify-center">
-          <div className="rounded-full bg-purple-100 p-3 mb-2">
-            <DollarSign className="h-6 w-6 text-purple-600" />
+        <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center space-y-2 sm:space-y-3">
+          <div className="rounded-full bg-purple-100 p-2 sm:p-4 mb-0 sm:mb-1">
+            <DollarSign className="h-5 w-5 sm:h-7 sm:w-7 text-purple-600" />
           </div>
-          <p className="text-sm text-gray-500 font-medium">Total Revenue</p>
-          <h3 className="text-2xl font-bold mt-1">
+          <p className="text-sm sm:text-base text-gray-600 font-medium text-center">Total Revenue</p>
+          <h3 className="text-xl sm:text-3xl font-bold">
             {isLoading ? "..." : formatCurrency(summaryData.totalRevenue)}
           </h3>
         </CardContent>
@@ -214,7 +220,7 @@ const SummaryCards = ({ dateRange }) => {
 
       {/* Received Revenue Card */}
       <Card 
-        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        className="bg-white shadow-sm hover:shadow-md active:shadow-inner cursor-pointer transition-all duration-200 ease-in-out"
         onClick={() => navigate('/all-bookings', { 
           state: { 
             dateRange,
@@ -222,21 +228,21 @@ const SummaryCards = ({ dateRange }) => {
           }
         })}
       >
-        <CardContent className="p-4 flex flex-col items-center justify-center">
-          <div className="rounded-full bg-emerald-100 p-3 mb-2">
-            <DollarSign className="h-6 w-6 text-emerald-600" />
+        <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center space-y-2 sm:space-y-3">
+          <div className="rounded-full bg-emerald-100 p-2 sm:p-4 mb-0 sm:mb-1">
+            <DollarSign className="h-5 w-5 sm:h-7 sm:w-7 text-emerald-600" />
           </div>
-          <p className="text-sm text-gray-500 font-medium">Received Revenue</p>
-          <h3 className="text-2xl font-bold mt-1">
+          <p className="text-sm sm:text-base text-gray-600 font-medium text-center">Received Revenue</p>
+          <h3 className="text-xl sm:text-3xl font-bold">
             {isLoading ? "..." : formatCurrency(summaryData.paidRevenue)}
           </h3>
-          <p className="text-xs text-gray-400 mt-1">(cash, UPI, swipe)</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0 sm:mt-1 text-center">(cash, UPI, swipe)</p>
         </CardContent>
       </Card>
 
       {/* Pending Revenue Card */}
       <Card 
-        className="bg-white shadow-md hover:shadow-lg cursor-pointer transition-shadow"
+        className="bg-white shadow-sm hover:shadow-md active:shadow-inner cursor-pointer transition-all duration-200 ease-in-out"
         onClick={() => navigate('/all-bookings', { 
           state: { 
             dateRange,
@@ -244,15 +250,15 @@ const SummaryCards = ({ dateRange }) => {
           }
         })}
       >
-        <CardContent className="p-4 flex flex-col items-center justify-center">
-          <div className="rounded-full bg-yellow-100 p-3 mb-2">
-            <CreditCard className="h-6 w-6 text-yellow-600" />
+        <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center space-y-2 sm:space-y-3">
+          <div className="rounded-full bg-yellow-100 p-2 sm:p-4 mb-0 sm:mb-1">
+            <CreditCard className="h-5 w-5 sm:h-7 sm:w-7 text-yellow-600" />
           </div>
-          <p className="text-sm text-gray-500 font-medium">Pending Revenue</p>
-          <h3 className="text-2xl font-bold mt-1">
+          <p className="text-sm sm:text-base text-gray-600 font-medium text-center">Pending Revenue</p>
+          <h3 className="text-xl sm:text-3xl font-bold">
             {isLoading ? "..." : formatCurrency(summaryData.creditRevenue)}
           </h3>
-          <p className="text-xs text-gray-400 mt-1">(credit)</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0 sm:mt-1 text-center">(credit)</p>
         </CardContent>
       </Card>
     </div>

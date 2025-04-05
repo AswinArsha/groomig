@@ -11,6 +11,7 @@ import ServiceAnalytics from "./Analytics/ServiceAnalytics";
 import ShopAnalytics from "./Analytics/ShopAnalytics";
 import FinancialAnalytics from "./Analytics/FinancialAnalytics";
 import { supabase } from "../supabase";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Helper function to get start of day in local timezone
 function startOfDayLocal(date) {
@@ -34,6 +35,26 @@ function Analytics() {
     to: endOfDayLocal(endOfYear(today)), // Last day of current year
   });
 
+  // Add state for shops and selected shop
+  const [shops, setShops] = useState([]);
+  const [selectedShop, setSelectedShop] = useState(null);
+
+  // Fetch shops on component mount
+  useEffect(() => {
+    const fetchShops = async () => {
+      const { data, error } = await supabase
+        .from('shops')
+        .select('id, name')
+        .order('name');
+
+      if (!error && data) {
+        setShops(data);
+      }
+    };
+
+    fetchShops();
+  }, []);
+
   // Debug date changes - including local date strings
   useEffect(() => {
     console.log("Date range changed:", {
@@ -49,8 +70,8 @@ function Analytics() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-6">
-        <div className="flex justify-center items-center">
-          <div className="flex gap-2 items-center">
+        <div className="flex flex-col md:flex-row justify-center items-center gap-4">
+          <div className="flex  gap-2 items-center">
             <CalendarDatePickerAnalytics
               date={dateRange}
               onDateSelect={setDateRange}
@@ -59,13 +80,29 @@ function Analytics() {
               className="w-[250px]"
             />
           </div>
+          <Select
+            value={selectedShop}
+            onValueChange={setSelectedShop}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All Shops" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={null}>All Shops</SelectItem>
+              {shops.map((shop) => (
+                <SelectItem key={shop.id} value={shop.id}>
+                  {shop.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       
       {/* Summary Cards Section */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Business Summary</h2>
-        <SummaryCards dateRange={dateRange} />
+        <SummaryCards dateRange={dateRange} selectedShop={selectedShop} />
       </div>
       
       {/* Analytics Components */}

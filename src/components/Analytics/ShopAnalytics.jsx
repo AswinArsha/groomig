@@ -309,7 +309,7 @@ function ShopAnalytics({ dateRange }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Shop Analytics</h2>
+        <h2 className="text-xl font-bold">Shop Analytics</h2>
         <div className="p-8 text-center">Loading shop analytics data...</div>
       </div>
     );
@@ -317,7 +317,7 @@ function ShopAnalytics({ dateRange }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Shop Analytics</h2>
+      <h2 className="text-xl font-bold">Shop Analytics</h2>
       
       <Tabs defaultValue="performance">
         <TabsList className="grid w-full grid-cols-2">
@@ -331,14 +331,14 @@ function ShopAnalytics({ dateRange }) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl ">
                     <BarChart3 className="h-5 w-5" />
-                    Shop Performance
+                    <span className="hidden sm:block">Shop</span> Performance
                   </CardTitle>
-                  <CardDescription>{getMetricDescription()}</CardDescription>
+                  <CardDescription className="hidden sm:block">{getMetricDescription()}</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Metric:</span>
+                  <span className="text-sm text-muted-foreground hidden sm:block">Metric:</span>
                   <Select value={selectedMetric} onValueChange={handleMetricChange}>
                     <SelectTrigger className="w-[180px] h-8">
                       <SelectValue placeholder="Select metric" />
@@ -355,59 +355,63 @@ function ShopAnalytics({ dateRange }) {
             </CardHeader>
             <CardContent>
               {shopPerformanceData.length > 0 ? (
-                <ChartContainer config={shopPerformanceConfig} className="h-[300px]">
-                  <BarChart
-                    accessibilityLayer
-                    data={shopPerformanceData}
-                    margin={{ left: 20, right: 20, top: 20, bottom: 20 }}
-                  >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="shop_name" 
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis />
-                    <ChartTooltip
-                      content={(props) => {
-                        const { active, payload } = props;
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          const metricLabel = shopPerformanceConfig[selectedMetric].label;
-                          return (
-                            <div className="bg-card p-3 border shadow-lg rounded-lg">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div 
-                                  className="w-3 h-3 rounded-full" 
-                                  style={{ backgroundColor: `var(--color-${selectedMetric})` }}
-                                />
-                                <p className="font-semibold text-card-foreground">{data.shop_name}</p>
-                              </div>
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <span className="font-medium text-card-foreground">
-                                  {metricLabel}: {selectedMetric === 'avg_satisfaction' 
-                                    ? data[selectedMetric].toFixed(1)
-                                    : data[selectedMetric].toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar 
-                      dataKey={selectedMetric} 
-                      fill={`var(--color-${selectedMetric})`}
-                      radius={[4, 4, 0, 0]} 
-                    >
-                      <LabelList 
-                        dataKey={selectedMetric} 
-                        position="top" 
-                        formatter={(value) => selectedMetric === 'avg_satisfaction' ? value : value.toLocaleString()}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
+                <div className="relative w-full overflow-x-auto">
+                  <div className="min-w-[500px] -ml-16 md:flex md:justify-center">
+                    <ChartContainer config={shopPerformanceConfig} className="h-[300px]">
+                      <BarChart
+                        accessibilityLayer
+                        data={shopPerformanceData}
+                        margin={{ left: 20, right: 20, top: 20, bottom: 20 }}
+                      >
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="shop_name" 
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis />
+                        <ChartTooltip
+                          content={(props) => {
+                            const { active, payload } = props;
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              const metricLabel = shopPerformanceConfig[selectedMetric].label;
+                              return (
+                                <div className="bg-card p-3 border shadow-lg rounded-lg">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <div 
+                                      className="w-3 h-3 rounded-full" 
+                                      style={{ backgroundColor: `var(--color-${selectedMetric})` }}
+                                    />
+                                    <p className="font-semibold text-card-foreground">{data.shop_name}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-muted-foreground">
+                                    <span className="font-medium text-card-foreground">
+                                      {metricLabel}: {selectedMetric === 'avg_satisfaction' 
+                                        ? data[selectedMetric].toFixed(1)
+                                        : data[selectedMetric].toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar 
+                          dataKey={selectedMetric} 
+                          fill={`var(--color-${selectedMetric})`}
+                          radius={[4, 4, 0, 0]} 
+                        >
+                          <LabelList 
+                            dataKey={selectedMetric} 
+                            position="top" 
+                            formatter={(value) => selectedMetric === 'avg_satisfaction' ? value : value.toLocaleString()}
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </div>
               ) : (
                 <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                   No shop performance data available for the selected period
@@ -457,11 +461,11 @@ function ShopAnalytics({ dateRange }) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
                     <IndianRupee className="h-5 w-5" />
-                    Revenue by Shop
+                    Revenue <span className="hidden sm:block">by Shop</span>
                   </CardTitle>
-                  <CardDescription>Distribution of revenue across shops</CardDescription>
+                  <CardDescription className="hidden sm:block">Distribution of revenue across shops</CardDescription>
                 </div>
                 <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
               </div>
@@ -469,7 +473,7 @@ function ShopAnalytics({ dateRange }) {
             <CardContent className="flex flex-col items-center">
               {shopRevenueData.length > 0 ? (
                 <div className="w-full flex flex-col sm:flex-row gap-4">
-                  <div className="w-full sm:w-1/2">
+                  <div className="w-full sm:w-1/2 -ml-20">
                     <ChartContainer
                       config={shopRevenueConfig}
                       className="h-[250px]"
@@ -552,7 +556,7 @@ function ShopAnalytics({ dateRange }) {
                     <Store className="h-4 w-4 text-green-500" />
                     Top performing shop: {topShop.name} ({formatCurrency(topShop.revenue)})
                   </div>
-                  <div className="leading-none text-muted-foreground">
+                  <div className="leading-none text-muted-foreground hidden sm:block">
                     {shopRevenueData.length > 1 && (
                       <>
                         Revenue difference between top and bottom shop: 

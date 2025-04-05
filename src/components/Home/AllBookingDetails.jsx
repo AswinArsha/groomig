@@ -243,8 +243,13 @@ export default function AllBookingDetails() {
     setProcessingPayment(true);
     try {
       const paymentTimestamp = new Date().toISOString();
-      const paymentAmount = serviceDetails.reduce((total, service) => total + Number(service.price), 0);
-      
+      const creditAmount = booking.payment_details ? 
+        (Array.isArray(booking.payment_details) ? 
+          booking.payment_details[booking.payment_details.length - 1].amount : 
+          serviceDetails.reduce((total, service) => total + Number(service.price), 0)
+        ) : 
+        serviceDetails.reduce((total, service) => total + Number(service.price), 0);
+
       // First check if the payment_history table exists
       const tableExists = await checkPaymentHistoryTable();
       
@@ -256,28 +261,44 @@ export default function AllBookingDetails() {
             booking_id: booking.id,
             payment_mode: paymentMode,
             payment_date: paymentTimestamp,
-            amount: paymentAmount
+            amount: creditAmount
           })
           .select();
 
         if (historyError) {
           console.error("Error inserting payment history:", historyError);
-          // Continue with the main update even if this fails
         } else if (historyData && historyData.length > 0) {
-          // Update the last payment in state
           setLastPayment(historyData[0]);
-          
-          // Refresh payment history
           fetchPaymentHistory(booking.id);
         }
       }
 
-      // Update the historical_bookings record with the payment mode
+      // Update payment_details array
+      let updatedPaymentDetails = [];
+      if (booking.payment_details) {
+        try {
+          const currentDetails = typeof booking.payment_details === 'string' 
+            ? JSON.parse(booking.payment_details) 
+            : booking.payment_details;
+          updatedPaymentDetails = Array.isArray(currentDetails) ? [...currentDetails] : [];
+        } catch (e) {
+          console.error('Error parsing existing payment details:', e);
+        }
+      }
+
+      // Add new payment record
+      updatedPaymentDetails.push({
+        mode: paymentMode,
+        amount: creditAmount
+      });
+
+      // Update the historical_bookings record
       const { error: updateError } = await supabase
         .from("historical_bookings")
         .update({
           payment_mode: paymentMode,
-          payment_timestamp: paymentTimestamp
+          payment_record_timestamp: paymentTimestamp,
+          payment_details: updatedPaymentDetails
         })
         .eq("id", booking.id);
 
@@ -290,7 +311,8 @@ export default function AllBookingDetails() {
       setBooking(prev => ({
         ...prev,
         payment_mode: paymentMode,
-        payment_timestamp: paymentTimestamp
+        payment_timestamp: paymentTimestamp,
+        payment_details: updatedPaymentDetails
       }));
     } catch (error) {
       toast.error(`Error recording payment: ${error.message}`);
@@ -392,29 +414,123 @@ export default function AllBookingDetails() {
   
   // Function to render the payment flow with badges
   const renderPaymentFlow = () => {
-    // If no payment history available, just show current payment mode
-    if ((!paymentHistorySupported || !paymentHistory.length) && booking.payment_mode !== 'credit') {
-      return (
-        <div className="flex flex-col items-center">
-          <Badge className={`px-3 py-1.5 text-sm font-medium ${getPaymentBadgeColor(booking.payment_mode)}`}>
-            {formatPaymentMode(booking.payment_mode)}
-            
-          </Badge>
-          
-          {booking.payment_timestamp && (
-            <div className="text-xs text-gray-600 mt-1">
-              {format(new Date(booking.payment_timestamp), "PPP")}
-              <br/>
-              {format(new Date(booking.payment_timestamp), "hh:mm a")}
-            </div>
-          )}
-        </div>
-      );
-    }
+    // Check if we have payment details in the new structure
+    let paymentContent;
     
+    // Helper function to format timestamp
+    const formatTimestamp = (timestamp) => {
+      if (!timestamp) return null;
+      try {
+        return format(new Date(timestamp), "PPP p");
+      } catch (e) {
+        console.error('Error formatting timestamp:', e);
+        return null;
+      }
+    };
+
+    if (booking.payment_details) {
+      try {
+        const paymentDetails = typeof booking.payment_details === 'string' 
+          ? JSON.parse(booking.payment_details) 
+          : booking.payment_details;
+
+        if (Array.isArray(paymentDetails) && paymentDetails.length > 0) {
+          paymentContent = (
+            <div className="flex flex-col items-center space-y-2">
+              {paymentDetails.map((payment, index) => (
+                <div key={index} className="flex flex-col items-center">
+                  <Badge 
+                    className={`px-3 py-1.5 text-sm font-medium ${payment.mode === 'credit' ? 'bg-red-100 text-red-700 border border-red-300' : getPaymentBadgeColor(payment.mode)}`}
+                  >
+                    {formatPaymentMode(payment.mode)}
+                    <span className="ml-2">₹{payment.amount}</span>
+                  </Badge>
+                  {index === 1 && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      {formatTimestamp(booking.payment_timestamp)}
+                    </div>
+                  )}
+                  {index === paymentDetails.length - 1 && index > 1 && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      {formatTimestamp(booking.payment_record_timestamp)}
+                    </div>
+                  )}
+                  {payment.mode === 'credit' && index < paymentDetails.length - 1 && (
+                    <ArrowDownIcon className="h-5 w-5 text-gray-400 mt-2" />
+                  )}
+                </div>
+              ))}
+              
+              {paymentDetails[paymentDetails.length - 1].mode === 'credit' && (
+                <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="mt-2 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4" />
+                      <span>Record Payment</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Record Payment</DialogTitle>
+                      <DialogDescription>
+                        Update payment status for this credit booking
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Label htmlFor="payment-mode" className="block mb-2">
+                        Payment Mode
+                      </Label>
+                      <Select value={paymentMode} onValueChange={setPaymentMode}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select payment mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="UPI">UPI</SelectItem>
+                            <SelectItem value="swipe">Swipe</SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-600">
+                          Amount to be paid: ₹{paymentDetails[paymentDetails.length - 1].amount}
+                        </p>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handlePaymentSubmit} 
+                        disabled={processingPayment || !paymentMode}
+                      >
+                        {processingPayment ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing
+                          </>
+                        ) : (
+                          "Confirm Payment"
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+          );
+        }
+      } catch (e) {
+        console.error('Error parsing payment details:', e);
+      }
+    }
+
     // If it's a credit booking with payment history or has been paid
-    if (booking.payment_mode === 'credit' || (lastPayment && booking.payment_mode !== 'credit')) {
-      return (
+    if (!paymentContent && (booking.payment_mode === 'credit' || (lastPayment && booking.payment_mode !== 'credit'))) {
+      paymentContent = (
         <div className="flex flex-col items-center space-y-2">
           {/* First show the original credit badge */}
           <div className="flex flex-col items-center">
@@ -434,10 +550,13 @@ export default function AllBookingDetails() {
                 <Badge className={`px-3 py-1.5 text-sm font-medium ${getPaymentBadgeColor(booking.payment_mode)}`}>
                   {formatPaymentMode(booking.payment_mode)}
                 </Badge>
-                {booking.payment_timestamp && (
+                {booking.payment_record_timestamp ? (
                   <div className="text-xs text-gray-600 mt-1">
-                    {format(new Date(booking.payment_timestamp), "PPP p")}
-              
+                    {formatTimestamp(booking.payment_record_timestamp)}
+                  </div>
+                ) : booking.payment_timestamp && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    {formatTimestamp(booking.payment_timestamp)}
                   </div>
                 )}
               </div>
@@ -516,24 +635,29 @@ export default function AllBookingDetails() {
         </div>
       );
     }
-    
+
     // Default case - just show the current payment mode
-    return (
-      <div className="flex flex-col items-center">
-        <Badge className={`px-3 py-1.5 text-sm font-medium ${getPaymentBadgeColor(booking.payment_mode)}`}>
-          {formatPaymentMode(booking.payment_mode)}
-        </Badge>
-        
-        {booking.payment_timestamp && (
-          <div className="text-xs text-gray-600 mt-1">
-            {format(new Date(booking.payment_timestamp), "PPP")}
-            <br/>
-            {format(new Date(booking.payment_timestamp), "hh:mm a")}
-          </div>
-        )}
-      </div>
-    );
+    if (!paymentContent) {
+      paymentContent = (
+        <div className="flex flex-col items-center">
+          <Badge className={`px-3 py-1.5 text-sm font-medium ${getPaymentBadgeColor(booking.payment_mode)}`}>
+            {formatPaymentMode(booking.payment_mode)}
+          </Badge>
+          
+          {booking.payment_timestamp && (
+            <div className="text-xs text-gray-600 mt-1">
+              {format(new Date(booking.payment_timestamp), "PPP")}
+              <br/>
+              {format(new Date(booking.payment_timestamp), "hh:mm a")}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return paymentContent;
   };
+
 
   return (
     <div className="space-y-6">
@@ -603,6 +727,7 @@ export default function AllBookingDetails() {
             <Card className="bg-gray-50 p-4 rounded-lg lg:col-span-2">
               <CardContent>
                 <h3 className="font-semibold text-lg text-primary mb-3">Appointment Details</h3>
+                <div className="flex flex-col space-y-10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-5 w-5 text-primary" />
@@ -633,18 +758,32 @@ export default function AllBookingDetails() {
                     <span>{booking.completed_at ? format(new Date(booking.completed_at), "hh:mm a") : "N/A"}</span>
                   </div>
                 </div>
+                <div>
+                <h3 className="font-semibold text-lg text-primary mb-3">Booking Status</h3>
+                <div className="flex items-center space-x-2 mb-4">
+                {(booking.status === "completed" || booking.status === "canceled" || booking.status === "cancelled") && (
+  <span
+    className={`px-4 py-2 text-sm font-semibold rounded-full 
+      ${booking.status === "completed" 
+        ? "bg-green-300 text-green-800 border border-green-400" 
+        : "bg-red-300 text-red-800 border border-red-400"
+      } 
+      text-lg`}
+  >
+    {booking.status.replace("_", " ").toUpperCase()}
+  </span>
+)}
+
+                </div>
+                </div>
+                </div>
               </CardContent>
             </Card>
 
             {/* Status and Payment */}
             <Card className="bg-gray-50 p-4 rounded-lg">
               <CardContent className="flex flex-col items-center justify-center">
-                <h3 className="font-semibold text-lg text-primary mb-3">Booking Status</h3>
-                <div className="flex items-center space-x-2 mb-4">
-                  <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${booking.status === "pending" ? "bg-yellow-200 text-yellow-700 border border-yellow-300" : booking.status === "checked_in" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "progressing" ? "bg-blue-200 text-blue-700 border border-blue-300" : booking.status === "completed" ? "bg-green-200 text-green-700 border border-green-300" : booking.status === "canceled" || booking.status === "cancelled" ? "bg-red-200 text-red-700 border border-red-300" : "bg-gray-200 text-gray-700 border border-gray-300"}`}>
-                    {booking.status.replace("_", " ").toUpperCase()}
-                  </span>
-                </div>
+            
 
                 <h3 className="font-semibold text-lg text-primary mb-3">Payment Status</h3>
                 <div className="flex flex-col items-center">

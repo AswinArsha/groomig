@@ -1,4 +1,3 @@
-// src/components/Sidebar.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { 
@@ -8,20 +7,20 @@ import {
   LogOut, 
   ChevronLeft,
   ChevronRight,
-  Menu,
-  User
+  Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import toast from "react-hot-toast";
 import { supabase } from "../supabase";
-import { AnimatePresence, motion,LayoutGroup  } from "framer-motion";
+import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
 import { 
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import MobileSidebar from "@/components/ui/mobile-sidebar";
 
 function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -54,25 +53,16 @@ function Sidebar() {
 
   // Fetch user session
   useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Error fetching session:", error.message);
-      } else if (session) {
-        setUser(session.user);
-      }
-    };
-
-    fetchUser();
+    // Check for stored session
+    const storedSession = localStorage.getItem('userSession');
+    if (storedSession) {
+      setUser(JSON.parse(storedSession));
+    }
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (session) {
-          setUser(session.user);
-        } else {
+        if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('userSession');
           setUser(null);
         }
       }
@@ -115,13 +105,43 @@ function Sidebar() {
 
   // Handle Logout Function
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Error logging out:", error.message);
-      toast.error(`Error logging out: ${error.message}`);
+    if (user?.type === 'admin') {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error logging out:", error.message);
+        toast.error(`Error logging out: ${error.message}`);
+        return;
+      }
+    }
+    localStorage.removeItem('userSession');
+    toast.success("Logged out successfully!");
+    navigate("/");
+  };
+
+  // Helper function to get the display name
+  const getDisplayName = () => {
+    if (user?.type === 'staff') {
+      return user.data.name;
     } else {
-      toast.success("Logged out successfully!");
-      navigate("/");
+      return user?.user_metadata?.full_name || user?.username;
+    }
+  };
+
+  // Helper function to get the role
+  const getRole = () => {
+    if (user?.type === 'staff') {
+      return user.data.role || 'Staff';
+    } else {
+      return 'Admin';
+    }
+  };
+
+  // Helper function to get the first letter for avatar
+  const getAvatarLetter = () => {
+    if (user?.type === 'staff') {
+      return user.data.name.charAt(0).toUpperCase();
+    } else {
+      return (user?.user_metadata?.full_name || user?.username)?.charAt(0).toUpperCase();
     }
   };
 
@@ -322,12 +342,16 @@ function Sidebar() {
               >
                 <Avatar className="h-9 w-9">
                   <AvatarImage src={user.user_metadata?.avatar_url} />
-                  <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback>
+                    {getAvatarLetter()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="ml-3">
-                  <p className="text-sm font-medium">{user.user_metadata?.full_name || user.email}</p>
+                  <p className="text-sm font-medium">
+                    {getDisplayName()}
+                  </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {user.email}
+                    {getRole()}
                   </p>
                 </div>
               </motion.div>
@@ -376,10 +400,7 @@ function Sidebar() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col w-0 overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-white dark:bg-gray-800 dark:border-gray-700 px-6">
-        
-        
-          
+        <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-white dark:bg-gray-800 dark:border-gray-700 px-6 ">
           <h1 className="text-lg font-semibold tracking-tight">{getHeaderText()}</h1>
           
           {/* Optional: Right side header content */}
@@ -396,121 +417,18 @@ function Sidebar() {
       </div>
       
       {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
-        <LayoutGroup>
-          <nav className="flex items-center justify-around p-2">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.path}
-                className="flex flex-col items-center p-2 flex-1 min-w-[64px] touch-manipulation"
-              >
-                <motion.div 
-                  whileTap={{ scale: 0.85 }}
-                  className="p-2.5 rounded-full relative"
-                  layout
-                  transition={{
-                    layout: { type: "spring", stiffness: 400, damping: 25 }
-                  }}
-                >
-                  {isLinkActive(item.path) && (
-                    <motion.div
-                      layoutId="nav-indicator"
-                      className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
-                      style={{ zIndex: -1 }}
-                      transition={{ 
-                        type: "spring", 
-                        stiffness: 400, 
-                        damping: 25,
-                        bounce: 0.25
-                      }}
-                    />
-                  )}
-                  {React.cloneElement(item.icon, {
-                    className: `w-6 h-6 ${isLinkActive(item.path) ? "text-pink-600 dark:text-pink-400" : "text-gray-600 dark:text-gray-400"} transition-colors duration-200`,
-                    style: { color: isLinkActive(item.path) ? "#c93b7d" : "" }
-                  })}
-                </motion.div>
-                <span className={`text-xs mt-1 ${ isLinkActive(item.path) ? "text-pink-600 dark:text-pink-400 font-medium" : "text-gray-600 dark:text-gray-400"}`}>
-                  {item.name}
-                </span>
-              </Link>
-            ))}
-            
-            {/* User Profile Button */}
-            <button
-              onClick={() => setShowMobileProfile(!showMobileProfile)}
-              className="flex flex-col items-center p-2 flex-1 min-w-[64px] touch-manipulation"
-            >
-              <motion.div 
-                whileTap={{ scale: 0.85 }}
-                className="p-2.5 rounded-full relative"
-                layout
-                transition={{
-                  layout: { type: "spring", stiffness: 400, damping: 25 }
-                }}
-              >
-                {showMobileProfile && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
-                    style={{ zIndex: -1 }}
-                    transition={{ 
-                      type: "spring", 
-                      stiffness: 400, 
-                      damping: 25,
-                      bounce: 0.25
-                    }}
-                  />
-                )}
-                <User className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-colors duration-200" style={{ color: showMobileProfile ? "#c93b7d" : "" }} />
-              </motion.div>
-              <span className={`text-xs mt-1 ${ showMobileProfile ? "text-pink-600 dark:text-pink-400 font-medium" : "text-gray-600 dark:text-gray-400"}`}>
-                Profile
-              </span>
-            </button>
-          </nav>
-        </LayoutGroup>
-  
-  {/* Mobile Profile Drawer remains unchanged */}
-  <AnimatePresence>
-    {showMobileProfile && (
-      <motion.div
-        variants={profileDrawerVariants}
-        initial="closed"
-        animate="open"
-        exit="closed"
-        className="overflow-hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700"
-      >
-        {user && (
-          <div className="p-4">
-            <div className="flex items-center mb-4">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={user.user_metadata?.avatar_url} />
-                <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="ml-3">
-                <p className="text-sm font-medium">{user.user_metadata?.full_name || user.email}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {user.email}
-                </p>
-              </div>
-            </div>
-            
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="w-full flex items-center justify-center border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors duration-200"
-            >
-              <LogOut className="h-5 w-5 mr-2" />
-              <span>Logout</span>
-            </Button>
-          </div>
-        )}
-      </motion.div>
-    )}
-  </AnimatePresence>
-</div>
+      <MobileSidebar 
+        user={user}
+        navigationItems={navigationItems}
+        isLinkActive={isLinkActive}
+        showMobileProfile={showMobileProfile}
+        setShowMobileProfile={setShowMobileProfile}
+        handleLogout={handleLogout}
+        profileDrawerVariants={profileDrawerVariants}
+        getDisplayName={getDisplayName}
+        getRole={getRole}
+        getAvatarLetter={getAvatarLetter}
+      />
       
       {/* Mobile Drawer Sidebar (for legacy support) */}
       <AnimatePresence>
@@ -571,13 +489,16 @@ function Sidebar() {
           {user && (
             <div className="flex items-center mb-4">
               <Avatar className="h-9 w-9">
-                <AvatarImage src={user.user_metadata?.avatar_url} />
-                <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>
+                  {getAvatarLetter()}
+                </AvatarFallback>
               </Avatar>
               <div className="ml-3">
-                <p className="text-sm font-medium">{user.user_metadata?.full_name || user.email}</p>
+                <p className="text-sm font-medium">
+                  {getDisplayName()}
+                </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {user.email}
+                  {getRole()}
                 </p>
               </div>
             </div>

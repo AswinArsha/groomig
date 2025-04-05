@@ -10,6 +10,7 @@ import Shop from "./Catalog/shop";
 import ServiceForm from "./Catalog/ServiceForm";
 import ManageTimeSlotsPage from "./Home/ManageTimeSlotsPage";
 import Groomer from "./Catalog/Groomer";
+import Staff from "./Catalog/Staff";
 import {
   Dialog,
   DialogContent,
@@ -126,11 +127,12 @@ export default function Catalog() {
   return (
     <div className="container mx-auto">
       <Tabs defaultValue="services" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
+        <TabsList className="flex w-full mb-8 overflow-x-auto pl-10 sm:pl-1 scrollbar-hide sm:grid sm:grid-cols-5">
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="shop">Shop</TabsTrigger>
           <TabsTrigger value="timeslots">Time Slots</TabsTrigger>
           <TabsTrigger value="groomers">Groomers</TabsTrigger>
+          <TabsTrigger value="staff">Staff</TabsTrigger>
         </TabsList>
 
         <TabsContent value="services">
@@ -204,6 +206,10 @@ export default function Catalog() {
 
         <TabsContent value="groomers">
           <Groomer />
+        </TabsContent>
+
+        <TabsContent value="staff">
+          <Staff />
         </TabsContent>
      
       </Tabs>
