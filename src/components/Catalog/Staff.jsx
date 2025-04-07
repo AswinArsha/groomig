@@ -40,6 +40,7 @@ export default function Staff() {
     const { data, error } = await supabase
       .from("staff")
       .select("*")
+      .eq('role', 'staff')
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -63,6 +64,7 @@ export default function Staff() {
       phone: formData.get("phone"),
       username: formData.get("username"),
       password: formData.get("password"), // In a real app, this should be properly hashed
+      role: 'staff', // Set default role as staff
     };
 
     try {
