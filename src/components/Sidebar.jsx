@@ -400,7 +400,7 @@ function Sidebar() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col w-0 overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-white dark:bg-gray-800 dark:border-gray-700 px-6 ">
+        <header className=" hidden md:flex h-16 shrink-0 items-center gap-4 border-b bg-white dark:bg-gray-800 dark:border-gray-700 px-6 ">
           <h1 className="text-lg font-semibold tracking-tight">{getHeaderText()}</h1>
           
           {/* Optional: Right side header content */}
