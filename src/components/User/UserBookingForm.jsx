@@ -162,9 +162,10 @@ export default function UserBookingForm() {
         .from("time_slots")
         .select(`
           id,
-          start_time
+          start_time,
+          repeat_all_days,
+          specific_days
         `)
-        .or(`repeat_all_days.eq.true,specific_days.cs.{${dayOfWeek}}`)
         .contains('shop_ids', [selectedShop])
         .order("start_time", { ascending: true });
 
@@ -172,7 +173,20 @@ export default function UserBookingForm() {
         throw error;
       }
 
-      setAvailableTimeSlots(timeSlots || []);
+      // Filter time slots based on availability for the selected day
+      const availableSlots = timeSlots?.filter(slot => {
+        // Check if the slot is available for all days
+        if (slot.repeat_all_days) return true;
+        
+        // Check if the slot is available for the specific day
+        if (slot.specific_days && Array.isArray(slot.specific_days)) {
+          return slot.specific_days.includes(dayOfWeek);
+        }
+        
+        return false;
+      }) || [];
+
+      setAvailableTimeSlots(availableSlots);
     } catch (error) {
       toast.error(`Error fetching time slots: ${error.message}`);
     } finally {

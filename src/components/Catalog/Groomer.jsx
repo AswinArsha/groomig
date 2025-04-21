@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardFooter , CardTitle} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -165,9 +176,20 @@ export default function Groomer() {
   );
 
   return (
-    <div className="container mx-auto px-4">
+    <div className="container mx-auto">
       {/* Header with Add Button and Search */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+      <div className="flex sm:flex-row justify-between items-center mb-8 gap-4">
+
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search groomers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 w-full"
+          />
+        </div>
         <Button
           onClick={() => {
             setEditingGroomer(null);
@@ -180,18 +202,11 @@ export default function Groomer() {
             setDialogOpen(true);
           }}
         >
-          <Plus className="mr-2 h-4 w-4" /> Add New Groomer
+          <Plus className=" md:mr-2 h-4 w-4" />
+          <span className="hidden sm:inline">Add New Groomer</span>
+
+
         </Button>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search groomers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 w-full"
-          />
-        </div>
       </div>
 
       {/* Groomers Grid */}
@@ -220,80 +235,185 @@ export default function Groomer() {
         ))}
       </div>
 
-      {/* Dialog for Adding/Editing Groomer */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingGroomer ? "Edit Groomer" : "Add New Groomer"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Enter groomer name"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="phone_number">Phone Number (Optional)</Label>
-              <Input
-                id="phone_number"
-                name="phone_number"
-                value={formData.phone_number}
-                onChange={handleInputChange}
-                placeholder="Enter phone number"
-              />
-            </div>
-            <div>
-              <Label htmlFor="address">Address (Optional)</Label>
-              <Input
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                placeholder="Enter address"
-              />
-            </div>
-            <div>
-              <Label htmlFor="shop">
-                Shop <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={formData.shop_id}
-                onValueChange={handleShopChange}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a shop" />
-                </SelectTrigger>
-                <SelectContent>
-                  {shops.map((shop) => (
-                    <SelectItem key={shop.id} value={shop.id}>
-                      {shop.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingGroomer ? "Update" : "Add"} Groomer
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Responsive Form Dialog/Drawer */}
+      {useMediaQuery("(min-width: 640px)") ? (
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
 
-      {/* Alert Dialog for Deletion Confirmation */}
+              </DialogTitle>
+            </DialogHeader>
+            <Card className="w-full max-w-lg mx-auto">
+              <CardHeader>
+                <CardTitle>{editingGroomer ? "Edit Groomer" : "Add New Groomer"}</CardTitle>
+              </CardHeader>
+              <CardContent>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">Name *</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Enter groomer name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="phone_number">Phone Number (Optional)</Label>
+                    <Input
+                      id="phone_number"
+                      name="phone_number"
+                      value={formData.phone_number}
+                      onChange={handleInputChange}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="address">Address (Optional)</Label>
+                    <Input
+                      id="address"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      placeholder="Enter address"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shop">
+                      Shop <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.shop_id}
+                      onValueChange={handleShopChange}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a shop" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {shops.map((shop) => (
+                          <SelectItem key={shop.id} value={shop.id}>
+                            {shop.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      {editingGroomer ? "Update" : "Add"} Groomer
+                    </Button>
+                  </div>
+                </form>
+
+
+              </CardContent>
+
+            </Card>
+
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DrawerContent>
+            <DrawerHeader className="text-left">
+
+            </DrawerHeader>
+            <div className="px-4">
+            <Card className="w-full max-w-lg mx-auto">
+              <CardHeader>
+                <CardTitle>{editingGroomer ? "Edit Groomer" : "Add New Groomer"}</CardTitle>
+              </CardHeader>
+              <CardContent>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">Name *</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Enter groomer name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="phone_number">Phone Number (Optional)</Label>
+                    <Input
+                      id="phone_number"
+                      name="phone_number"
+                      value={formData.phone_number}
+                      onChange={handleInputChange}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="address">Address (Optional)</Label>
+                    <Input
+                      id="address"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      placeholder="Enter address"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shop">
+                      Shop <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.shop_id}
+                      onValueChange={handleShopChange}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a shop" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {shops.map((shop) => (
+                          <SelectItem key={shop.id} value={shop.id}>
+                            {shop.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" className="hidden sm:block" onClick={() => setDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="w-full md:w-auto">
+                      {editingGroomer ? "Update" : "Add"} Groomer
+                    </Button>
+                  </div>
+                </form>
+
+
+              </CardContent>
+
+            </Card>
+
+            </div>
+            <DrawerFooter className="pt-2">
+              <DrawerClose asChild>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      )
+
+      }
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

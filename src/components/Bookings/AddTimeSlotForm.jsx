@@ -10,9 +10,21 @@ import { Trash2, Plus } from "lucide-react";
 import TimePicker from "./TimePicker";
 import { Checkbox } from "@/components/ui/checkbox";
 
+const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday"
+];
+
 export default function AddTimeSlotForm({ onSlotAdded }) {
   const [startTime, setStartTime] = useState("");
   const [subSlots, setSubSlots] = useState([{ slot_number: 1, description: "" }]);
+  const [repeatAllDays, setRepeatAllDays] = useState(true);
+  const [selectedDays, setSelectedDays] = useState(WEEKDAYS);
   
   // New state for shops and multi-select (selectedShops is an array of shop IDs)
   const [shops, setShops] = useState([]);
@@ -83,8 +95,8 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
 
     const mainTimeSlot = {
       start_time: formattedStartTime,
-      repeat_all_days: true,
-      specific_days: null,
+      repeat_all_days: repeatAllDays,
+      specific_days: repeatAllDays ? null : selectedDays,
       shop_ids: selectedShops, // store selected shops as an array
     };
 
@@ -131,6 +143,57 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
               {/* Time Picker */}
               <div className="space-y-3">
                 <TimePicker onTimeSelect={handleTimeSelect} />
+              </div>
+
+              {/* Week Days Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="repeat-all-days"
+                    checked={repeatAllDays}
+                    onCheckedChange={(checked) => {
+                      setRepeatAllDays(checked);
+                      if (checked) {
+                        setSelectedDays(WEEKDAYS);
+                      }
+                    }}
+                  />
+                  <Label
+                    htmlFor="repeat-all-days"
+                    className="text-sm font-medium leading-none cursor-pointer select-none"
+                  >
+                    Repeat All Days
+                  </Label>
+                </div>
+
+                {!repeatAllDays && (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {WEEKDAYS.map((day) => (
+                      <div
+                        key={day}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`day-${day}`}
+                          checked={selectedDays.includes(day)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedDays([...selectedDays, day]);
+                            } else {
+                              setSelectedDays(selectedDays.filter((d) => d !== day));
+                            }
+                          }}
+                        />
+                        <Label
+                          htmlFor={`day-${day}`}
+                          className="text-sm font-medium leading-none cursor-pointer select-none"
+                        >
+                          {day}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Shop Multi-Select */}

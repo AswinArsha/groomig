@@ -232,11 +232,11 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
       </CardContent>
       <CardFooter className="flex justify-end space-x-2">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" className="hidden sm:block" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
         )}
-        <Button type="submit" onClick={handleSubmit}>
+        <Button type="submit" className="w-full md:w-auto" onClick={handleSubmit}>
           {isEditing ? "Save Changes" : "Add Service"}
         </Button>
       </CardFooter>

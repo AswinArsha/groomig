@@ -11,6 +11,7 @@ import ServiceForm from "./Catalog/ServiceForm";
 import ManageTimeSlotsPage from "./Home/ManageTimeSlotsPage";
 import Groomer from "./Catalog/Groomer";
 import Staff from "./Catalog/Staff";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -136,10 +147,8 @@ export default function Catalog() {
         </TabsList>
 
         <TabsContent value="services">
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-            <Button onClick={handleAddNew}>
-              <Plus className="mr-2 h-4 w-4" /> Add New Service
-            </Button>
+          <div className="flex  sm:flex-row justify-between items-center mb-8 gap-4">
+         
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <Input
@@ -150,6 +159,10 @@ export default function Catalog() {
                 className="pl-10 w-full"
               />
             </div>
+            <Button onClick={handleAddNew}>
+              <Plus className=" md:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Add New Service</span>
+            </Button>
           </div>
 
           {loading ? (
@@ -214,19 +227,41 @@ export default function Catalog() {
      
       </Tabs>
 
-      {/* Dialog for Adding or Editing Service */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            {/* Optionally, you can add a title or description here */}
-          </DialogHeader>
-          <ServiceForm
-            service={editingService}
-            onSuccess={handleFormSuccess}
-            onCancel={() => setDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Responsive Dialog/Drawer for Adding or Editing Service */}
+      {useMediaQuery("(min-width: 768px)") ? (
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              
+            </DialogHeader>
+            <ServiceForm
+              service={editingService}
+              onSuccess={handleFormSuccess}
+              onCancel={() => setDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DrawerContent>
+            <DrawerHeader className="text-left">
+           
+            </DrawerHeader>
+            <div className="px-4">
+              <ServiceForm
+                service={editingService}
+                onSuccess={handleFormSuccess}
+                onCancel={() => setDialogOpen(false)}
+              />
+            </div>
+            <DrawerFooter className="pt-2">
+              <DrawerClose asChild>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      )}
 
       {/* Alert Dialog for Deletion Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

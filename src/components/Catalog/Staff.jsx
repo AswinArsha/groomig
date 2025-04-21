@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Loader2, Plus, Pencil, Trash2, Search } from "lucide-react";
 import {
   Dialog,
@@ -14,6 +15,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -115,10 +126,8 @@ export default function Staff() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add New Staff
-        </Button>
+      <div className="flex  sm:flex-row justify-between items-center gap-4">
+  
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
@@ -129,6 +138,11 @@ export default function Staff() {
             className="pl-10 w-full"
           />
         </div>
+        <Button onClick={() => setDialogOpen(true)}>
+        <Plus className=" md:mr-2 h-4 w-4" />
+        <span className="hidden sm:inline">Add New Staff</span>
+          
+        </Button>
       </div>
 
       {loading ? (
@@ -180,62 +194,144 @@ export default function Staff() {
         </div>
       )}
 
-      {/* Dialog for Adding/Editing Staff */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingStaff ? "Edit Staff Member" : "Add New Staff Member"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                defaultValue={editingStaff?.name}
-                required
-              />
+      {/* Responsive Form Dialog/Drawer */}
+      {useMediaQuery("(min-width: 640px)") ? (
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+          
+              </DialogTitle>
+            </DialogHeader>
+            <Card className="w-full max-w-lg mx-auto">
+      <CardHeader>
+        <CardTitle> {editingStaff ? "Edit Staff Member" : "Add New Staff Member"} </CardTitle>
+      </CardHeader>
+      <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={editingStaff?.name}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="number"
+                  defaultValue={editingStaff?.phone}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  defaultValue={editingStaff?.username}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  defaultValue={editingStaff?.password}
+                  required={!editingStaff}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">{editingStaff ? "Update" : "Add"}</Button>
+              </div>
+            </form>
+            </CardContent>
+            </Card>
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DrawerContent>
+            <DrawerHeader className="text-left">
+          
+            </DrawerHeader>
+
+            <div className="px-4">
+            <Card className="w-full max-w-lg mx-auto">
+      <CardHeader>
+        <CardTitle> {editingStaff ? "Edit Staff" : "Add New Staff"} </CardTitle>
+      </CardHeader>
+      <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    defaultValue={editingStaff?.name}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="number"
+                    defaultValue={editingStaff?.phone}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    name="username"
+                    defaultValue={editingStaff?.username}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    defaultValue={editingStaff?.password}
+                    required={!editingStaff}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" className="hidden sm:block" onClick={() => setDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="w-full md:w-auto">
+                    {editingStaff ? "Update" : "Add"}
+                  </Button>
+                </div>
+              </form>
+              </CardContent>
+              </Card>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="number"
-                defaultValue={editingStaff?.phone}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                name="username"
-                defaultValue={editingStaff?.username}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                defaultValue={editingStaff?.password}
-                required={!editingStaff}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">{editingStaff ? "Update" : "Add"}</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+            <DrawerFooter className="pt-2">
+              <DrawerClose asChild>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      )}
 
       {/* Alert Dialog for Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
