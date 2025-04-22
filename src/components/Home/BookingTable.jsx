@@ -729,7 +729,10 @@ export default function BookingTable() {
         </div>
 
         {/* Date Picker */}
-        <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
+        <div className="flex justify-center md:justify-start">
+  <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
+</div>
+
       </div>
 
       {/* Display selected service filters as badges */}
@@ -784,7 +787,7 @@ export default function BookingTable() {
               No bookings found.
             </p>
           ) : (
-            <div className="border rounded-lg overflow-x-auto">
+            <div className="border-none overflow-x-auto">
               {/* ─────────────────────────────────────────────────────────────
                   DESKTOP TABLE
                   ───────────────────────────────────────────────────────────── */}
@@ -1137,7 +1140,7 @@ export default function BookingTable() {
               {/* ─────────────────────────────────────────────────────────────
                   MOBILE VIEW
                   ───────────────────────────────────────────────────────────── */}
-              <div className="md:hidden space-y-4">
+              <div className="md:hidden  space-y-4">
                 {bookings.map((booking, index) => {
                   const displayPaymentMode = getDisplayPaymentMode(booking);
                   const totalBill = (
@@ -1148,7 +1151,7 @@ export default function BookingTable() {
                   ).toFixed(2);
 
                   return (
-                    <Card key={booking.id} className="bg-white">
+                    <Card key={booking.id} className="bg-white ">
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                           <div>

@@ -22,6 +22,7 @@ import { handleGroomerPrintSlip } from "./GroomerSlip";
 
 import {
   Loader2,
+  Pencil,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -831,10 +832,10 @@ export default function BookingDetails() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="space-y-6"
+            className="space-y-6 "
           >
             <h3 className="text-lg font-semibold">Select Services</h3>
-            <ScrollArea className="h-[500px] rounded-md border p-4">
+            <ScrollArea className="h-[500px] rounded-md border p-4 bg-gray-50">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {services.map((service) => {
                   const isSelected = selectedServices.some((s) => s.id === service.id);
@@ -968,7 +969,7 @@ export default function BookingDetails() {
             <h3 className="text-lg font-semibold">Review Your Bill</h3>
             <Card className="overflow-hidden">
               <CardContent className="p-0">
-                <ScrollArea className="h-[300px] p-4">
+                <ScrollArea className="h-[300px] p-4 bg-gray-50">
                 {selectedServices.map((service) => (
                   <div key={service.id} className="flex items-center py-3 border-b last:border-b-0">
                     {service.image_url && (
@@ -1020,7 +1021,7 @@ export default function BookingDetails() {
         <div className="flex justify-between items-center">
           <div>
             <CardTitle className="text-2xl">Booking Details</CardTitle>
-            <CardDescription className="text-primary-foreground/80">
+            <CardDescription className="text-primary-foreground/80 hidden md:block">
               Manage and review your booking
             </CardDescription>
           </div>
@@ -1035,113 +1036,133 @@ export default function BookingDetails() {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <User className="h-5 w-5 text-primary" />
-              <Label className="font-semibold">Customer Name:</Label>
-              <span>{booking.customer_name}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Phone className="h-5 w-5 text-primary" />
-              <Label className="font-semibold">Contact Number:</Label>
-              <span>{booking.contact_number}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <DogIcon className="h-5 w-5 text-primary" />
-              <Label className="font-semibold">Dog Name:</Label>
-              <span>{booking.dog_name}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Paw className="h-5 w-5 text-primary" />
-              <Label className="font-semibold">Dog Breed:</Label>
-              <span>{booking.dog_breed}</span>
-            </div>
-            {booking.groomer_id && (
-              <div className="flex items-center space-x-2">
-                <User className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Groomer:</Label>
-                <span>{groomers.find(g => g.id === booking.groomer_id)?.name || "Not assigned"}</span>
-              </div>
-            )}
-            {booking.check_in_time && (
-              <div className="flex items-center space-x-2">
-                <Check className="h-5 w-5 text-primary" />
-                <Label className="font-semibold">Check in Time:</Label>
-                <span>{format(new Date(booking.check_in_time), "PPp")}</span>
-              </div>
-            )}
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              <Label className="font-semibold">Booking Date:</Label>
-              <span>{format(new Date(booking.booking_date), "PPP")}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="h-5 w-5 text-primary" />
-              <Label className="font-semibold">Time Slot:</Label>
-              <span>
-                {booking.sub_time_slots?.time_slots?.start_time
-                  ? format(parse(booking.sub_time_slots.time_slots.start_time, "HH:mm:ss", new Date()), "hh:mm a")
-                  : "N/A"}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="h-5 w-5 text-primary" />
-              <Label className="font-semibold">Sub-Time Slot:</Label>
-              <span>
-                {booking.sub_time_slots?.description ||
-                  `Slot ${booking.sub_time_slots?.slot_number}` ||
-                  "N/A"}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Label className="font-semibold">Status:</Label>
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${booking.status === "reserved"
-                    ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
-                    : booking.status === "checked_in"
-                    ? "bg-green-200 text-green-700 border border-green-300"
-                    : booking.status === "progressing"
-                    ? "bg-blue-200 text-blue-700 border border-blue-300"
-                    : booking.status === "completed"
-                    ? "bg-green-200 text-green-700 border border-green-300"
-                    : booking.status === "canceled" || booking.status === "cancelled"
-                    ? "bg-red-200 text-red-700 border border-red-300"
-                    : "bg-gray-200 text-gray-700 border border-gray-300"
-                  }`}
-              >
-                {booking.status.replace("_", " ").toUpperCase()}
-              </span>
-            </div>
-            {/* Groomer Assignment Section */}
-            {(booking.status === "checked_in" || booking.status === "progressing") && (
-              <div className="flex items-center space-x-2 mt-4">
-                <Label className="font-semibold">Assign Groomer:</Label>
-                <Select
-                  value={selectedGroomer || booking.groomer_id || ""}
-                  onValueChange={handleGroomerSelection}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select a groomer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groomers.map((groomer) => (
-                      <SelectItem key={groomer.id} value={groomer.id}>
-                        {groomer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
+      <CardContent className="p-4 md:p-6">
+  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 mb-4">
+    {/* Left column */}
+    <div className="space-y-4">
+      <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+        <User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <span className="font-medium">Customer:</span>
+        <span className="truncate">{booking.customer_name}</span>
+      </div>
+      <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+        <Phone className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <span className="font-medium">Contact:</span>
+        <span className="truncate">{booking.contact_number}</span>
+      </div>
+      <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+        <DogIcon className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <span className="font-medium">Dog:</span>
+        <span className="truncate">{booking.dog_name}</span>
+      </div>
+      <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+        <Paw className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <span className="font-medium">Breed:</span>
+        <span className="truncate">{booking.dog_breed}</span>
+      </div>
+    
+      {booking.check_in_time && (   
+        <div className="hidden md:block ">
+        <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+          <Check className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+          <span className="font-medium">Checked in:</span>
+          <span>{format(new Date(booking.check_in_time), "PPp")}</span>
         </div>
-        <Separator className="my-6" />
-        <AnimatePresence mode="wait">{renderStepContent()}</AnimatePresence>
-      </CardContent>
+        </div>
+      )}
+     
+    </div>
+
+    {/* Right column */}
+    <div className="space-y-4">
+    {booking.check_in_time && (  
+        <div className=" md:hidden ">  
+        <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+          <Check className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+          <span className="font-medium">Checked in:</span>
+          <span>{format(new Date(booking.check_in_time), "PPp")}</span>
+        </div>
+        </div>
+      )}
+      <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+        <Calendar className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <span className="font-medium">Date:</span>
+        <span>{format(new Date(booking.booking_date), "PPP")}</span>
+      </div>
+      <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+        <Clock className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <span className="font-medium">Slot:</span>
+        <span>
+          {booking.sub_time_slots?.time_slots?.start_time
+            ? format(
+                parse(
+                  booking.sub_time_slots.time_slots.start_time,
+                  "HH:mm:ss",
+                  new Date()
+                ),
+                "hh:mm a"
+              )
+            : "N/A"}
+        </span>
+      </div>
+      <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+        <Clock className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <span className="font-medium">Sub‑Slot:</span>
+        <span>
+          {booking.sub_time_slots?.description ||
+            `Slot ${booking.sub_time_slots?.slot_number}` ||
+            "N/A"}
+        </span>
+      </div>
+      <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
+        <span className="font-medium">Status:</span>
+        <span
+          className={`inline-block px-2 py-0.5 rounded-full text-xs md:text-sm font-medium ${
+            booking.status === "checked_in"
+              ? "bg-green-100 text-green-800"
+              : booking.status === "reserved"
+              ? "bg-yellow-100 text-yellow-800"
+              : booking.status === "progressing"
+              ? "bg-blue-100 text-blue-800"
+              : booking.status === "completed"
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
+          {booking.status.replace("_", " ").toUpperCase()}
+        </span>
+      </div>
+
+      {(booking.status === "checked_in" ||
+        booking.status === "progressing") && (
+        <div className="mt-3 flex items-center space-x-2 text-sm md:text-base">
+          <span className="font-medium">Assign Groomer:</span>
+          <Select
+            value={selectedGroomer || booking.groomer_id || ""}
+            onValueChange={handleGroomerSelection}
+          >
+            <SelectTrigger className="w-full md:w-48 text-sm">
+              <SelectValue placeholder="Select" />
+            </SelectTrigger>
+            <SelectContent>
+              {groomers.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <Separator className="my-4" />
+
+  <AnimatePresence mode="wait" className="">{renderStepContent()}</AnimatePresence>
+</CardContent>
+
+
       <CardFooter className="flex flex-col md:flex-row justify-between items-center bg-muted/50 p-4">
         <div className="flex space-x-2 mb-4 md:mb-0">
           {currentStep > 1 && (
@@ -1184,53 +1205,73 @@ export default function BookingDetails() {
               )}
             </Button>
           )}
-          {currentStep === 2 && (booking.status === "progressing" || booking.status === "checked_in") && (
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Update Booking
-                </>
-              ) : (
-                "Update Booking"
-              )}
-            </Button>
-          )}
-        {(booking.status === "progressing" || booking.status === "checked_in") && (
-          <Button 
-            onClick={() => {
-              // Reset payment state and show dialog
-              setPaymentState('input');
-              setPaymentValidationError('');
-              setShowPaymentDialog(true);
-            }} 
-            className="bg-green-500 hover:bg-green-600 text-white"
-            disabled={!servicesUpdated || submitting}
-          >
-            {submitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Check className="mr-2 h-4 w-4" />
-            )}
-            Complete Booking
-          </Button>
-        )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="bg-white text-gray-800">
-                <Printer className="mr-2 h-4 w-4" /> Print Slip
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handlePrintSlip("customer")}>Customer Slip</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handlePrintSlip("groomer")}>Groomer Slip</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      {/* Wrap your actions */}
+<div className=" flex space-x-2 sm:flex-row sm:gap-2">
+  {/* Update Booking */}
+  {currentStep === 2 && (booking.status === "progressing" || booking.status === "checked_in") && (
+    <Button
+      onClick={handleSubmit}
+      disabled={submitting}
+      className="w-full sm:w-auto px-3 py-2 text-sm sm:text-base bg-primary hover:bg-primary/90 flex justify-center items-center"
+    >
+         <Pencil className="h-4 w-4" />
+      {submitting ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Update
+        </>
+      ) : (
+        "Update"
+      )}
+    </Button>
+  )}
+
+  {/* Complete Booking */}
+  {(booking.status === "progressing" || booking.status === "checked_in") && (
+    <Button
+      onClick={() => {
+        setPaymentState("input");
+        setPaymentValidationError("");
+        setShowPaymentDialog(true);
+      }}
+      disabled={!servicesUpdated || submitting}
+      className="w-full sm:w-auto px-3 py-2 text-sm sm:text-base bg-green-500 hover:bg-green-600 text-white flex justify-center items-center"
+    >
+      {submitting ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <>
+          <Check className="h-4 w-4" />
+          Complete <span className="hidden md:block">booking</span>
+        </>
+      )}
+    </Button>
+  )}
+
+  {/* Print Slip dropdown */}
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button
+        variant="outline"
+        className="w-full sm:w-auto px-3 py-2 text-sm sm:text-base flex justify-center items-center"
+      >
+        <Printer className="h-4 w-4" />
+        {/* hide the text on very small screens */}
+        <span className="ml-2 hidden xs:inline sm:inline">Print Slip</span>
+        <ChevronDown className="ml-1 h-4 w-4" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent>
+      <DropdownMenuItem onClick={() => handlePrintSlip("customer")}>
+        Customer Slip
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => handlePrintSlip("groomer")}>
+        Groomer Slip
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</div>
+
         </div>
       </CardFooter>
 

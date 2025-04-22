@@ -167,32 +167,39 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
                 </div>
 
                 {!repeatAllDays && (
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {WEEKDAYS.map((day) => (
-                      <div
-                        key={day}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`day-${day}`}
-                          checked={selectedDays.includes(day)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedDays([...selectedDays, day]);
-                            } else {
-                              setSelectedDays(selectedDays.filter((d) => d !== day));
-                            }
-                          }}
-                        />
-                        <Label
-                          htmlFor={`day-${day}`}
-                          className="text-sm font-medium leading-none cursor-pointer select-none"
-                        >
-                          {day}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
+               <fieldset className="space-y-4">
+              
+               <div className="flex gap-2">
+                 {WEEKDAYS.map((day) => (
+                   <div key={day} className="relative w-9 h-9">
+                     {/* 1. The actual checkbox, hidden but still clickable */}
+                     <input
+                       type="checkbox"
+                       id={`day-${day}`}
+                       className="peer absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                       checked={selectedDays.includes(day)}
+                       onChange={(e) => {
+                         const checked = e.target.checked;
+                         setSelectedDays(checked
+                           ? [...selectedDays, day]
+                           : selectedDays.filter((d) => d !== day)
+                         );
+                       }}
+                     />
+             
+                     {/* 2. The visible circle that reflects checked state */}
+                     <label
+                       htmlFor={`day-${day}`}
+                       className="flex items-center justify-center w-full h-full rounded-full border border-input text-sm font-medium transition-colors
+                                  peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground"
+                     >
+                       {day.slice(0, 3)}
+                     </label>
+                   </div>
+                 ))}
+               </div>
+             </fieldset>
+             
                 )}
               </div>
 

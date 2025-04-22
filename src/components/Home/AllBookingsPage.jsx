@@ -536,7 +536,7 @@ export default function HistoricalBookingTable() {
   };
 
   return (
-    <div className="container mx-auto ">
+    <div className="container mx-auto  ">
       {/* Controls */}
       <div className="flex flex-col space-y-4">
         <div className="flex flex-col gap-4 flex-wrap sm:flex-row sm:items-center sm:space-x-4">
@@ -730,7 +730,7 @@ export default function HistoricalBookingTable() {
               </p>
             </div>
           ) : (
-            <div className="border rounded-lg overflow-x-auto">
+            <div className="border-none overflow-x-auto">
               {/* Desktop Table View */}
               <div className="hidden md:block">
                 <Table>
