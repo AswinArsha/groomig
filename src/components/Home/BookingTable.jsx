@@ -791,7 +791,7 @@ export default function BookingTable() {
               {/* ─────────────────────────────────────────────────────────────
                   DESKTOP TABLE
                   ───────────────────────────────────────────────────────────── */}
-              <div className="hidden md:block">
+              <div className="hidden md:block rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
