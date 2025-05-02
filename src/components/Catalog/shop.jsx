@@ -7,6 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +83,12 @@ const ShopForm = ({ shop, onSuccess, onCancel }) => {
   };
 
   return (
+    <Card className="w-full max-w-lg mx-auto">
+      <CardHeader>
+        <CardTitle>{shop? "Edit Shop" : "Add New Shop"}</CardTitle>
+      </CardHeader>
+      <CardContent>
+
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <Label htmlFor="shop-name">Shop Name</Label>
@@ -111,14 +128,20 @@ const ShopForm = ({ shop, onSuccess, onCancel }) => {
         />
       </div>
       <div className="flex justify-end space-x-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} className="hidden sm:block">
           Cancel
         </Button>
-        <Button type="submit" disabled={submitting}>
+        <Button type="submit" disabled={submitting}  className="w-full md:w-auto">
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : shop ? "Update Shop" : "Add Shop"}
         </Button>
       </div>
     </form>
+    </CardContent>
+
+</Card>
+
+
+
   );
 };
 
@@ -201,10 +224,8 @@ export default function Shop() {
 
   return (
     <div className="container mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-        <Button onClick={handleAddNew}>
-          <Plus className="mr-2 h-4 w-4" /> Add New Shop
-        </Button>
+      <div className="flex  sm:flex-row justify-between items-center mb-8 gap-4">
+      
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
@@ -215,6 +236,11 @@ export default function Shop() {
             className="pl-10 w-full"
           />
         </div>
+        <Button onClick={handleAddNew}>
+        <Plus className=" md:mr-2 h-4 w-4" />
+        <span className="hidden sm:inline"> Add New Shop</span>
+         
+        </Button>
       </div>
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -283,19 +309,43 @@ export default function Shop() {
         </div>
       )}
 
-      {/* Dialog for Adding/Editing Shop */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{editingShop ? "Edit Shop" : "Add Shop"}</DialogTitle>
-          </DialogHeader>
-          <ShopForm
-            shop={editingShop}
-            onSuccess={handleFormSuccess}
-            onCancel={() => setDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Responsive Form Dialog/Drawer */}
+      {useMediaQuery("(min-width: 640px)") ? (
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+             
+            </DialogHeader>
+            <ShopForm
+              shop={editingShop}
+              onSuccess={handleFormSuccess}
+              onCancel={() => setDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DrawerContent>
+            <DrawerHeader className="text-left">
+    
+            </DrawerHeader>
+            <div className="px-4">
+              <ShopForm
+                shop={editingShop}
+                onSuccess={handleFormSuccess}
+                onCancel={() => setDialogOpen(false)}
+              />
+            </div>
+            <DrawerFooter className="pt-2">
+              <DrawerClose asChild>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      )}
 
       {/* Alert Dialog for Deletion Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

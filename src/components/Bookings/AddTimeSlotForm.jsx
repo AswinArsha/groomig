@@ -10,9 +10,21 @@ import { Trash2, Plus } from "lucide-react";
 import TimePicker from "./TimePicker";
 import { Checkbox } from "@/components/ui/checkbox";
 
+const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday"
+];
+
 export default function AddTimeSlotForm({ onSlotAdded }) {
   const [startTime, setStartTime] = useState("");
   const [subSlots, setSubSlots] = useState([{ slot_number: 1, description: "" }]);
+  const [repeatAllDays, setRepeatAllDays] = useState(true);
+  const [selectedDays, setSelectedDays] = useState(WEEKDAYS);
   
   // New state for shops and multi-select (selectedShops is an array of shop IDs)
   const [shops, setShops] = useState([]);
@@ -83,8 +95,8 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
 
     const mainTimeSlot = {
       start_time: formattedStartTime,
-      repeat_all_days: true,
-      specific_days: null,
+      repeat_all_days: repeatAllDays,
+      specific_days: repeatAllDays ? null : selectedDays,
       shop_ids: selectedShops, // store selected shops as an array
     };
 
@@ -121,7 +133,7 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
     <Card className="w-full mx-auto border-0">
       <CardHeader className="pb-4">
         <CardTitle className="text-2xl font-bold">Add Time Slot</CardTitle>
-        <CardDescription>Set up a new time slot with sub-slots for your schedule</CardDescription>
+        <CardDescription className="hidden md:block">Set up a new time slot with sub-slots for your schedule</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -131,6 +143,64 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
               {/* Time Picker */}
               <div className="space-y-3">
                 <TimePicker onTimeSelect={handleTimeSelect} />
+              </div>
+
+              {/* Week Days Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="repeat-all-days"
+                    checked={repeatAllDays}
+                    onCheckedChange={(checked) => {
+                      setRepeatAllDays(checked);
+                      if (checked) {
+                        setSelectedDays(WEEKDAYS);
+                      }
+                    }}
+                  />
+                  <Label
+                    htmlFor="repeat-all-days"
+                    className="text-sm font-medium leading-none cursor-pointer select-none"
+                  >
+                    Repeat All Days
+                  </Label>
+                </div>
+
+                {!repeatAllDays && (
+               <fieldset className="space-y-4">
+              
+               <div className="flex gap-2">
+                 {WEEKDAYS.map((day) => (
+                   <div key={day} className="relative w-9 h-9">
+                     {/* 1. The actual checkbox, hidden but still clickable */}
+                     <input
+                       type="checkbox"
+                       id={`day-${day}`}
+                       className="peer absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                       checked={selectedDays.includes(day)}
+                       onChange={(e) => {
+                         const checked = e.target.checked;
+                         setSelectedDays(checked
+                           ? [...selectedDays, day]
+                           : selectedDays.filter((d) => d !== day)
+                         );
+                       }}
+                     />
+             
+                     {/* 2. The visible circle that reflects checked state */}
+                     <label
+                       htmlFor={`day-${day}`}
+                       className="flex items-center justify-center w-full h-full rounded-full border border-input text-sm font-medium transition-colors
+                                  peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground"
+                     >
+                       {day.slice(0, 3)}
+                     </label>
+                   </div>
+                 ))}
+               </div>
+             </fieldset>
+             
+                )}
               </div>
 
               {/* Shop Multi-Select */}

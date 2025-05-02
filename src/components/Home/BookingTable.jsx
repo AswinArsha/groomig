@@ -729,7 +729,10 @@ export default function BookingTable() {
         </div>
 
         {/* Date Picker */}
-        <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
+        <div className="flex justify-center md:justify-start">
+  <DatePickerDemo date={selectedDate} setDate={setSelectedDate} />
+</div>
+
       </div>
 
       {/* Display selected service filters as badges */}
@@ -784,11 +787,11 @@ export default function BookingTable() {
               No bookings found.
             </p>
           ) : (
-            <div className="border rounded-lg overflow-x-auto">
+            <div className="border-none overflow-x-auto">
               {/* ─────────────────────────────────────────────────────────────
                   DESKTOP TABLE
                   ───────────────────────────────────────────────────────────── */}
-              <div className="hidden md:block">
+              <div className="hidden border border-gray-300 md:block rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -869,7 +872,7 @@ export default function BookingTable() {
                                 booking.status === "reserved"
                                   ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
                                   : booking.status === "checked_in"
-                                  ? "bg-green-200 text-green-700 border border-green-300"
+                                  ? "bg-purple-200 text-purple-700 border border-purple-300"
                                   : booking.status === "progressing"
                                   ? "bg-blue-200 text-blue-700 border border-blue-300"
                                   : booking.status === "completed"
@@ -1137,7 +1140,7 @@ export default function BookingTable() {
               {/* ─────────────────────────────────────────────────────────────
                   MOBILE VIEW
                   ───────────────────────────────────────────────────────────── */}
-              <div className="md:hidden space-y-4">
+              <div className="md:hidden  space-y-4">
                 {bookings.map((booking, index) => {
                   const displayPaymentMode = getDisplayPaymentMode(booking);
                   const totalBill = (
@@ -1148,7 +1151,7 @@ export default function BookingTable() {
                   ).toFixed(2);
 
                   return (
-                    <Card key={booking.id} className="bg-white">
+                    <Card key={booking.id} className="bg-white ">
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                           <div>

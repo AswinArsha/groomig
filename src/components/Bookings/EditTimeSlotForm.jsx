@@ -9,11 +9,21 @@ import toast from "react-hot-toast";
 import TimePicker from "./TimePicker";
 import { Checkbox } from "@/components/ui/checkbox";
 
+const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday"
+];
+
 export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
   // State for main time slot
   const [startTime, setStartTime] = useState(slot.start_time);
   const [repeatAllDays, setRepeatAllDays] = useState(slot.repeat_all_days);
-  const [specificDays, setSpecificDays] = useState(slot.specific_days || []);
+  const [selectedDays, setSelectedDays] = useState(slot.specific_days || WEEKDAYS);
   // Use an array for selected shops (initializing with slot.shop_ids)
   const [selectedShops, setSelectedShops] = useState(slot.shop_ids || []);
   // Fetch available shops
@@ -86,7 +96,7 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
       id: slot.id,
       start_time: startTime,
       repeat_all_days: repeatAllDays,
-      specific_days: repeatAllDays ? null : specificDays,
+      specific_days: repeatAllDays ? null : selectedDays,
       shop_ids: selectedShops,
       sub_time_slots: subSlots,
     };
@@ -96,8 +106,8 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
         .from("time_slots")
         .update({
           start_time: updatedMainSlot.start_time,
-          repeat_all_days: updatedMainSlot.repeat_all_days,
-          specific_days: updatedMainSlot.specific_days,
+          repeat_all_days: repeatAllDays,
+          specific_days: repeatAllDays ? null : selectedDays,
           shop_ids: updatedMainSlot.shop_ids,
         })
         .eq("id", updatedMainSlot.id);
@@ -141,6 +151,63 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
             <TimePicker onTimeSelect={handleTimeSelect} initialTime={slot.start_time} />
           </div>
 
+          {/* Week Days Selection */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="repeat-all-days"
+                checked={repeatAllDays}
+                onCheckedChange={(checked) => {
+                  setRepeatAllDays(checked);
+                  if (checked) {
+                    setSelectedDays(WEEKDAYS);
+                  }
+                }}
+              />
+              <Label
+                htmlFor="repeat-all-days"
+                className="text-sm font-medium leading-none cursor-pointer select-none"
+              >
+                Repeat All Days
+              </Label>
+            </div>
+
+            {!repeatAllDays && (
+                <fieldset className="space-y-4">
+              
+                <div className="flex gap-2">
+                  {WEEKDAYS.map((day) => (
+                    <div key={day} className="relative w-9 h-9">
+                      {/* 1. The actual checkbox, hidden but still clickable */}
+                      <input
+                        type="checkbox"
+                        id={`day-${day}`}
+                        className="peer absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        checked={selectedDays.includes(day)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSelectedDays(checked
+                            ? [...selectedDays, day]
+                            : selectedDays.filter((d) => d !== day)
+                          );
+                        }}
+                      />
+              
+                      {/* 2. The visible circle that reflects checked state */}
+                      <label
+                        htmlFor={`day-${day}`}
+                        className="flex items-center justify-center w-full h-full rounded-full border border-input text-sm font-medium transition-colors
+                                   peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground"
+                      >
+                        {day.slice(0, 3)}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+          </div>
+
           {/* Shop Multi-Select with Shadcn Checkbox */}
           <div className="space-y-4">
             <Label className="text-base font-semibold">Select Shops</Label>
@@ -163,12 +230,13 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
               ))}
             </div>
           </div>
+
         </div>
 
         {/* Right Column - Sub-Time Slots */}
         <div className="space-y-4">
           <Label className="text-base font-semibold">Sub-Time Slots</Label>
-          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4">
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 ">
             {subSlots.map((subSlot, index) => (
               <div key={index} className="flex items-center space-x-4 bg-secondary/20 p-3 rounded-lg">
                 <span className="text-sm font-medium min-w-[60px]">Slot {subSlot.slot_number}:</span>

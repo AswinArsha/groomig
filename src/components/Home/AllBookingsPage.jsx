@@ -8,7 +8,9 @@ import {
   Download,
   Check,
   RotateCcw,
+  ChevronLeft, ChevronRight,
   ArrowUpDown,
+  Filter,
 } from "lucide-react";
 import { format, parse, startOfMonth, endOfMonth } from "date-fns";
 import toast from "react-hot-toast";
@@ -20,6 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+
 import {
   Table,
   TableBody,
@@ -48,14 +51,15 @@ import CalendarDatePicker from "@/components/ui/CalendarDatePicker";
 import { Input } from "@/components/ui/input";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 
 export default function HistoricalBookingTable() {
   const navigate = useNavigate();
@@ -88,22 +92,14 @@ export default function HistoricalBookingTable() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10; // number of bookings per page
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 10; // Number of bookings per page
 
 
-  // Reset page to 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    searchTerm,
-    selectedDate,
-    selectedServices,
-    selectedShop,
-    selectedStatus,
-    selectedPaymentMode,
-    ratingSort,
-  ]);
+
+
+
 
   // Fetch available services
   const fetchServiceOptions = useCallback(async () => {
@@ -405,18 +401,24 @@ export default function HistoricalBookingTable() {
     doc.save("historical-bookings-report.pdf");
   };
 
-  // Fetch bookings and apply client-side filtering & pagination
+  // Fetch bookings and apply server-side filtering & pagination
   const fetchHistoricalBookings = useCallback(async () => {
     setLoading(true);
     try {
       const formattedDateFrom = format(selectedDate.from, "yyyy-MM-dd");
       const formattedDateTo = format(selectedDate.to, "yyyy-MM-dd");
+
+      // Calculate pagination range
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+
       let query = supabase
         .from("historical_bookings")
         .select("*", { count: "exact" })
         .gte("booking_date", formattedDateFrom)
         .lte("booking_date", formattedDateTo)
-        .order("completed_at", { ascending: false });
+        .order("completed_at", { ascending: false })
+        .range(from, to);
 
       if (searchTerm) {
         const searchPattern = searchTerm.toLowerCase();
@@ -435,7 +437,7 @@ export default function HistoricalBookingTable() {
         query = query.eq("payment_mode", selectedPaymentMode);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
 
       let filteredData = data || [];
@@ -476,21 +478,10 @@ export default function HistoricalBookingTable() {
         });
       }
 
-      // Set total pages and paginate the filtered data
-      const total = filteredData.length;
-      const pages = Math.ceil(total / pageSize) || 1;
-      setTotalPages(pages);
-
-      // Ensure currentPage is valid
-      if (currentPage > pages) {
-        setCurrentPage(1);
-      }
-      const startIndex = (currentPage - 1) * pageSize;
-      const paginatedData = filteredData.slice(
-        startIndex,
-        startIndex + pageSize
-      );
-      setBookings(paginatedData);
+      // Update pagination state
+      setTotalCount(count || 0);
+      setTotalPages(Math.ceil((count || 0) / itemsPerPage));
+      setBookings(filteredData);
     } catch (error) {
       toast.error(`Error fetching historical bookings: ${error.message}`);
     } finally {
@@ -505,7 +496,13 @@ export default function HistoricalBookingTable() {
     selectedPaymentMode,
     ratingSort,
     currentPage,
+    itemsPerPage
   ]);
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   useEffect(() => {
     fetchHistoricalBookings();
@@ -520,6 +517,125 @@ export default function HistoricalBookingTable() {
     currentPage,
     fetchHistoricalBookings,
   ]);
+
+  // Custom pagination component
+  const renderPagination = () => {
+    const isMobile = window.innerWidth < 640;
+    const maxVisiblePages = isMobile ? 1 : 5;
+
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    const baseBtn = "px-3 py-2 text-sm rounded-sm transition-colors font-semibold";
+    const numberButton = (i) => (
+      <button
+        key={i}
+        onClick={() => handlePageChange(i)}
+        className={`${baseBtn} ${currentPage === i
+            ? "border border-gray-300 text-black"
+            : "border border-transparent hover:bg-gray-100 text-black"
+          }`}
+      >
+        {i}
+      </button>
+    );
+
+    // MOBILE: only Prev / [current] / Next
+    if (isMobile) {
+      return (
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`${baseBtn} ${currentPage === 1
+                ? "text-gray-400 flex cursor-not-allowed border border-transparent"
+                : "border border-transparent  flex hover:bg-gray-100 text-black"
+              }`}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1 mt-1" />
+            Previous
+          </button>
+
+          {numberButton(currentPage)}
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`${baseBtn} ${currentPage === totalPages
+                ? "text-gray-400 flex cursor-not-allowed border border-transparent"
+                : "border border-transparent flex hover:bg-gray-100 text-black"
+              }`}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1 mt-1" />
+          </button>
+        </div>
+      );
+    }
+
+    // DESKTOP: full pagination with dots
+    const items = [];
+
+    if (startPage > 1) {
+      items.push(numberButton(1));
+      if (startPage > 2) {
+        items.push(
+          <span key="dots-1" className="px-1 text-gray-500 font-semibold">
+            …
+          </span>
+        );
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(numberButton(i));
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        items.push(
+          <span key="dots-2" className="px-1 text-gray-500 font-semibold">
+            …
+          </span>
+        );
+      }
+      items.push(numberButton(totalPages));
+    }
+
+    return (
+      <div className="flex items-center justify-center gap-2 mt-4 flex-wrap px-2">
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`${baseBtn} ${currentPage === 1
+              ? "text-gray-400 flex cursor-not-allowed border border-transparent"
+              : "border border-transparent flex hover:bg-gray-100 text-black"
+            }`}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1 mt-1" />
+          Previous
+        </button>
+
+        {items}
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`${baseBtn} ${currentPage === totalPages
+              ? "text-gray-400 cursor-not-allowed flex border border-transparent"
+              : "border border-transparent flex hover:bg-gray-100 text-black"
+            }`}
+        >
+          Next
+          <ChevronRight className="h-4 w-4 ml-1 mt-1" />
+        </button>
+      </div>
+    );
+  };
+
 
   const formatTimeIST = (timeStr) => {
     if (!timeStr) return "N/A";
@@ -536,172 +652,330 @@ export default function HistoricalBookingTable() {
   };
 
   return (
-    <div className="container mx-auto ">
+    <div className="container mx-auto  ">
       {/* Controls */}
       <div className="flex flex-col space-y-4">
-        <div className="flex flex-col gap-4 flex-wrap sm:flex-row sm:items-center sm:space-x-4">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/home")}
-            className="flex items-center space-x-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back</span>
-          </Button>
-          <div className="flex gap-2 w-full sm:w-80 md:flex-1">
-            <Input
-              type="text"
-              placeholder="Search historical bookings..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full"
-              aria-label="Search Bookings"
-            />
+       
+        <div className="flex flex-col gap-4 ">
+  {/* Desktop View */}
+  <div className="hidden  md:flex flex-col gap-4">
+          <div className="flex flex-row items-center space-x-4">
             <Button
               variant="outline"
-              onClick={clearAllFilters}
+              onClick={() => navigate("/home")}
               className="flex items-center space-x-2"
             >
-              <RotateCcw className="h-4 w-4" />
-              <span>Clear All Filters</span>
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back</span>
             </Button>
-          </div>
-          <Button
-            variant="outline"
-            onClick={downloadPDF}
-            className="flex items-center space-x-2"
-          >
-            <Download className="h-4 w-4" />
-            <span>Download PDF</span>
-          </Button>
-        </div>
-
-        {/* Filter Rows */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="w-full sm:w-52">
-            <Select value={selectedShop} onValueChange={setSelectedShop}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by shop..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {shopOptions.map((shop) => (
-                    <SelectItem key={shop.value || "all"} value={shop.value}>
-                      {shop.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full sm:w-52">
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by status..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={null}>All Statuses</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full sm:w-52">
-            <Select
-              value={selectedPaymentMode}
-              onValueChange={setSelectedPaymentMode}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by payment..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={null}>All Payment Modes</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="UPI">UPI</SelectItem>
-                  <SelectItem value="swipe">Swipe</SelectItem>
-                  <SelectItem value="credit">Credit</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full flex justify-center  sm:w-52">
-            <CalendarDatePicker date={selectedDate} onDateSelect={setSelectedDate} />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="w-full sm:w-52">
-            <Select
-              value={selectValue}
-              onValueChange={(val) => handleServiceSelect(val)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by services..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {serviceOptions.map((service) => (
-                    <SelectItem
-                      key={service.value}
-                      value={service.value}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{service.label}</span>
-                        {selectedServices.some((s) => s.value === service.value) && (
-                          <Check className="h-4 w-4 ml-2 text-primary" />
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            variant={ratingSort ? "secondary" : "outline"}
-            onClick={toggleRatingSort}
-            className="flex items-center space-x-2"
-          >
-            <ArrowUpDown className="h-4 w-4" />
-            <span>
-              {ratingSort === null && "Sort by Rating"}
-              {ratingSort === "desc" && "Rating: High to Low"}
-              {ratingSort === "asc" && "Rating: Low to High"}
-            </span>
-          </Button>
-        </div>
-
-        {selectedServices.length > 0 && (
-          <div className="flex flex-wrap gap-2 my-2">
-            {selectedServices.map((service) => (
-              <Badge
-                key={service.value}
-                variant="secondary"
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            <div className="flex gap-2 flex-1">
+              <Input
+                type="text"
+                placeholder="Search historical bookings..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+                aria-label="Search Bookings"
+              />
+              <Button
+                variant="outline"
+                onClick={clearAllFilters}
+                className="flex items-center space-x-2"
               >
-                {service.label}
-                <button
-                  className="ml-1 text-gray-500 hover:text-red-500 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                  onClick={() => removeService(service.value)}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </Badge>
-            ))}
+                <RotateCcw className="h-4 w-4" />
+                <span>Clear All Filters</span>
+              </Button>
+            </div>
             <Button
               variant="outline"
-              size="sm"
-              onClick={clearAllServices}
-              className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={downloadPDF}
+              className="flex items-center space-x-2"
             >
-              <RotateCcw className="h-4 w-4" />
+              <Download className="h-4 w-4" />
+              <span>Download PDF</span>
             </Button>
           </div>
-        )}
+
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="w-52">
+              <Select value={selectedShop} onValueChange={setSelectedShop}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by shop..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {shopOptions.map((shop) => (
+                      <SelectItem key={shop.value || "all"} value={shop.value}>
+                        {shop.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-52">
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={null}>All Statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-52">
+              <Select
+                value={selectedPaymentMode}
+                onValueChange={setSelectedPaymentMode}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by payment..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={null}>All Payment Modes</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="UPI">UPI</SelectItem>
+                    <SelectItem value="swipe">Swipe</SelectItem>
+                    <SelectItem value="credit">Credit</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-52">
+              <CalendarDatePicker date={selectedDate} onDateSelect={setSelectedDate} />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="w-52">
+              <Select
+                value={selectValue}
+                onValueChange={(val) => handleServiceSelect(val)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by services..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {serviceOptions.map((service) => (
+                      <SelectItem
+                        key={service.value}
+                        value={service.value}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{service.label}</span>
+                          {selectedServices.some((s) => s.value === service.value) && (
+                            <Check className="h-4 w-4 ml-2 text-primary" />
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              variant={ratingSort ? "secondary" : "outline"}
+              onClick={toggleRatingSort}
+              className="flex items-center space-x-2"
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              <span>
+                {ratingSort === null && "Sort by Rating"}
+                {ratingSort === "desc" && "Rating: High to Low"}
+                {ratingSort === "asc" && "Rating: Low to High"}
+              </span>
+            </Button>
+          </div>
+
+          {selectedServices.length > 0 && (
+            <div className="flex flex-wrap gap-2 my-2">
+              {selectedServices.map((service) => (
+                <Badge
+                  key={service.value}
+                  variant="secondary"
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  {service.label}
+                  <button
+                    className="ml-1 text-gray-500 hover:text-red-500 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                    onClick={() => removeService(service.value)}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </Badge>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearAllServices}
+                className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+          <div className=" md:hidden flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="Search historical bookings..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+                aria-label="Search Bookings"
+              />
+                     <Drawer>
+                <DrawerTrigger asChild>
+                  <Button variant="outline" size="icon" className="shrink-0">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>Filters</DrawerTitle>
+                    <DrawerDescription>Apply filters to your search</DrawerDescription>
+                  </DrawerHeader>
+                  <div className="p-4 space-y-4">
+                    <Select value={selectedShop} onValueChange={setSelectedShop}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by shop..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {shopOptions.map((shop) => (
+                            <SelectItem key={shop.value || "all"} value={shop.value}>
+                              {shop.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value={null}>All Statuses</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={selectedPaymentMode}
+                    onValueChange={setSelectedPaymentMode}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by payment..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value={null}>All Payment Modes</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="UPI">UPI</SelectItem>
+                        <SelectItem value="swipe">Swipe</SelectItem>
+                        <SelectItem value="credit">Credit</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+
+
+                  <Select
+                    value={selectValue}
+                    onValueChange={(val) => handleServiceSelect(val)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by services..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {serviceOptions.map((service) => (
+                          <SelectItem
+                            key={service.value}
+                            value={service.value}
+                            className="flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{service.label}</span>
+                              {selectedServices.some((s) => s.value === service.value) && (
+                                <Check className="h-4 w-4 ml-2 text-primary" />
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+                  {selectedServices.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedServices.map((service) => (
+                        <Badge
+                          key={service.value}
+                          variant="secondary"
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          {service.label}
+                          <button
+                            className="ml-1 text-gray-500 hover:text-red-500 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                            onClick={() => removeService(service.value)}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  <Button
+                    variant={ratingSort ? "secondary" : "outline"}
+                    onClick={toggleRatingSort}
+                    className="w-full flex items-center justify-center space-x-2"
+                  >
+                    <ArrowUpDown className="h-4 w-4" />
+                    <span>
+                      {ratingSort === null && "Sort by Rating"}
+                      {ratingSort === "desc" && "Rating: High to Low"}
+                      {ratingSort === "asc" && "Rating: Low to High"}
+                    </span>
+                  </Button>
+                </div>
+                <DrawerFooter>
+                  <Button variant="outline" onClick={clearAllFilters} className="w-full">
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Clear All Filters
+                  </Button>
+                  <DrawerClose asChild>
+                    <Button variant="secondary">Close</Button>
+                  </DrawerClose>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
+            </div>
+            <CalendarDatePicker
+              date={selectedDate}
+              onDateSelect={setSelectedDate}
+            />
+            <div>
+   
+          </div>
+        </div>
+
+      
       </div>
 
       <Card className="mt-4 bg-white">
@@ -730,12 +1004,13 @@ export default function HistoricalBookingTable() {
               </p>
             </div>
           ) : (
-            <div className="border rounded-lg overflow-x-auto">
+            <div className="border-none overflow-x-auto">
               {/* Desktop Table View */}
-              <div className="hidden md:block">
+
+              <div className="hidden border border-gray-300 md:block rounded-lg overflow-hidden">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
+                  <TableHeader >
+                    <TableRow className="">
                       <TableHead className="bg-gray-200 text-gray-800">
                         No.
                       </TableHead>
@@ -795,7 +1070,7 @@ export default function HistoricalBookingTable() {
                           }}
                         >
                           <TableCell>
-                            {(currentPage - 1) * pageSize + index + 1}
+                            {index + 1}
                           </TableCell>
                           <TableCell>{booking.customer_name}</TableCell>
                           <TableCell>{booking.contact_number}</TableCell>
@@ -816,17 +1091,17 @@ export default function HistoricalBookingTable() {
                           <TableCell>
                             <span
                               className={`rounded-full font-medium p-1 text-xs ${booking.status === "reserved"
-                                  ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
-                                  : booking.status === "checked_in"
-                                    ? "bg-green-200 text-green-700 border border-green-300"
-                                    : booking.status === "progressing"
-                                      ? "bg-blue-200 text-blue-700 border border-blue-300"
-                                      : booking.status === "completed"
-                                        ? "bg-green-200 text-green-700 border border-green-300"
-                                        : booking.status === "canceled" ||
-                                          booking.status === "cancelled"
-                                          ? "bg-red-200 text-red-700 border border-red-300"
-                                          : "bg-gray-200 text-gray-700 border border-gray-300"
+                                ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
+                                : booking.status === "checked_in"
+                                  ? "bg-green-200 text-green-700 border border-green-300"
+                                  : booking.status === "progressing"
+                                    ? "bg-blue-200 text-blue-700 border border-blue-300"
+                                    : booking.status === "completed"
+                                      ? "bg-green-200 text-green-700 border border-green-300"
+                                      : booking.status === "canceled" ||
+                                        booking.status === "cancelled"
+                                        ? "bg-red-200 text-red-700 border border-red-300"
+                                        : "bg-gray-200 text-gray-700 border border-gray-300"
                                 }`}
                               style={{ whiteSpace: "nowrap" }}
                             >
@@ -922,8 +1197,8 @@ export default function HistoricalBookingTable() {
                             {displayPaymentMode && (
                               <span
                                 className={`rounded-full font-medium p-1 text-xs ${displayPaymentMode.toUpperCase() === "CREDIT"
-                                    ? "bg-red-200 text-red-700 border border-red-300"
-                                    : "bg-blue-200 text-blue-700 border border-blue-300"
+                                  ? "bg-red-200 text-red-700 border border-red-300"
+                                  : "bg-blue-200 text-blue-700 border border-blue-300"
                                   }`}
                                 style={{ whiteSpace: "nowrap" }}
                               >
@@ -978,17 +1253,17 @@ export default function HistoricalBookingTable() {
                           </div>
                           <span
                             className={`rounded-full font-medium p-1 text-xs ${booking.status === "reserved"
-                                ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
-                                : booking.status === "checked_in"
-                                  ? "bg-green-200 text-green-700 border border-green-300"
-                                  : booking.status === "progressing"
-                                    ? "bg-blue-200 text-blue-700 border border-blue-300"
-                                    : booking.status === "completed"
-                                      ? "bg-green-200 text-green-700 border border-green-300"
-                                      : booking.status === "canceled" ||
-                                        booking.status === "cancelled"
-                                        ? "bg-red-200 text-red-700 border border-red-300"
-                                        : "bg-gray-200 text-gray-700 border border-gray-300"
+                              ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
+                              : booking.status === "checked_in"
+                                ? "bg-green-200 text-green-700 border border-green-300"
+                                : booking.status === "progressing"
+                                  ? "bg-blue-200 text-blue-700 border border-blue-300"
+                                  : booking.status === "completed"
+                                    ? "bg-green-200 text-green-700 border border-green-300"
+                                    : booking.status === "canceled" ||
+                                      booking.status === "cancelled"
+                                      ? "bg-red-200 text-red-700 border border-red-300"
+                                      : "bg-gray-200 text-gray-700 border border-gray-300"
                               }`}
                           >
                             {booking.status.replace("_", " ").toUpperCase()}
@@ -1116,8 +1391,8 @@ export default function HistoricalBookingTable() {
                               <span className="text-gray-500">Payment Mode:</span>
                               <span
                                 className={`rounded-full font-medium p-1 text-xs ${displayPaymentMode.toLowerCase() === "credit"
-                                    ? "bg-red-200 text-red-700 border border-red-300"
-                                    : "bg-blue-200 text-blue-700 border border-blue-300"
+                                  ? "bg-red-200 text-red-700 border border-red-300"
+                                  : "bg-blue-200 text-blue-700 border border-blue-300"
                                   }`}
                               >
                                 {displayPaymentMode.toUpperCase()}
@@ -1191,121 +1466,21 @@ export default function HistoricalBookingTable() {
               </div>
             </div>
           )}
-          {/* Pagination Component */}
-          <div className="mt-4 flex justify-center">
-            {totalPages > 1 && (
-              <Pagination>
-                <PaginationContent className="flex-wrap justify-center gap-2">
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    />
-                  </PaginationItem>
 
-                  {/* Desktop View */}
-                  <div className="hidden md:flex gap-2">
-                    {(() => {
-                      const pages = [];
-                      if (totalPages <= 15) {
-                        // Show all pages if total pages are 15 or less
-                        for (let i = 1; i <= totalPages; i++) {
-                          pages.push(
-                            <PaginationItem key={i}>
-                              <PaginationLink
-                                onClick={() => setCurrentPage(i)}
-                                isActive={currentPage === i}
-                              >
-                                {i}
-                              </PaginationLink>
-                            </PaginationItem>
-                          );
-                        }
-                      } else {
-                        // Show first 9 pages, ellipsis, and last 2 pages
-                        for (let i = 1; i <= 9; i++) {
-                          pages.push(
-                            <PaginationItem key={i}>
-                              <PaginationLink
-                                onClick={() => setCurrentPage(i)}
-                                isActive={currentPage === i}
-                              >
-                                {i}
-                              </PaginationLink>
-                            </PaginationItem>
-                          );
-                        }
-                        pages.push(
-                          <PaginationItem key="ellipsis1">
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        );
-                        for (let i = totalPages - 1; i <= totalPages; i++) {
-                          pages.push(
-                            <PaginationItem key={i}>
-                              <PaginationLink
-                                onClick={() => setCurrentPage(i)}
-                                isActive={currentPage === i}
-                              >
-                                {i}
-                              </PaginationLink>
-                            </PaginationItem>
-                          );
-                        }
-                      }
-                      return pages;
-                    })()}
-                  </div>
-
-                  {/* Mobile View */}
-                  <div className="flex md:hidden gap-2">
-                    <PaginationItem>
-                      <PaginationLink
-                        onClick={() => setCurrentPage(1)}
-                        isActive={currentPage === 1}
-                      >
-                        1
-                      </PaginationLink>
-                    </PaginationItem>
-                    {totalPages > 2 && currentPage > 2 && (
-                      <PaginationItem>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    )}
-                    {currentPage > 1 && currentPage < totalPages && (
-                      <PaginationItem>
-                        <PaginationLink isActive>{currentPage}</PaginationLink>
-                      </PaginationItem>
-                    )}
-                    {totalPages > 2 && currentPage < totalPages - 1 && (
-                      <PaginationItem>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    )}
-                    {totalPages > 1 && (
-                      <PaginationItem>
-                        <PaginationLink
-                          onClick={() => setCurrentPage(totalPages)}
-                          isActive={currentPage === totalPages}
-                        >
-                          {totalPages}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )}
-                  </div>
-
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            )}
-          </div>
         </CardContent>
+
+        {/* Pagination - Moved outside CardContent to prevent extra whitespace */}
+        {totalPages > 1 && (
+          <div className="py-4 border-t">
+            {renderPagination()}
+
+            <div className="text-center text-sm text-muted-foreground mt-2">
+              Showing {bookings.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} bookings
+            </div>
+          </div>
+        )}
       </Card>
+    </div>
     </div>
   );
 }
