@@ -791,7 +791,7 @@ export default function BookingTable() {
               {/* ─────────────────────────────────────────────────────────────
                   DESKTOP TABLE
                   ───────────────────────────────────────────────────────────── */}
-              <div className="hidden md:block rounded-lg overflow-hidden">
+              <div className="hidden border border-gray-300 md:block rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -872,7 +872,7 @@ export default function BookingTable() {
                                 booking.status === "reserved"
                                   ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
                                   : booking.status === "checked_in"
-                                  ? "bg-green-200 text-green-700 border border-green-300"
+                                  ? "bg-purple-200 text-purple-700 border border-purple-300"
                                   : booking.status === "progressing"
                                   ? "bg-blue-200 text-blue-700 border border-blue-300"
                                   : booking.status === "completed"

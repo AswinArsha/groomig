@@ -47,13 +47,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogOverlay, DialogTitle, DialogDescription, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { StarIcon, Star } from "lucide-react";
+import { StarIcon, Star, Search } from "lucide-react";
 
 export default function BookingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
   const [services, setServices] = useState([]);
+  const [filteredServices, setFilteredServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedServices, setSelectedServices] = useState([]);
@@ -163,7 +164,9 @@ export default function BookingDetails() {
     try {
       const { data, error } = await supabase.from("services").select("*");
       if (error) throw error;
-      setServices(data || []);
+      const servicesData = data || [];
+      setServices(servicesData);
+      setFilteredServices(servicesData);
     } catch (error) {
       toast.error(`Failed to fetch services: ${error.message}`);
     }
@@ -834,10 +837,28 @@ export default function BookingDetails() {
             transition={{ duration: 0.3 }}
             className="space-y-6 "
           >
-            <h3 className="text-lg font-semibold">Select Services</h3>
+            <div className="justify-between space-y-2  md:flex md:space-y-0">
+              <h3 className="text-lg font-semibold">Select Services</h3>
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search services..."
+                  className="w-full pl-10"
+                  onChange={(e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const filtered = services.filter(service =>
+                      service.name.toLowerCase().includes(searchTerm) ||
+                      service.description?.toLowerCase().includes(searchTerm)
+                    );
+                    setFilteredServices(filtered);
+                  }}
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+              </div>
+            </div>
             <ScrollArea className="h-[500px] rounded-md border p-4 bg-gray-50">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {services.map((service) => {
+                {filteredServices.map((service) => {
                   const isSelected = selectedServices.some((s) => s.id === service.id);
                   return (
                     <motion.div

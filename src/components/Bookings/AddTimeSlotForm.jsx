@@ -133,7 +133,7 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
     <Card className="w-full mx-auto border-0">
       <CardHeader className="pb-4">
         <CardTitle className="text-2xl font-bold">Add Time Slot</CardTitle>
-        <CardDescription>Set up a new time slot with sub-slots for your schedule</CardDescription>
+        <CardDescription className="hidden md:block">Set up a new time slot with sub-slots for your schedule</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">

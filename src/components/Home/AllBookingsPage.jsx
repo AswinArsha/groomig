@@ -10,6 +10,7 @@ import {
   RotateCcw,
   ChevronLeft, ChevronRight,
   ArrowUpDown,
+  Filter,
 } from "lucide-react";
 import { format, parse, startOfMonth, endOfMonth } from "date-fns";
 import toast from "react-hot-toast";
@@ -49,8 +50,16 @@ import {
 import CalendarDatePicker from "@/components/ui/CalendarDatePicker";
 import { Input } from "@/components/ui/input";
 import { useNavigate, useLocation } from "react-router-dom";
-
-
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 
 export default function HistoricalBookingTable() {
   const navigate = useNavigate();
@@ -646,186 +655,131 @@ export default function HistoricalBookingTable() {
     <div className="container mx-auto  ">
       {/* Controls */}
       <div className="flex flex-col space-y-4">
-        <div className="flex flex-col gap-4 flex-wrap sm:flex-row sm:items-center sm:space-x-4">
-          <div className="hidden md:block">
+       
+        <div className="flex flex-col gap-4 ">
+  {/* Desktop View */}
+  <div className="hidden  md:flex flex-col gap-4">
+          <div className="flex flex-row items-center space-x-4">
             <Button
               variant="outline"
               onClick={() => navigate("/home")}
-              className="flex items-center  space-x-2"
+              className="flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Back</span>
             </Button>
-          </div>
-          <div className="flex gap-2 w-full sm:w-80 md:flex-1">
-            <Input
-              type="text"
-              placeholder="Search historical bookings..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full"
-              aria-label="Search Bookings"
-            />
+            <div className="flex gap-2 flex-1">
+              <Input
+                type="text"
+                placeholder="Search historical bookings..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+                aria-label="Search Bookings"
+              />
+              <Button
+                variant="outline"
+                onClick={clearAllFilters}
+                className="flex items-center space-x-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span>Clear All Filters</span>
+              </Button>
+            </div>
             <Button
               variant="outline"
-              onClick={clearAllFilters}
+              onClick={downloadPDF}
               className="flex items-center space-x-2"
             >
-              <RotateCcw className="h-4 w-4" />
-              <span>Clear All Filters</span>
+              <Download className="h-4 w-4" />
+              <span>Download PDF</span>
             </Button>
           </div>
-          <Button
-            variant="outline"
-            onClick={downloadPDF}
-            className="flex items-center space-x-2"
-          >
-            <Download className="h-4 w-4" />
-            <span>Download PDF</span>
-          </Button>
-        </div>
 
-        {/* Filter Rows */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="w-full sm:w-52">
-            <Select value={selectedShop} onValueChange={setSelectedShop}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by shop..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {shopOptions.map((shop) => (
-                    <SelectItem key={shop.value || "all"} value={shop.value}>
-                      {shop.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full sm:w-52">
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by status..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={null}>All Statuses</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full sm:w-52">
-            <Select
-              value={selectedPaymentMode}
-              onValueChange={setSelectedPaymentMode}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by payment..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={null}>All Payment Modes</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="UPI">UPI</SelectItem>
-                  <SelectItem value="swipe">Swipe</SelectItem>
-                  <SelectItem value="credit">Credit</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full hidden md:block  justify-center  sm:w-52">
-            <CalendarDatePicker date={selectedDate} onDateSelect={setSelectedDate} />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="w-full sm:w-52">
-            <Select
-              value={selectValue}
-              onValueChange={(val) => handleServiceSelect(val)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by services..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {serviceOptions.map((service) => (
-                    <SelectItem
-                      key={service.value}
-                      value={service.value}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{service.label}</span>
-                        {selectedServices.some((s) => s.value === service.value) && (
-                          <Check className="h-4 w-4 ml-2 text-primary" />
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          {selectedServices.length > 0 && (
-            <div className=" md:hidden">
-              <div className="flex flex-wrap  gap-2 my-2">
-                {selectedServices.map((service) => (
-                  <Badge
-                    key={service.value}
-                    variant="secondary"
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    {service.label}
-                    <button
-                      className="ml-1 text-gray-500 hover:text-red-500 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                      onClick={() => removeService(service.value)}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </Badge>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearAllServices}
-                  className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </div></div>
-          )}
-          <div className="hidden md:block">
-
-<Button
-  variant={ratingSort ? "secondary" : "outline"}
-  onClick={toggleRatingSort}
-  className="flex items-center space-x-2"
->
-  <ArrowUpDown className="h-4 w-4" />
-  <span>
-    {ratingSort === null && "Sort by Rating"}
-    {ratingSort === "desc" && "Rating: High to Low"}
-    {ratingSort === "asc" && "Rating: Low to High"}
-  </span>
-</Button>
-</div>
-          <div className="
-  flex flex-col items-center mx-auto justify-center  
-  space-y-2                                
-  md:flex-row md:items-start md:justify-start 
-  md:space-y-0 md:space-x-4                 
-">
-            <div className="w-full md:hidden sm:w-52">
-              <CalendarDatePicker
-                date={selectedDate}
-                onDateSelect={setSelectedDate}
-              />
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="w-52">
+              <Select value={selectedShop} onValueChange={setSelectedShop}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by shop..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {shopOptions.map((shop) => (
+                      <SelectItem key={shop.value || "all"} value={shop.value}>
+                        {shop.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
-<div className="md:hidden">
+            <div className="w-52">
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={null}>All Statuses</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-52">
+              <Select
+                value={selectedPaymentMode}
+                onValueChange={setSelectedPaymentMode}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by payment..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={null}>All Payment Modes</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="UPI">UPI</SelectItem>
+                    <SelectItem value="swipe">Swipe</SelectItem>
+                    <SelectItem value="credit">Credit</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-52">
+              <CalendarDatePicker date={selectedDate} onDateSelect={setSelectedDate} />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="w-52">
+              <Select
+                value={selectValue}
+                onValueChange={(val) => handleServiceSelect(val)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filter by services..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {serviceOptions.map((service) => (
+                      <SelectItem
+                        key={service.value}
+                        value={service.value}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{service.label}</span>
+                          {selectedServices.some((s) => s.value === service.value) && (
+                            <Check className="h-4 w-4 ml-2 text-primary" />
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
 
             <Button
               variant={ratingSort ? "secondary" : "outline"}
@@ -839,14 +793,10 @@ export default function HistoricalBookingTable() {
                 {ratingSort === "asc" && "Rating: Low to High"}
               </span>
             </Button>
-            </div>
           </div>
 
-        </div>
-
-        {selectedServices.length > 0 && (
-          <div className="hidden md:block">
-            <div className="flex flex-wrap  gap-2 my-2">
+          {selectedServices.length > 0 && (
+            <div className="flex flex-wrap gap-2 my-2">
               {selectedServices.map((service) => (
                 <Badge
                   key={service.value}
@@ -870,8 +820,162 @@ export default function HistoricalBookingTable() {
               >
                 <RotateCcw className="h-4 w-4" />
               </Button>
-            </div></div>
-        )}
+            </div>
+          )}
+        </div>
+
+          <div className=" md:hidden flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="Search historical bookings..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+                aria-label="Search Bookings"
+              />
+                     <Drawer>
+                <DrawerTrigger asChild>
+                  <Button variant="outline" size="icon" className="shrink-0">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>Filters</DrawerTitle>
+                    <DrawerDescription>Apply filters to your search</DrawerDescription>
+                  </DrawerHeader>
+                  <div className="p-4 space-y-4">
+                    <Select value={selectedShop} onValueChange={setSelectedShop}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by shop..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {shopOptions.map((shop) => (
+                            <SelectItem key={shop.value || "all"} value={shop.value}>
+                              {shop.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value={null}>All Statuses</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={selectedPaymentMode}
+                    onValueChange={setSelectedPaymentMode}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by payment..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value={null}>All Payment Modes</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="UPI">UPI</SelectItem>
+                        <SelectItem value="swipe">Swipe</SelectItem>
+                        <SelectItem value="credit">Credit</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+
+
+                  <Select
+                    value={selectValue}
+                    onValueChange={(val) => handleServiceSelect(val)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by services..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {serviceOptions.map((service) => (
+                          <SelectItem
+                            key={service.value}
+                            value={service.value}
+                            className="flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{service.label}</span>
+                              {selectedServices.some((s) => s.value === service.value) && (
+                                <Check className="h-4 w-4 ml-2 text-primary" />
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+                  {selectedServices.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedServices.map((service) => (
+                        <Badge
+                          key={service.value}
+                          variant="secondary"
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          {service.label}
+                          <button
+                            className="ml-1 text-gray-500 hover:text-red-500 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                            onClick={() => removeService(service.value)}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  <Button
+                    variant={ratingSort ? "secondary" : "outline"}
+                    onClick={toggleRatingSort}
+                    className="w-full flex items-center justify-center space-x-2"
+                  >
+                    <ArrowUpDown className="h-4 w-4" />
+                    <span>
+                      {ratingSort === null && "Sort by Rating"}
+                      {ratingSort === "desc" && "Rating: High to Low"}
+                      {ratingSort === "asc" && "Rating: Low to High"}
+                    </span>
+                  </Button>
+                </div>
+                <DrawerFooter>
+                  <Button variant="outline" onClick={clearAllFilters} className="w-full">
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Clear All Filters
+                  </Button>
+                  <DrawerClose asChild>
+                    <Button variant="secondary">Close</Button>
+                  </DrawerClose>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
+            </div>
+            <CalendarDatePicker
+              date={selectedDate}
+              onDateSelect={setSelectedDate}
+            />
+            <div>
+   
+          </div>
+        </div>
+
+      
       </div>
 
       <Card className="mt-4 bg-white">
@@ -1376,6 +1480,7 @@ export default function HistoricalBookingTable() {
           </div>
         )}
       </Card>
+    </div>
     </div>
   );
 }
