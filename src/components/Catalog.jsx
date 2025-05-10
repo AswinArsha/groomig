@@ -131,8 +131,8 @@ export default function Catalog() {
 
   // Filter services based on search term
   const filteredServices = services.filter((service) =>
-    service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (service?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (service?.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   return (

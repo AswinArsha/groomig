@@ -18,6 +18,11 @@ import toast, { Toaster } from "react-hot-toast";
 import UserBookingForm from "./components/User/UserBookingForm";
 import UserLayout from "./components/User/UserLayout";
 
+// Import Super Admin components
+import SuperAdminLogin from "./components/SuperAdmin/SuperAdminLogin";
+import SuperAdminDashboard from "./components/SuperAdmin/SuperAdminDashboard";
+import SuperAdminProtectedRoute from "./components/SuperAdmin/SuperAdminProtectedRoute";
+
 function App() {
   return (
     <Router>
@@ -26,6 +31,12 @@ function App() {
         <Routes>
           <Route path="/" element={<LoginForm />} />
           
+          {/* Super Admin Routes */}
+          <Route path="/admin" element={<SuperAdminLogin />} />
+          <Route element={<SuperAdminProtectedRoute />}>
+            <Route path="/admin/dashboard" element={<SuperAdminDashboard />} />
+          </Route>
+
           {/* User Booking Route */}
           <Route path="/user" element={<UserLayout />}>
             <Route index element={<UserBookingForm />} />

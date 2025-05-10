@@ -120,8 +120,8 @@ export default function Staff() {
 
   // Filter staff based on search term
   const filteredStaff = staff.filter((member) =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (member.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (member.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   return (

@@ -1,25 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
-import { 
-  Home, 
-  Store, 
-  BarChart, 
-  LogOut, 
+import {
+  Home,
+  Store,
+  BarChart,
+  LogOut,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Menu, Loader2, CheckCircle, XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import toast from "react-hot-toast";
 import { supabase } from "../supabase";
 import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
-import { 
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import MobileSidebar from "@/components/ui/mobile-sidebar";
 
 function Sidebar() {
@@ -29,6 +34,8 @@ function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [subscriptionDetails, setSubscriptionDetails] = useState(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
 
   // Handle screen resize
   useEffect(() => {
@@ -37,10 +44,10 @@ function Sidebar() {
         setIsCollapsed(true);
       }
     };
-    
+
     // Initial check
     handleResize();
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -51,12 +58,34 @@ function Sidebar() {
     setShowMobileProfile(false);
   }, [location.pathname]);
 
-  // Fetch user session
+  // Fetch user session and subscription details
   useEffect(() => {
     // Check for stored session
     const storedSession = localStorage.getItem('userSession');
     if (storedSession) {
-      setUser(JSON.parse(storedSession));
+      const parsedUser = JSON.parse(storedSession);
+      setUser(parsedUser);
+
+      // Fetch subscription details
+      const fetchSubscription = async () => {
+        setLoadingSubscription(true);
+        try {
+          const { data, error } = await supabase
+            .from('organizations')
+            .select('*')
+            .single();
+
+          if (error) throw error;
+          setSubscriptionDetails(data);
+        } catch (error) {
+          console.error('Error fetching subscription:', error);
+          toast.error('Failed to load subscription details');
+        } finally {
+          setLoadingSubscription(false);
+        }
+      };
+
+      fetchSubscription();
     }
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
@@ -64,6 +93,7 @@ function Sidebar() {
         if (event === 'SIGNED_OUT') {
           localStorage.removeItem('userSession');
           setUser(null);
+          setSubscriptionDetails(null);
         }
       }
     );
@@ -81,10 +111,10 @@ function Sidebar() {
 
   const isLinkActive = (path) => {
     if (path === '/home') {
-      return location.pathname === '/home' || 
-             location.pathname.includes('/all-bookings') ||
-             location.pathname.includes('/booking') ||
-             location.pathname.includes('/all-booking-details');
+      return location.pathname === '/home' ||
+        location.pathname.includes('/all-bookings') ||
+        location.pathname.includes('/booking') ||
+        location.pathname.includes('/all-booking-details');
     }
     return location.pathname === path;
   };
@@ -99,7 +129,7 @@ function Sidebar() {
       case "/analytics":
         return "Analytics";
       default:
-        return "Home"; 
+        return "Home";
     }
   };
 
@@ -242,7 +272,7 @@ function Sidebar() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gray-50 dark:bg-gray-900">
       {/* Desktop Sidebar */}
-      <motion.div 
+      <motion.div
         className="hidden md:flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-sm"
         variants={sidebarVariants}
         animate={isCollapsed ? "collapsed" : "expanded"}
@@ -275,149 +305,199 @@ function Sidebar() {
                   <TooltipTrigger asChild>
                     <Link
                       to={item.path}
-                      className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
-                        isLinkActive(item.path)
+                      className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${isLinkActive(item.path)
                           ? "bg-pink-100 dark:bg-pink-900/30"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
+                        }`}
                       style={{ color: isLinkActive(item.path) ? "#c93b7d" : "" }}
                     >
-                {/* Fixed layout to prevent icon movement during collapse */}
-                <div className="relative flex items-center w-full">
-                  {/* Position icon absolutely for collapsed state to maintain position */}
-                  <div className={`${isCollapsed ? "flex justify-center w-full" : "relative"}`}>
-                    <motion.div 
-                      layout
-                      transition={{ 
-                        type: "spring",
-                        stiffness: 300, 
-                        damping: 30,
-                        duration: 0.2
-                      }}
-                      className="flex-shrink-0"
-                    >
-                      {React.cloneElement(item.icon, {
-                        className: `${isLinkActive(item.path) ? "text-pink-600 dark:text-pink-400" : ""} ${item.icon.props.className}`,
-                      })}
-                    </motion.div>
-                  </div>
-                  
-                  <AnimatePresence mode="wait">
-                    {!isCollapsed && (
-                      <motion.span
-                        key={`text-${item.name}`}
-                        variants={textVariants}
-                        initial="hide"
-                        animate="show"
-                        exit="hide"
-                        className="ml-3 font-medium"
-                      >
-                        {item.name}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="bg-white">
-              {item.name}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+                      {/* Fixed layout to prevent icon movement during collapse */}
+                      <div className="relative flex items-center w-full">
+                        {/* Position icon absolutely for collapsed state to maintain position */}
+                        <div className={`${isCollapsed ? "flex justify-center w-full" : "relative"}`}>
+                          <motion.div
+                            layout
+                            transition={{
+                              type: "spring",
+                              stiffness: 300,
+                              damping: 30,
+                              duration: 0.2
+                            }}
+                            className="flex-shrink-0"
+                          >
+                            {React.cloneElement(item.icon, {
+                              className: `${isLinkActive(item.path) ? "text-pink-600 dark:text-pink-400" : ""} ${item.icon.props.className}`,
+                            })}
+                          </motion.div>
+                        </div>
+
+                        <AnimatePresence mode="wait">
+                          {!isCollapsed && (
+                            <motion.span
+                              key={`text-${item.name}`}
+                              variants={textVariants}
+                              initial="hide"
+                              animate="show"
+                              exit="hide"
+                              className="ml-3 font-medium"
+                            >
+                              {item.name}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-white">
+                    {item.name}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             ))}
           </nav>
         </div>
 
-        {/* User Profile & Logout */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-          <AnimatePresence mode="wait">
-            {user && !isCollapsed && (
-              <motion.div 
-                key="user-profile"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.2 }}
-                className="flex items-center mb-4"
-              >
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.user_metadata?.avatar_url} />
-                  <AvatarFallback>
-                    {getAvatarLetter()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="ml-3">
-                  <p className="text-sm font-medium">
-                    {getDisplayName()}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {getRole()}
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className={`w-full flex items-center justify-center border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors duration-200 ${
-              isCollapsed ? "p-2" : "p-2 py-2"
-            }`}
-          >
-            {/* Fixed logout button layout */}
-            <div className={`${isCollapsed ? "flex justify-center w-full" : "relative"}`}>
-              <motion.div 
-                layout
-                transition={{ 
-                  type: "spring",
-                  stiffness: 300, 
-                  damping: 30,
-                  duration: 0.2
-                }}
-              >
-                <LogOut className="h-5 w-5" />
-              </motion.div>
-            </div>
-            
-            <AnimatePresence mode="wait">
-              {!isCollapsed && (
-                <motion.span
-                  key="logout-text"
-                  variants={textVariants}
-                  initial="hide"
-                  animate="show"
-                  exit="hide"
-                  className="ml-2"
-                >
-                  Logout
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </Button>
-        </div>
+    {/* User Profile & Logout */}
+<div className="border-t border-gray-200 dark:border-gray-700 p-4">
+  <AnimatePresence mode="wait">
+    {user && (
+      <motion.div
+        key="user-profile"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        transition={{ duration: 0.2 }}
+        className={`flex items-center mb-4 ${
+          isCollapsed ? 'justify-center' : ''
+        }`}
+      >
+        <Popover>
+          <PopoverTrigger asChild>
+            <Avatar className="h-9 w-9 cursor-pointer ring-1 ring-pink-400 hover:ring-2 hover:ring-pink-500 transition-all duration-200">
+              <AvatarImage src={user.user_metadata?.avatar_url} />
+              <AvatarFallback>
+                {getAvatarLetter()}
+              </AvatarFallback>
+            </Avatar>
+          </PopoverTrigger>
+         <PopoverContent className="max-w-sm ml-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                        Subscription Details
+                      </h4>
+
+                      {loadingSubscription ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-pink-600" />
+                        </div>
+                      ) : subscriptionDetails ? (
+                        <div className="space-y-3">
+                          {/* Status Row */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">Status</span>
+                            <span
+                              className={`inline-flex items-center text-sm font-medium ${subscriptionDetails.subscription_status === 'active'
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                                }`}
+                            >
+                              {subscriptionDetails.subscription_status === 'active' ? (
+                                <CheckCircle className="mr-1 h-4 w-4" />
+                              ) : (
+                                <XCircle className="mr-1 h-4 w-4" />
+                              )}
+                              {subscriptionDetails.subscription_status.charAt(0).toUpperCase() +
+                                subscriptionDetails.subscription_status.slice(1)}
+                            </span>
+                          </div>
+
+                          {/* Expiry Row */}
+                          {subscriptionDetails.subscription_end_date && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-500 dark:text-gray-400">Expires</span>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                {new Date(subscriptionDetails.subscription_end_date).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                          No subscription details available
+                        </p>
+                      )}
+                    </div>
+                  </PopoverContent>
+              </Popover>
+
+        {/* only show name & role when expanded */}
+        {!isCollapsed && (
+          <div className="ml-3">
+            <p className="text-sm font-medium">{getDisplayName()}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {getRole()}
+            </p>
+          </div>
+        )}
+      </motion.div>
+    )}
+  </AnimatePresence>
+
+  <Button
+    onClick={handleLogout}
+    variant="outline"
+    className={`w-full flex items-center justify-center border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors duration-200 ${
+      isCollapsed ? "p-2" : "p-2 py-2"
+    }`}
+  >
+    <div className={`${isCollapsed ? "flex justify-center w-full" : "relative"}`}>
+      <motion.div
+        layout
+        transition={{ type: "spring", stiffness: 300, damping: 30, duration: 0.2 }}
+      >
+        <LogOut className="h-5 w-5" />
+      </motion.div>
+    </div>
+    {!isCollapsed && (
+      <AnimatePresence mode="wait">
+        <motion.span
+          key="logout-text"
+          variants={textVariants}
+          initial="hide"
+          animate="show"
+          exit="hide"
+          className="ml-2"
+        >
+          Logout
+        </motion.span>
+      </AnimatePresence>
+    )}
+  </Button>
+</div>
+
+
       </motion.div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col w-0 overflow-hidden">
         <header className=" hidden md:flex h-16 shrink-0 items-center gap-4 border-b bg-white dark:bg-gray-800 dark:border-gray-700 px-6 ">
           <h1 className="text-lg font-semibold tracking-tight">{getHeaderText()}</h1>
-          
+
           {/* Optional: Right side header content */}
           <div className="ml-auto flex items-center space-x-4">
             {/* Add notifications, profile dropdown, etc. here */}
           </div>
         </header>
-        
+
         <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900 pb-24 md:pb-6">
           <div className="mx-auto max-w-7xl">
             <Outlet />
           </div>
         </main>
       </div>
-      
+
       {/* Mobile Bottom Navigation Bar */}
-      <MobileSidebar 
+      <MobileSidebar
         user={user}
         navigationItems={navigationItems}
         isLinkActive={isLinkActive}
@@ -429,91 +509,8 @@ function Sidebar() {
         getRole={getRole}
         getAvatarLetter={getAvatarLetter}
       />
-      
-      {/* Mobile Drawer Sidebar (for legacy support) */}
-      <AnimatePresence>
-        {isMobileOpen && (
-          <motion.div
-            className="fixed inset-0 bg-gray-800/50 z-40 md:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => setIsMobileOpen(false)}
-          />
-        )}
-      </AnimatePresence>
 
-      <motion.div
-        className="fixed top-0 left-0 bottom-0 w-64 bg-white dark:bg-gray-800 z-50 md:hidden border-r border-gray-200 dark:border-gray-700 flex flex-col"
-        variants={overlayVariants}
-        initial="closed"
-        animate={isMobileOpen ? "open" : "closed"}
-      >
-        <div className="px-4 py-6 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
-          <div className="font-bold text-xl" style={{ color: "#c93b7d" }}></div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMobileOpen(false)}
-            className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        </div>
-
-        <div className="flex-1 py-4 overflow-y-auto">
-          <nav className="space-y-1 px-2">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.path}
-                className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
-                  isLinkActive(item.path)
-                    ? "bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-              >
-                {React.cloneElement(item.icon, {
-                  className: `${item.icon.props.className}`,
-                  style: { color: isLinkActive(item.path) ? "#c93b7d" : "" }
-                })}
-                <span className="ml-3 font-medium">{item.name}</span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        {/* User Profile & Logout */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-          {user && (
-            <div className="flex items-center mb-4">
-              <Avatar className="h-9 w-9">
-                <AvatarFallback>
-                  {getAvatarLetter()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="ml-3">
-                <p className="text-sm font-medium">
-                  {getDisplayName()}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {getRole()}
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="w-full flex items-center justify-center border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors duration-200"
-          >
-            <LogOut className="h-5 w-5" />
-            <span className="ml-2">Logout</span>
-          </Button>
-        </div>
-      </motion.div>
+   
     </div>
   );
 }
