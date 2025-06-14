@@ -26,6 +26,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import MobileSidebar from "@/components/ui/mobile-sidebar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import './App.css';
 
 function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -36,6 +38,9 @@ function Sidebar() {
   const [user, setUser] = useState(null);
   const [subscriptionDetails, setSubscriptionDetails] = useState(null);
   const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [subscriptionHistory, setSubscriptionHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Handle screen resize
   useEffect(() => {
@@ -73,6 +78,9 @@ function Sidebar() {
           const { data, error } = await supabase
             .from('organizations')
             .select('*')
+            .eq('id', parsedUser.organization_id)
+            .order('subscription_end_date', { ascending: false })
+            .limit(1)
             .single();
 
           if (error) throw error;
@@ -103,11 +111,40 @@ function Sidebar() {
     };
   }, []);
 
+  // Fetch subscription history when dialog opens
+  useEffect(() => {
+    if (showHistory && user?.organization_id) {
+      const fetchHistory = async () => {
+        setLoadingHistory(true);
+        try {
+          const { data, error } = await supabase
+            .from('subscription_history')
+            .select('*')
+            .eq('organization_id', user.organization_id)
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          setSubscriptionHistory(data || []);
+        } catch (error) {
+          console.error('Error fetching subscription history:', error);
+          toast.error('Failed to load subscription history');
+        } finally {
+          setLoadingHistory(false);
+        }
+      };
+
+      fetchHistory();
+    }
+  }, [showHistory, user?.organization_id]);
+
   const navigationItems = [
     { name: "Home", path: "/home", icon: <Home className="w-5 h-5" /> },
     { name: "Shop", path: "/shop", icon: <Store className="w-5 h-5" /> },
     { name: "Analytics", path: "/analytics", icon: <BarChart className="w-5 h-5" /> },
   ];
+  
+  // Check if subscription is inactive
+  const isSubscriptionInactive = subscriptionDetails?.subscription_status !== 'active';
 
   const isLinkActive = (path) => {
     if (path === '/home') {
@@ -150,30 +187,43 @@ function Sidebar() {
 
   // Helper function to get the display name
   const getDisplayName = () => {
+    // staff session: might have data.name
     if (user?.type === 'staff') {
-      return user.data.name;
-    } else {
-      return user?.user_metadata?.full_name || user?.username;
+      return user.data?.name ?? user.username ?? '';
     }
+    // admin (or other) session
+    return user?.user_metadata?.full_name
+        || user?.username
+        || '';
   };
+  
 
   // Helper function to get the role
   const getRole = () => {
     if (user?.type === 'staff') {
-      return user.data.role || 'Staff';
-    } else {
-      return 'Admin';
+      // guard against missing .data or .role
+      return user.data?.role ?? 'Staff';
     }
+    // all non-staff users are admins
+    return 'Admin';
   };
+  
 
   // Helper function to get the first letter for avatar
   const getAvatarLetter = () => {
+    // staff
     if (user?.type === 'staff') {
-      return user.data.name.charAt(0).toUpperCase();
-    } else {
-      return (user?.user_metadata?.full_name || user?.username)?.charAt(0).toUpperCase();
+      const n = user.data?.name ?? user.username ?? '';
+      return n.charAt(0).toUpperCase();
     }
+    // admin
+    const n = user?.user_metadata?.full_name
+           || user?.username
+           || '';
+    return n.charAt(0).toUpperCase();
   };
+  
+
 
   // Sidebar animation variants - smoother spring animation
   const sidebarVariants = {
@@ -304,11 +354,12 @@ function Sidebar() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link
-                      to={item.path}
+                      to={isSubscriptionInactive ? "#" : item.path}
+                      onClick={(e) => isSubscriptionInactive && e.preventDefault()}
                       className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${isLinkActive(item.path)
                           ? "bg-pink-100 dark:bg-pink-900/30"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
+                        } ${isSubscriptionInactive ? "opacity-50 cursor-not-allowed" : ""}`}
                       style={{ color: isLinkActive(item.path) ? "#c93b7d" : "" }}
                     >
                       {/* Fixed layout to prevent icon movement during collapse */}
@@ -382,9 +433,14 @@ function Sidebar() {
           </PopoverTrigger>
          <PopoverContent className="max-w-sm ml-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
                     <div className="space-y-4">
-                      <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                        Subscription Details
-                      </h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                          Subscription Details
+                        </h4>
+                        <Button variant="ghost" size="icon" onClick={() => setShowHistory(true)}>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
 
                       {loadingSubscription ? (
                         <div className="flex justify-center py-8">
@@ -416,7 +472,7 @@ function Sidebar() {
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-gray-500 dark:text-gray-400">Expires</span>
                               <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                                {new Date(subscriptionDetails.subscription_end_date).toLocaleDateString()}
+                                {new Date(subscriptionDetails.subscription_end_date).toLocaleDateString('en-GB')}
                               </span>
                             </div>
                           )}
@@ -428,6 +484,53 @@ function Sidebar() {
                       )}
                     </div>
                   </PopoverContent>
+
+                  {/* Subscription History Dialog */}
+                  <Dialog open={showHistory} onOpenChange={setShowHistory}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Subscription History</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
+                        {loadingHistory ? (
+                          <div className="flex justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-pink-600" />
+                          </div>
+                        ) : subscriptionHistory.length > 0 ? (
+                          <div className="overflow-hidden">
+                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                              <thead className="bg-gray-50 dark:bg-gray-800">
+                                <tr>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Date</th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Plan</th>
+                                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Expires</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                {subscriptionHistory.map((history, index) => (
+                                  <tr key={index}>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
+                                      {new Date(history.created_at).toLocaleDateString('en-GB')}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                      {history.plan_name || 'N/A'}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                      {history.end_date ? new Date(history.end_date).toLocaleDateString('en-GB') : '-'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                            No subscription history available
+                          </p>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
               </Popover>
 
         {/* only show name & role when expanded */}
@@ -480,7 +583,7 @@ function Sidebar() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col w-0 overflow-hidden">
-        <header className=" hidden md:flex h-16 shrink-0 items-center gap-4 border-b bg-white dark:bg-gray-800 dark:border-gray-700 px-6 ">
+        <header className=" hidden md:flex h-16 shrink-0 items-center gap-4 border-b dark:border-gray-700 px-6 ">
           <h1 className="text-lg font-semibold tracking-tight">{getHeaderText()}</h1>
 
           {/* Optional: Right side header content */}
@@ -489,7 +592,7 @@ function Sidebar() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900 pb-24 md:pb-6">
+        <main className="flex-1 overflow-y-auto p-6 pb-24 md:pb-6 home-wrapper">
           <div className="mx-auto max-w-7xl">
             <Outlet />
           </div>

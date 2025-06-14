@@ -4,7 +4,7 @@ import { Users, Calendar, XCircle, DollarSign, CreditCard } from "lucide-react";
 import { supabase } from "../../supabase";
 import { useNavigate } from "react-router-dom";
 
-const SummaryCards = ({ dateRange, selectedShop }) => {
+const SummaryCards = ({ dateRange, selectedShop, organizationId }) => {
   const navigate = useNavigate();
   const [summaryData, setSummaryData] = useState({
     totalCustomers: 0,
@@ -38,9 +38,15 @@ const SummaryCards = ({ dateRange, selectedShop }) => {
         // Check if it's a single day query (Today, Yesterday)
         const isSingleDayQuery = fromDateStr === toDateStr;
         
+        // Skip the error throw and just return early if no organizationId
+        if (!organizationId) {
+          return;
+        }
+
         let bookingsQuery = supabase
           .from('historical_bookings')
-          .select('*');
+          .select('*')
+          .eq('organization_id', organizationId);
           
         // Add shop filter if a shop is selected
         if (selectedShop) {
@@ -121,7 +127,7 @@ const SummaryCards = ({ dateRange, selectedShop }) => {
     if (dateRange.from && dateRange.to) {
       fetchSummaryData();
     }
-  }, [dateRange, selectedShop]);
+  }, [dateRange, selectedShop, organizationId]);
 
   // Format currency
   const formatCurrency = (amount) => {
@@ -133,7 +139,7 @@ const SummaryCards = ({ dateRange, selectedShop }) => {
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 p-1 sm:p-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 p-1 sm:p-2">
       {/* Total Customers Card */}
       <Card 
         className="bg-white shadow-sm hover:shadow-md active:shadow-inner cursor-pointer transition-all duration-200 ease-in-out"

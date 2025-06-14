@@ -91,6 +91,19 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
       toast.error("Please select at least one shop.");
       return;
     }
+    
+    // Get organization_id from user session
+    const storedSession = localStorage.getItem('userSession');
+    if (!storedSession) {
+      toast.error("User session not found. Please log in again.");
+      return;
+    }
+    
+    const { organization_id } = JSON.parse(storedSession);
+    if (!organization_id) {
+      toast.error("Organization information not found. Please log in again.");
+      return;
+    }
 
     const updatedMainSlot = {
       id: slot.id,
@@ -99,9 +112,23 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
       specific_days: repeatAllDays ? null : selectedDays,
       shop_ids: selectedShops,
       sub_time_slots: subSlots,
+      organization_id: organization_id // Ensure organization_id is maintained
     };
 
     try {
+      // Verify the time slot belongs to the organization before updating
+      const { data: slotData, error: slotError } = await supabase
+        .from("time_slots")
+        .select("*")
+        .eq("id", updatedMainSlot.id)
+        .eq("organization_id", organization_id)
+        .single();
+        
+      if (slotError || !slotData) {
+        toast.error("You don't have permission to update this time slot.");
+        return;
+      }
+      
       const { error: mainSlotError } = await supabase
         .from("time_slots")
         .update({
@@ -109,8 +136,10 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
           repeat_all_days: repeatAllDays,
           specific_days: repeatAllDays ? null : selectedDays,
           shop_ids: updatedMainSlot.shop_ids,
+          organization_id: organization_id // Ensure organization_id is maintained
         })
-        .eq("id", updatedMainSlot.id);
+        .eq("id", updatedMainSlot.id)
+        .eq("organization_id", organization_id); // Add organization filter for extra security
 
       if (mainSlotError) throw mainSlotError;
 
@@ -125,7 +154,13 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
         time_slot_id: updatedMainSlot.id,
         slot_number: s.slot_number,
         description: s.description || null,
+        organization_id: organization_id // Add organization_id to each sub-time slot
       }));
+
+      // Ensure all sub-slots have organization_id
+      if (!newSubSlots.every(slot => slot.organization_id)) {
+        throw new Error('Organization ID is required for all sub-time slots');
+      }
 
       const { error: insertError } = await supabase
         .from("sub_time_slots")

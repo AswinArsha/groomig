@@ -36,7 +36,7 @@ import {
 
 import { supabase } from "../../supabase"; // Adjust path as needed
 
-function FinancialAnalytics({ dateRange }) {
+function FinancialAnalytics({ dateRange, organizationId }) {
   const [revenueData, setRevenueData] = useState([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueTrend, setRevenueTrend] = useState(0);
@@ -54,11 +54,25 @@ function FinancialAnalytics({ dateRange }) {
 
   useEffect(() => {
     fetchRevenueData();
-  }, [dateRange]);
+  }, [dateRange, organizationId]);
 
   const fetchRevenueData = async () => {
     setIsLoading(true);
     try {
+      // Get organization_id from user session if not provided as prop
+      let orgId = organizationId;
+      if (!orgId) {
+        const storedSession = localStorage.getItem('userSession');
+        if (!storedSession) {
+          throw new Error('User session not found');
+        }
+        const { organization_id } = JSON.parse(storedSession);
+        if (!organization_id) {
+          throw new Error('Organization information not found');
+        }
+        orgId = organization_id;
+      }
+
       // Convert dates to IST by adding 5 hours and 30 minutes
       const getISTDate = (date) => {
         const d = new Date(date);
@@ -68,10 +82,11 @@ function FinancialAnalytics({ dateRange }) {
       const from = dateRange?.from ? getISTDate(dateRange.from).toISOString().split('T')[0] : '2010-01-01';
       const to = dateRange?.to ? getISTDate(dateRange.to).toISOString().split('T')[0] : getISTDate(new Date()).toISOString().split('T')[0];
       
-      // Fetch bookings with date and services data
+      // Fetch bookings with date and services data, enforcing organization filter
       const { data, error } = await supabase
         .from('historical_bookings')
         .select('booking_date, services')
+        .eq('organization_id', orgId)
         .gte('booking_date', from)
         .lte('booking_date', to)
         .not('services', 'is', null);

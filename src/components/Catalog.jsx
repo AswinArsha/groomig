@@ -55,9 +55,26 @@ export default function Catalog() {
   // Fetch services from Supabase
   const fetchServices = async () => {
     setLoading(true);
+    
+    // Get organization_id from user session
+    const storedSession = localStorage.getItem('userSession');
+    if (!storedSession) {
+      toast.error("User session not found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
+    const { organization_id } = JSON.parse(storedSession);
+    if (!organization_id) {
+      toast.error("Organization information not found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
     const { data, error } = await supabase
       .from("services")
       .select("*")
+      .eq("organization_id", organization_id) // Filter by organization_id
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -100,6 +117,32 @@ export default function Catalog() {
   // Confirm and execute deletion
   const confirmDelete = async () => {
     try {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+      
+      // Verify the service belongs to the organization before deleting
+      const { data: serviceData, error: serviceError } = await supabase
+        .from("services")
+        .select("*")
+        .eq("id", serviceToDelete.id)
+        .eq("organization_id", organization_id)
+        .single();
+        
+      if (serviceError || !serviceData) {
+        toast.error("You don't have permission to delete this service.");
+        return;
+      }
+      
       if (serviceToDelete.image_url) {
         // Extract the file name from the image URL
         const imagePath = serviceToDelete.image_url.split("/").pop();
@@ -115,7 +158,8 @@ export default function Catalog() {
       const { error: dbError } = await supabase
         .from("services")
         .delete()
-        .eq("id", serviceToDelete.id);
+        .eq("id", serviceToDelete.id)
+        .eq("organization_id", organization_id); // Add organization filter for extra security
 
       if (dbError) throw dbError;
 

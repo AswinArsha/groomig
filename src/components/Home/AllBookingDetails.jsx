@@ -63,24 +63,47 @@ export default function AllBookingDetails() {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentHistorySupported, setPaymentHistorySupported] = useState(true);
 
+  // State for organization ID
+  const [organizationId, setOrganizationId] = useState(null);
+
+  // Get organization ID from user session
+  useEffect(() => {
+    const userSession = JSON.parse(localStorage.getItem("userSession"));
+    if (userSession && userSession.organization_id) {
+      setOrganizationId(userSession.organization_id);
+    }
+  }, []);
+
   // Fetch booking details from historical_bookings
   const fetchHistoricalBookingDetails = useCallback(async () => {
     setLoading(true);
     try {
       // First try to get from historical_bookings using original_booking_id
-      let { data: historicalData, error: historicalError } = await supabase
+      let query = supabase
         .from("historical_bookings")
         .select("*")
-        .eq("id", id)
-        .single();
+        .eq("id", id);
+      
+      // Filter by organization_id if available
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      
+      let { data: historicalData, error: historicalError } = await query.single();
 
       // If not found by id, try original_booking_id
       if (historicalError) {
-        const { data: historicalByOriginalId, error: originalIdError } = await supabase
+        let originalIdQuery = supabase
           .from("historical_bookings")
           .select("*")
-          .eq("original_booking_id", id)
-          .single();
+          .eq("original_booking_id", id);
+          
+        // Filter by organization_id if available
+        if (organizationId) {
+          originalIdQuery = originalIdQuery.eq("organization_id", organizationId);
+        }
+        
+        const { data: historicalByOriginalId, error: originalIdError } = await originalIdQuery.single();
 
         if (!originalIdError) {
           historicalData = historicalByOriginalId;
@@ -90,7 +113,7 @@ export default function AllBookingDetails() {
 
       if (historicalError) {
         // If not found in historical, try to get from regular bookings
-        const { data: regularData, error: regularError } = await supabase
+        let regularQuery = supabase
           .from("bookings")
           .select(`
             *,
@@ -106,8 +129,14 @@ export default function AllBookingDetails() {
               phone_number
             )
           `)
-          .eq("id", id)
-          .single();
+          .eq("id", id);
+          
+        // Filter by organization_id if available
+        if (organizationId) {
+          regularQuery = regularQuery.eq("organization_id", organizationId);
+        }
+        
+        const { data: regularData, error: regularError } = await regularQuery.single();
 
         if (regularError) throw regularError;
         
@@ -214,11 +243,18 @@ export default function AllBookingDetails() {
         return;
       }
       
-      const { data, error } = await supabase
+      let query = supabase
         .from("payment_history")
         .select("*")
         .eq("booking_id", bookingId)
         .order("payment_date", { ascending: false });
+        
+      // Filter by organization_id if available
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      
+      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -261,7 +297,8 @@ export default function AllBookingDetails() {
             booking_id: booking.id,
             payment_mode: paymentMode,
             payment_date: paymentTimestamp,
-            amount: creditAmount
+            amount: creditAmount,
+            organization_id: organizationId || booking.organization_id // Ensure organization_id is maintained
           })
           .select();
 
@@ -298,7 +335,8 @@ export default function AllBookingDetails() {
         .update({
           payment_mode: paymentMode,
           payment_record_timestamp: paymentTimestamp,
-          payment_details: updatedPaymentDetails
+          payment_details: updatedPaymentDetails,
+          organization_id: organizationId // Ensure organization_id is maintained
         })
         .eq("id", booking.id);
 

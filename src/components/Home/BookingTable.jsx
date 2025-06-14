@@ -69,6 +69,17 @@ export default function BookingTable() {
   // Single date picker (default today)
   const [selectedDate, setSelectedDate] = useState(new Date());
 
+  // Get user role and organization_id from session
+  const [userRole, setUserRole] = useState(null);
+  const [organizationId, setOrganizationId] = useState(null);
+  
+  // Subscription status
+  const [subscriptionDetails, setSubscriptionDetails] = useState(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  
+  // Check if subscription is inactive
+  const isSubscriptionInactive = subscriptionDetails?.subscription_status !== 'active';
+
   // States for filtering by services:
   const [serviceOptions, setServiceOptions] = useState([]);
   const [selectedServiceFilters, setSelectedServiceFilters] = useState([]);
@@ -176,10 +187,17 @@ export default function BookingTable() {
   // ─────────────────────────────────────────────────────────────────────────────
   const fetchShopOptions = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("shops")
         .select("id, name")
         .order("name");
+      
+      // Filter shops by organization_id if available
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       const options = [{ value: null, label: "All Shops" }].concat(
         data.map((shop) => ({
@@ -191,7 +209,7 @@ export default function BookingTable() {
     } catch (error) {
       toast.error(`Error fetching shops: ${error.message}`);
     }
-  }, []);
+  }, [organizationId]);
 
   useEffect(() => {
     fetchShopOptions();
@@ -216,10 +234,17 @@ export default function BookingTable() {
   // ─────────────────────────────────────────────────────────────────────────────
   const fetchServiceOptions = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("services")
         .select("id, name")
         .order("name");
+      
+      // Filter services by organization_id if available
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       const options = data.map((service) => ({
         value: service.id,
@@ -229,7 +254,7 @@ export default function BookingTable() {
     } catch (error) {
       toast.error(`Error fetching services: ${error.message}`);
     }
-  }, []);
+  }, [organizationId]);
 
   useEffect(() => {
     fetchServiceOptions();
@@ -296,6 +321,18 @@ export default function BookingTable() {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
+      // Get organization_id from user session
+      const userSession = JSON.parse(localStorage.getItem("userSession"));
+      const userOrgId = userSession?.organization_id;
+
+      if (!userOrgId) {
+        toast.error("No organization found. Please log in again.");
+        setBookings([]);
+        setTotalCount(0);
+        setLoading(false);
+        return;
+      }
+
       const formattedDate = format(selectedDate, "yyyy-MM-dd");
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
@@ -321,6 +358,7 @@ export default function BookingTable() {
           { count: "exact" }
         )
         .eq("booking_date", formattedDate)
+        .eq("organization_id", userOrgId)
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -377,6 +415,7 @@ export default function BookingTable() {
     selectedShop,
     currentPage,
     itemsPerPage,
+    organizationId, // Add organizationId to dependencies
   ]);
 
   useEffect(() => {
@@ -408,15 +447,40 @@ export default function BookingTable() {
     };
   }, [searchTerm, selectedDate, selectedServiceFilters, currentPage, fetchBookings]);
 
-  // Get user role from session
-  const [userRole, setUserRole] = useState(null);
-
   useEffect(() => {
     const userSession = JSON.parse(localStorage.getItem("userSession"));
     if (userSession) {
       setUserRole(userSession.type === "staff" ? "staff" : "admin");
+      setOrganizationId(userSession.organization_id);
     }
   }, []);
+
+  // Separate useEffect for subscription
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (!organizationId) return;
+      
+      setLoadingSubscription(true);
+      try {
+        const { data, error } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', organizationId)
+          .order('subscription_end_date', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error) throw error;
+        setSubscriptionDetails(data);
+      } catch (error) {
+        console.error('Error fetching subscription:', error);
+      } finally {
+        setLoadingSubscription(false);
+      }
+    };
+
+    fetchSubscription();
+  }, [organizationId]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Undo Cancel
@@ -507,6 +571,7 @@ export default function BookingTable() {
           slot_time: booking.slot_time,
           sub_time_slot_id: booking.sub_time_slot_id,
           shop_id: booking.shop_id,
+          organization_id: booking.organization_id,
           status: "cancelled",
           services: services.length > 0 ? JSON.stringify(services) : null,
           feedback:
@@ -989,7 +1054,9 @@ export default function BookingTable() {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => setEditingBooking(booking)}
+                                        onClick={() => !isSubscriptionInactive && setEditingBooking(booking)}
+                                        disabled={isSubscriptionInactive}
+                                        style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
                                         aria-label={`Edit booking ${booking.id}`}
                                       >
                                         <Edit2 className="h-4 w-4" />
@@ -1023,6 +1090,8 @@ export default function BookingTable() {
                                         size="sm"
                                         variant="outline"
                                         className="bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-700"
+                                        disabled={isSubscriptionInactive}
+                                        style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
                                         aria-label={`Undo cancellation for booking ${booking.id}`}
                                       >
                                         <RotateCcw className="h-4 w-4 mr-1" />
@@ -1043,9 +1112,9 @@ export default function BookingTable() {
                                         <Button
                                           variant="default"
                                           className="bg-amber-600 hover:bg-amber-700"
-                                          onClick={() =>
-                                            handleUndoCancel(booking)
-                                          }
+                                          onClick={() => !isSubscriptionInactive && handleUndoCancel(booking)}
+                                          disabled={isSubscriptionInactive}
+                                          style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
                                         >
                                           Yes, restore booking
                                         </Button>
@@ -1057,9 +1126,11 @@ export default function BookingTable() {
                               {/* Check-in or Details */}
                               {booking.status === "reserved" ? (
                                 <motion.button
-                                  onClick={() => handleCheckIn(booking.id)}
+                                  onClick={() => !isSubscriptionInactive && handleCheckIn(booking.id)}
                                   whileTap={{ scale: 0.95 }}
                                   aria-label={`Check in booking ${booking.id}`}
+                                  disabled={isSubscriptionInactive}
+                                  style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
                                   className="flex items-center justify-center p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition"
                                 >
                                   <Check className="h-4 w-4" />
@@ -1068,11 +1139,11 @@ export default function BookingTable() {
                                 booking.status === "progressing" ||
                                 booking.status === "completed" ? (
                                 <motion.button
-                                  onClick={() =>
-                                    navigate(`/bookings/${booking.id}`)
-                                  }
+                                  onClick={() => !isSubscriptionInactive && navigate(`/bookings/${booking.id}`)}
                                   whileTap={{ scale: 0.95 }}
                                   aria-label={`View details for booking ${booking.id}`}
+                                  disabled={isSubscriptionInactive}
+                                  style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
                                   className="flex items-center justify-center p-2 bg-white border border-gray-300 text-gray-600 rounded-full hover:bg-gray-50 hover:border-gray-400 transition"
                                 >
                                   <ArrowRight className="h-4 w-4" />
@@ -1093,7 +1164,9 @@ export default function BookingTable() {
                                       <Button
                                         size="sm"
                                         variant="destructive"
-                                        onClick={() => setCancelId(booking.id)}
+                                        onClick={() => !isSubscriptionInactive && setCancelId(booking.id)}
+                                        disabled={isSubscriptionInactive}
+                                        style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
                                         aria-label={`Cancel booking ${booking.id}`}
                                       >
                                         <Ban className="h-4 w-4" />
@@ -1114,13 +1187,15 @@ export default function BookingTable() {
                                         <Button
                                           variant="destructive"
                                           onClick={() =>
-                                            cancelId &&
+                                            !isSubscriptionInactive && cancelId &&
                                             handleCancel(
                                               bookings.find(
                                                 (b) => b.id === cancelId
                                               )
                                             )
                                           }
+                                          disabled={isSubscriptionInactive}
+                                          style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
                                         >
                                           Yes, cancel booking
                                         </Button>

@@ -26,6 +26,22 @@ export default function TimeSlotList() {
 
   const fetchSlots = async () => {
     setLoading(true);
+    
+    // Get organization_id from user session
+    const storedSession = localStorage.getItem('userSession');
+    if (!storedSession) {
+      toast.error("User session not found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
+    const { organization_id } = JSON.parse(storedSession);
+    if (!organization_id) {
+      toast.error("Organization information not found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
     const { data, error } = await supabase
       .from("time_slots")
       .select(`
@@ -34,6 +50,7 @@ export default function TimeSlotList() {
           *
         )
       `)
+      .eq("organization_id", organization_id) // Filter by organization_id
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -72,18 +89,81 @@ export default function TimeSlotList() {
   }, []);
 
   const handleDelete = async (id) => {
-    const { error } = await supabase.from("time_slots").delete().eq("id", id);
-    if (error) {
-      toast.error(`Error deleting time slot: ${error.message}`);
-    } else {
-      toast.success("Time slot deleted successfully!");
-      fetchSlots();
+    try {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+      
+      // Verify the time slot belongs to the organization before deleting
+      const { data: slotData, error: slotError } = await supabase
+        .from("time_slots")
+        .select("*")
+        .eq("id", id)
+        .eq("organization_id", organization_id)
+        .single();
+        
+      if (slotError || !slotData) {
+        toast.error("You don't have permission to delete this time slot.");
+        return;
+      }
+      
+      // Delete the time slot
+      const { error } = await supabase
+        .from("time_slots")
+        .delete()
+        .eq("id", id)
+        .eq("organization_id", organization_id); // Add organization filter for extra security
+      
+      if (error) {
+        toast.error(`Error deleting time slot: ${error.message}`);
+      } else {
+        toast.success("Time slot deleted successfully!");
+        fetchSlots();
+      }
+    } catch (error) {
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setDeleteId(null);
     }
-    setDeleteId(null);
   };
 
   const handleEdit = async (updatedSlot) => {
     try {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+      
+      // Verify the time slot belongs to the organization before updating
+      const { data: slotData, error: slotError } = await supabase
+        .from("time_slots")
+        .select("*")
+        .eq("id", updatedSlot.id)
+        .eq("organization_id", organization_id)
+        .single();
+        
+      if (slotError || !slotData) {
+        toast.error("You don't have permission to update this time slot.");
+        return;
+      }
+      
       // Update main time slot
       const { error: mainSlotError } = await supabase
         .from("time_slots")
@@ -91,8 +171,11 @@ export default function TimeSlotList() {
           start_time: updatedSlot.start_time,
           repeat_all_days: updatedSlot.repeat_all_days,
           specific_days: updatedSlot.specific_days,
+          shop_ids: updatedSlot.shop_ids,
+          organization_id: organization_id // Ensure organization_id is maintained
         })
-        .eq("id", updatedSlot.id);
+        .eq("id", updatedSlot.id)
+        .eq("organization_id", organization_id); // Add organization filter for extra security
 
       if (mainSlotError) throw mainSlotError;
 
@@ -109,6 +192,7 @@ export default function TimeSlotList() {
         time_slot_id: updatedSlot.id,
         slot_number: s.slot_number,
         description: s.description || null,
+        organization_id: organization_id // Add organization_id to each sub-time slot
       }));
 
       const { error: insertError } = await supabase

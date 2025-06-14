@@ -30,7 +30,7 @@ import {
   User,
   DogIcon,
   Store,
-  Check 
+  Check ,ChevronLeft ,ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
@@ -517,12 +517,12 @@ export default function UserBookingForm() {
             className="space-y-6"
           >
             {/* Booking Date */}
-            <div className="space-y-4">
+            <div className="space-y-4 ">
               <div className="text-center mb-4">
-                <h2 className="text-xl font-medium">
+                <h2 className="text-base sm:text-lg font-medium">
                   When would you like to book?
                 </h2>
-                <p className="text-gray-500">
+                <p className="text-sm sm:text-base text-gray-500">
                   Select a date for your dog's grooming session
                 </p>
               </div>
@@ -576,10 +576,10 @@ export default function UserBookingForm() {
             {/* Shop Selection */}
             <div className="space-y-4">
               <div className="text-center mb-4">
-                <h2 className="text-xl font-medium">
+                <h2 className="text-base sm:text-lg font-medium">
                   Select a Grooming Location
                 </h2>
-                <p className="text-gray-500">
+                <p className="text-gray-500 text-sm sm:text-base">
                   Choose which of our shops you'd like to visit
                 </p>
               </div>
@@ -660,10 +660,10 @@ export default function UserBookingForm() {
             {/* Time Slot Selection */}
             <div className="space-y-4">
               <div className="text-center mb-4">
-                <h2 className="text-xl font-medium">
+                <h2 className=" font-medium text-base sm:text-lg">
                   Choose an Appointment Time
                 </h2>
-                <p className="text-gray-500">
+                <p className="text-gray-500 text-sm sm:text-base">
                   Select an available time slot for your visit
                 </p>
               </div>
@@ -714,8 +714,8 @@ export default function UserBookingForm() {
             {selectedTimeSlot && (
               <div className="space-y-4 mt-8">
                 <div className="text-center mb-2">
-                  <h3 className="text-lg font-medium">Select Slot</h3>
-                  <p className="text-gray-500 text-sm">
+                  <h3 className="text-base sm:text-lg font-medium">Select Slot</h3>
+                  <p className="text-gray-500 text-sm sm:text-base">
                     Choose an available appointment slot
                   </p>
                 </div>
@@ -742,36 +742,11 @@ export default function UserBookingForm() {
                     {availableSubSlots.map((subSlot) => (
                       <Button
                         key={subSlot.id}
-                        variant={
-                          selectedSubSlot === subSlot.id ? "default" : "outline"
-                        }
-                        onClick={() => {
-                          setSelectedSubSlot(subSlot.id);
-                        }}
-                        className={`py-4 ${
-                          selectedSubSlot === subSlot.id
-                            ? "bg-primary text-white"
-                            : ""
-                        }`}
+                        variant={selectedSubSlot === subSlot.id ? "default" : "outline"}
+                        className={`w-full h-auto py-3 px-2 text-xs sm:text-sm whitespace-normal text-center flex items-center justify-center ${selectedSubSlot === subSlot.id ? 'bg-primary text-primary-foreground' : ''}`}
+                        onClick={() => setSelectedSubSlot(subSlot.id)}
                       >
-                        {subSlot.description ||
-                          `Slot ${subSlot.slot_number}`}
-                        {selectedSubSlot === subSlot.id && (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="ml-2 h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        )}
+                        {subSlot.description}
                       </Button>
                     ))}
                   </div>
@@ -792,8 +767,8 @@ export default function UserBookingForm() {
             className="space-y-6"
           >
             <div className="text-center mb-4">
-              <h2 className="text-xl font-medium">Your Details</h2>
-              <p className="text-gray-500">
+              <h2 className="text-base sm:text-lg font-medium">Your Details</h2>
+              <p className="text-gray-500 text-sm sm:text-base">
                 Please provide information about you and your dog
               </p>
             </div>
@@ -847,7 +822,7 @@ export default function UserBookingForm() {
             </div>
 
             {isCustomerDetailsComplete() && (
-              <div className="mt-2 text-sm text-center text-gray-500">
+              <div className="mt-2 text-xs sm:text-sm text-center text-gray-500">
                 All details complete. Click "Continue" to review your booking.
               </div>
             )}
@@ -866,98 +841,90 @@ export default function UserBookingForm() {
             className="space-y-6"
           >
             <div className="text-center mb-4">
-              <h2 className="text-xl font-medium">Booking Summary</h2>
-              <p className="text-gray-500">
+              <h2 className="text-base sm:text-lg font-medium">Booking Summary</h2>
+              <p className="text-gray-500 text-sm sm:text-base">
                 Please review your appointment details before confirming
               </p>
             </div>
 
-            <div className="bg-white border rounded-lg p-6 shadow-sm">
-              <div className="space-y-5">
-                <div className="flex items-center">
-                  <CalendarIcon className="h-6 w-6 text-primary mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Date</p>
-                    <p className="font-medium">
-                      {bookingDate ? format(bookingDate, "PPP") : "N/A"}
-                    </p>
-                  </div>
-                </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+  <div className="space-y-4 text-sm text-gray-700">
+    <div className="flex items-start gap-3">
+      <CalendarIcon className="h-5 w-5 text-primary mt-0.5" />
+      <div>
+        <p className="text-xs text-gray-400">Date</p>
+        <p className="font-medium">{bookingDate ? format(bookingDate, "PPP") : "N/A"}</p>
+      </div>
+    </div>
 
-                <div className="flex items-center">
-                  <Store className="h-6 w-6 text-primary mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Location</p>
-                    <p className="font-medium">
-                      {selectedShopDetails.name || "N/A"}
-                      {selectedShopDetails.badge &&
-                        ` (${selectedShopDetails.badge})`}
-                    </p>
-                  </div>
-                </div>
+    <div className="flex items-start gap-3">
+      <Store className="h-5 w-5 text-primary mt-0.5" />
+      <div>
+        <p className="text-xs text-gray-400">Location</p>
+        <p className="font-medium">
+          {selectedShopDetails.name || "N/A"}
+          {selectedShopDetails.badge && ` (${selectedShopDetails.badge})`}
+        </p>
+      </div>
+    </div>
 
-                <div className="flex items-center">
-                  <Clock className="h-6 w-6 text-primary mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Time</p>
-                    <p className="font-medium">
-                      {selectedTimeSlot
-                        ? formatTimeIST(
-                            availableTimeSlots.find(
-                              (ts) => ts.id === selectedTimeSlot
-                            )?.start_time
-                          )
-                        : "N/A"}
-                      {selectedSubSlot &&
-                        ` - ${
-                          availableSubSlots.find(
-                            (ss) => ss.id === selectedSubSlot
-                          )?.description ||
-                          `Slot ${
-                            availableSubSlots.find(
-                              (ss) => ss.id === selectedSubSlot
-                            )?.slot_number
-                          }`
-                        }`}
-                    </p>
-                  </div>
-                </div>
+    <div className="flex items-start gap-3">
+      <Clock className="h-5 w-5 text-primary mt-0.5" />
+      <div>
+        <p className="text-xs text-gray-400">Time</p>
+        <p className="font-medium">
+          {selectedTimeSlot
+            ? formatTimeIST(
+                availableTimeSlots.find((ts) => ts.id === selectedTimeSlot)?.start_time
+              )
+            : "N/A"}
+          {selectedSubSlot &&
+            ` - ${
+              availableSubSlots.find((ss) => ss.id === selectedSubSlot)?.description ||
+              `Slot ${
+                availableSubSlots.find((ss) => ss.id === selectedSubSlot)?.slot_number
+              }`
+            }`}
+        </p>
+      </div>
+    </div>
 
-                <div className="border-t border-gray-200 my-4"></div>
+    <hr className="my-3 border-gray-200" />
 
-                <div className="flex items-center">
-                  <User className="h-6 w-6 text-primary mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Customer</p>
-                    <p className="font-medium">{customerName}</p>
-                  </div>
-                </div>
+    <div className="flex items-start gap-3">
+      <User className="h-5 w-5 text-primary mt-0.5" />
+      <div>
+        <p className="text-xs text-gray-400">Customer</p>
+        <p className="font-medium">{customerName}</p>
+      </div>
+    </div>
 
-                <div className="flex items-center">
-                  <Phone className="h-6 w-6 text-primary mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Contact</p>
-                    <p className="font-medium">{contactNumber}</p>
-                  </div>
-                </div>
+    <div className="flex items-start gap-3">
+      <Phone className="h-5 w-5 text-primary mt-0.5" />
+      <div>
+        <p className="text-xs text-gray-400">Contact</p>
+        <p className="font-medium">{contactNumber}</p>
+      </div>
+    </div>
 
-                <div className="flex items-center">
-                  <DogIcon className="h-6 w-6 text-primary mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Dog</p>
-                    <p className="font-medium">{dogName}</p>
-                  </div>
-                </div>
+    <div className="flex items-start gap-3">
+      <DogIcon className="h-5 w-5 text-primary mt-0.5" />
+      <div>
+        <p className="text-xs text-gray-400">Dog</p>
+        <p className="font-medium">{dogName}</p>
+      </div>
+    </div>
 
-                <div className="flex items-center">
-                  <Paw className="h-6 w-6 text-primary mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Breed</p>
-                    <p className="font-medium">{dogBreed}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+    <div className="flex items-start gap-3">
+      <Paw className="h-5 w-5 text-primary mt-0.5" />
+      <div>
+        <p className="text-xs text-gray-400">Breed</p>
+        <p className="font-medium">{dogBreed}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
           </motion.div>
         );
 
@@ -970,16 +937,16 @@ export default function UserBookingForm() {
     <div className="container mx-auto max-w-3xl py-8 px-4">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle className="text-center text-2xl">
+          <CardTitle className="mb-4 sm:mb-0 text-center text-xl sm:text-2xl">
             Book a Grooming Appointment
           </CardTitle>
-          <CardDescription className="text-center hidden md:block">
+          <CardDescription className="text-center  hidden md:block">
             Schedule a grooming session for your furry friend
           </CardDescription>
 
           {/* Progress Indicator */}
-          <div className="mt-6">
-            <Progress value={calculateProgress()} className="h-2" />
+          <div className="mt-4">
+            <Progress value={calculateProgress()} className="h-2 bg-white border border-gray-200" />
             <div className="flex justify-between mt-2">
               <span className="text-xs text-gray-500">Step {step} of 5</span>
               <span className="text-xs text-gray-500">
@@ -996,7 +963,7 @@ export default function UserBookingForm() {
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="pt-6">
+          <CardContent className="">
             <AnimatePresence mode="wait">{renderStepContent()}</AnimatePresence>
           </CardContent>
 
@@ -1007,7 +974,9 @@ export default function UserBookingForm() {
                 variant="outline"
                 onClick={() => setStep(step - 1)}
               >
-                Back
+                <ChevronLeft />
+                <span className="hidden sm:block">Back</span>
+                
               </Button>
             )}
 
@@ -1030,7 +999,10 @@ export default function UserBookingForm() {
                   Processing...
                 </>
               ) : step < 5 ? (
-                "Continue"
+                <>
+                Continue
+                <ChevronRight className="inline h-4 w-4 ml-1" />
+              </>
               ) : (
                 <>
                   <svg

@@ -43,6 +43,9 @@
     --sidebar-ring: 205 84% 50.4%;
   }
 
+  /* Add background pattern to html element */
+
+
   .dark {
     --background: 359 1% 14.4%;
     --foreground: 19 15% 73.4%;

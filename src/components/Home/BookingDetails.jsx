@@ -72,6 +72,15 @@ export default function BookingDetails() {
   const [groomers, setGroomers] = useState([]);
   const [selectedGroomer, setSelectedGroomer] = useState(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [organizationId, setOrganizationId] = useState(null);
+  
+  // Get organization ID from user session
+  useEffect(() => {
+    const userSession = JSON.parse(localStorage.getItem("userSession"));
+    if (userSession && userSession.organization_id) {
+      setOrganizationId(userSession.organization_id);
+    }
+  }, []);
   
   // New state for multi-payment mode
   const [paymentModes, setPaymentModes] = useState([
@@ -88,7 +97,7 @@ export default function BookingDetails() {
   const fetchBookingDetails = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("bookings")
         .select(`
           *,
@@ -105,8 +114,14 @@ export default function BookingDetails() {
             )
           )
         `)
-        .eq("id", id)
-        .single();
+        .eq("id", id);
+        
+      // Filter by organization_id if available
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      
+      const { data, error } = await query.single();
       if (error) throw error;
       setBooking(data);
   
@@ -162,7 +177,14 @@ export default function BookingDetails() {
   // Fetch all available services (for editing)
   const fetchAllServices = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from("services").select("*");
+      let query = supabase.from("services").select("*");
+      
+      // Filter by organization_id if available
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       const servicesData = data || [];
       setServices(servicesData);
@@ -175,10 +197,17 @@ export default function BookingDetails() {
   // Fetch all groomers
   const fetchGroomers = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("groomers")
         .select("*")
         .order("name");
+        
+      // Filter by organization_id if available
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       setGroomers(data || []);
     } catch (error) {
@@ -290,6 +319,7 @@ export default function BookingDetails() {
           careTips[service.id] && careTips[service.id].trim() !== ""
             ? careTips[service.id]
             : null,
+        organization_id: organizationId, // Add organization_id
       }));
       
       const { error: insertError } = await supabase
@@ -317,7 +347,7 @@ export default function BookingDetails() {
     } finally {
       setSubmitting(false);
     }
-  }, [id, selectedServices, serviceInputs, careTips, booking?.status, fetchBookingDetails]);
+  }, [id, selectedServices, serviceInputs, careTips, booking?.status, fetchBookingDetails, organizationId]);
 
   // Handle initial submission (for non-edit mode)
   const handleInitialSubmit = useCallback(async () => {
@@ -335,6 +365,7 @@ export default function BookingDetails() {
           careTips[service.id] && careTips[service.id].trim() !== ""
             ? careTips[service.id]
             : null,
+        organization_id: organizationId, // Add organization_id
       }));
       
       const { error: insertError } = await supabase
@@ -358,7 +389,7 @@ export default function BookingDetails() {
     } finally {
       setSubmitting(false);
     }
-  }, [id, selectedServices, serviceInputs, careTips, navigate]);
+  }, [id, selectedServices, serviceInputs, careTips, navigate, organizationId]);
 
   // Calculate total bill
   const calculateTotalBill = useCallback(() => {
@@ -622,6 +653,7 @@ export default function BookingDetails() {
         sub_time_slot_id: booking.sub_time_slot_id,
         shop_id: booking.shop_id,
         shop_name: shopName || "Unknown Shop",
+        organization_id: organizationId || booking.organization_id, // Ensure organization_id is maintained
         slot_description: slotDescription || "Unknown Slot",
         groomer_id: booking.groomer_id,
         groomer_name: groomers.find(g => g.id === booking.groomer_id)?.name || "Unknown Groomer",
@@ -680,7 +712,8 @@ export default function BookingDetails() {
         .insert({
           booking_id: id,
           rating: feedbackRating,
-          comment: feedbackComment,
+          comment: feedbackComment.trim() || null,
+          organization_id: organizationId // Add organization_id from state
         })
         .select()
         .single();
@@ -1532,10 +1565,11 @@ export default function BookingDetails() {
             </>
           )}
           </ScrollArea>
+          <ScrollArea className="max-h-[calc(90vh-8rem)] px-1">
 
           {paymentState === 'review' && (
             <>
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 -mt-4 py-4">
                 <div className="rounded-lg border p-4">
                   <h3 className="font-medium mb-2">Service Summary</h3>
                   <div className="space-y-3">
@@ -1616,6 +1650,7 @@ export default function BookingDetails() {
               </DialogFooter>
             </>
           )}
+                </ScrollArea>
         </DialogContent>
       </Dialog>
 

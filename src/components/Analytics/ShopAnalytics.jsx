@@ -57,7 +57,7 @@ import {
 
 import { supabase } from "../../supabase"; // Adjust path as needed
 
-function ShopAnalytics({ dateRange }) {
+function ShopAnalytics({ dateRange, organizationId }) {
   const [shopPerformanceData, setShopPerformanceData] = useState([]);
   const [shopRevenueData, setShopRevenueData] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState("total_bookings");
@@ -94,7 +94,7 @@ function ShopAnalytics({ dateRange }) {
 
   useEffect(() => {
     fetchShopData();
-  }, [dateRange]);
+  }, [dateRange, organizationId]);
 
   const fetchShopData = async () => {
     setIsLoading(true);
@@ -111,6 +111,11 @@ function ShopAnalytics({ dateRange }) {
   };
 
   const fetchShopPerformanceData = async () => {
+    if (!organizationId) {
+      setShopPerformanceData([]); // Clear or set to default
+      return;
+    }
+
     // Convert dates to IST by adding 5:30 hours before converting to date string
     const from = dateRange?.from
       ? new Date(dateRange.from.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0]
@@ -121,12 +126,15 @@ function ShopAnalytics({ dateRange }) {
     
     try {
       // Fetch bookings with shop, status, and feedback data
-      const { data, error } = await supabase
+      const query = supabase
         .from('historical_bookings')
         .select('shop_name, status, feedback')
+        .eq('organization_id', organizationId)
         .gte('booking_date', from)
         .lte('booking_date', to)
         .not('shop_name', 'is', null);
+      
+      const { data, error } = await query;
         
       if (error) throw error;
       
@@ -201,6 +209,13 @@ function ShopAnalytics({ dateRange }) {
   };
 
   const fetchShopRevenueData = async () => {
+    if (!organizationId) {
+      setShopRevenueData([]); // Clear or set to default
+      setTotalRevenue(0);
+      setTopShop({ name: '', revenue: 0 });
+      return;
+    }
+
     // Convert dates to IST by adding 5:30 hours before converting to date string
     const from = dateRange?.from
       ? new Date(dateRange.from.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0]
@@ -211,12 +226,15 @@ function ShopAnalytics({ dateRange }) {
     
     try {
       // Fetch bookings with shop and services data
-      const { data, error } = await supabase
+      const query = supabase
         .from('historical_bookings')
         .select('shop_name, services')
+        .eq('organization_id', organizationId)
         .gte('booking_date', from)
         .lte('booking_date', to)
         .not('shop_name', 'is', null);
+      
+      const { data, error } = await query;
         
       if (error) throw error;
       

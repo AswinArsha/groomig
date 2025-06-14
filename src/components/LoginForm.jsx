@@ -52,17 +52,14 @@ export default function LoginForm() {
       console.log('🏢 orgRes (admin):', orgRes)
       if (!orgRes.data) {
         setError('Organization record not found.')
-      } else if (
-        orgRes.data.subscription_status !== 'active' ||
-        (orgRes.data.subscription_end_date &&
-         new Date(orgRes.data.subscription_end_date) < new Date())
-      ) {
-        setError('Your subscription has expired.')
       } else {
+        // Allow login even if subscription is expired
+        // The SubscriptionValidator component will handle showing the modal
         localStorage.setItem('userSession', JSON.stringify({
           type: 'admin',
           username: adminRes.data.username,
-          full_name: adminRes.data.full_name || adminRes.data.username
+          full_name: adminRes.data.full_name || adminRes.data.username,
+          organization_id: adminRes.data.organization_id
         }))
         navigate('/home')
         return
@@ -98,17 +95,14 @@ export default function LoginForm() {
       console.log('🏢 orgRes (staff):', orgRes)
       if (!orgRes.data) {
         setError('Organization record not found.')
-      } else if (
-        orgRes.data.subscription_status !== 'active' ||
-        (orgRes.data.subscription_end_date &&
-         new Date(orgRes.data.subscription_end_date) < new Date())
-      ) {
-        setError('Your subscription has expired.')
       } else {
+        // Allow login even if subscription is expired
+        // The SubscriptionValidator component will handle showing the modal
         localStorage.setItem('userSession', JSON.stringify({
           type: 'staff',
           username: staffRes.data.username,
-          full_name: staffRes.data.name || staffRes.data.username
+          full_name: staffRes.data.name || staffRes.data.username,
+          organization_id: staffRes.data.organization_id
         }))
         navigate('/home')
         return

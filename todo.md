@@ -1,0 +1,2 @@
+- [ ] Move the Supabase edge functions to different Supabase account with the correct environment details
+- [ ] Ensure organization ID is correctly passed when user makes a booking through the user-side interface

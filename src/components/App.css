@@ -1,0 +1,8 @@
+/* Home.css */
+.home-wrapper {
+    min-height: 100vh;
+    background-image: url('../assets/doodle-bg.jpg');
+ 
+    background-position: center;
+  }
+  

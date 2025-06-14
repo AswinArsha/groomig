@@ -405,6 +405,18 @@ export default function HistoricalBookingTable() {
   const fetchHistoricalBookings = useCallback(async () => {
     setLoading(true);
     try {
+      // Get organization_id from user session
+      const userSession = JSON.parse(localStorage.getItem("userSession"));
+      const userOrgId = userSession?.organization_id;
+
+      if (!userOrgId) {
+        toast.error("No organization found. Please log in again.");
+        setBookings([]);
+        setTotalCount(0);
+        setLoading(false);
+        return;
+      }
+
       const formattedDateFrom = format(selectedDate.from, "yyyy-MM-dd");
       const formattedDateTo = format(selectedDate.to, "yyyy-MM-dd");
 
@@ -415,6 +427,7 @@ export default function HistoricalBookingTable() {
       let query = supabase
         .from("historical_bookings")
         .select("*", { count: "exact" })
+        .eq("organization_id", userOrgId)
         .gte("booking_date", formattedDateFrom)
         .lte("booking_date", formattedDateTo)
         .order("completed_at", { ascending: false })

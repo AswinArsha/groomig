@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMediaQuery } from "@/hooks/use-media-query";
-import { Loader2, Plus, Pencil, Trash2, Search } from "lucide-react";
+ import { useMediaQuery } from "@/hooks/use-media-query";
+import { Loader2, Plus, Pencil, Trash2, Search, CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react"; // Added CheckIcon, EyeIcon, EyeOffIcon, XIcon
 import {
   Dialog,
   DialogContent,
@@ -44,14 +44,69 @@ export default function Staff() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [password, setPassword] = useState(""); // State for password input
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false); // State for password visibility
+  const id = React.useId(); // For unique IDs
+
+  const togglePasswordVisibility = () => setIsPasswordVisible((prevState) => !prevState);
+
+  // Password validation function (updated)
+  const checkPasswordStrength = (pass) => {
+    const requirements = [
+      { regex: /.{8,}/, text: "At least 8 characters" },
+      { regex: /[0-9]/, text: "At least 1 number" },
+      { regex: /[a-z]/, text: "At least 1 lowercase letter" },
+      { regex: /[A-Z]/, text: "At least 1 uppercase letter" },
+    ];
+
+    return requirements.map((req) => ({
+      met: req.regex.test(pass),
+      text: req.text,
+    }));
+  };
+
+  const passwordStrength = React.useMemo(() => checkPasswordStrength(password), [password]);
+  const passwordStrengthScore = React.useMemo(() => passwordStrength.filter((req) => req.met).length, [passwordStrength]);
+
+  const getStrengthColor = (score) => {
+    if (score === 0) return "bg-border";
+    if (score <= 1) return "bg-red-500";
+    if (score <= 2) return "bg-orange-500";
+    if (score === 3) return "bg-yellow-500";
+    return "bg-emerald-500";
+  };
+
+  const getStrengthText = (score) => {
+    if (score === 0) return "Enter a password";
+    if (score <= 2) return "Weak password";
+    if (score === 3) return "Medium password";
+    return "Strong password";
+  };
 
   // Fetch staff from Supabase
   const fetchStaff = async () => {
     setLoading(true);
+    
+    // Get organization_id from user session
+    const storedSession = localStorage.getItem('userSession');
+    if (!storedSession) {
+      toast.error("User session not found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
+    const { organization_id } = JSON.parse(storedSession);
+    if (!organization_id) {
+      toast.error("Organization information not found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
     const { data, error } = await supabase
       .from("staff")
       .select("*")
       .eq('role', 'staff')
+      .eq('organization_id', organization_id) // Filter by organization_id
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -70,13 +125,36 @@ export default function Staff() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    
+    // Get organization_id from user session
+    const storedSession = localStorage.getItem('userSession');
+    if (!storedSession) {
+      toast.error("User session not found. Please log in again.");
+      return;
+    }
+    
+    const { organization_id } = JSON.parse(storedSession);
+    if (!organization_id) {
+      toast.error("Organization information not found. Please log in again.");
+      return;
+    }
+    
     const staffData = {
       name: formData.get("name"),
       phone: formData.get("phone"),
       username: formData.get("username"),
-      password: formData.get("password"), // In a real app, this should be properly hashed
+      password: password, // Use state variable for password
       role: 'staff', // Set default role as staff
+      organization_id, // Add organization_id to staff data
     };
+
+    // Validate password strength
+    if (staffData.password && passwordStrengthScore < 4) {
+      toast.error(
+        "Password must meet all requirements: at least 8 characters, uppercase, lowercase, and number."
+      );
+      return;
+    }
 
     try {
       if (editingStaff) {
@@ -102,10 +180,37 @@ export default function Staff() {
   // Handle staff deletion
   const handleDelete = async () => {
     try {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+      
+      // Verify the staff belongs to the organization before deleting
+      const { data: staffData, error: staffError } = await supabase
+        .from("staff")
+        .select("*")
+        .eq("id", staffToDelete.id)
+        .eq("organization_id", organization_id)
+        .single();
+        
+      if (staffError || !staffData) {
+        toast.error("You don't have permission to delete this staff member.");
+        return;
+      }
+      
       const { error } = await supabase
         .from("staff")
         .delete()
-        .eq("id", staffToDelete.id);
+        .eq("id", staffToDelete.id)
+        .eq("organization_id", organization_id); // Add organization filter for extra security
 
       if (error) throw error;
       toast.success("Staff deleted successfully!");
@@ -116,6 +221,13 @@ export default function Staff() {
       setDeleteDialogOpen(false);
       setStaffToDelete(null);
     }
+  };
+
+  const handleOpenDialog = (staff = null) => {
+    setEditingStaff(staff);
+    setPassword(""); // Reset password state
+    setIsPasswordVisible(false); // Reset password visibility
+    setDialogOpen(true);
   };
 
   // Filter staff based on search term
@@ -138,7 +250,7 @@ export default function Staff() {
             className="pl-10 w-full"
           />
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => handleOpenDialog()}> {/* Use new handler */}
         <Plus className=" md:mr-2 h-4 w-4" />
         <span className="hidden sm:inline">Add New Staff</span>
           
@@ -172,8 +284,7 @@ export default function Staff() {
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    setEditingStaff(member);
-                    setDialogOpen(true);
+                    handleOpenDialog(member); // Use new handler for editing
                   }}
                 >
                   <Pencil className="mr-2 h-4 w-4" /> Edit
@@ -197,81 +308,14 @@ export default function Staff() {
       {/* Responsive Form Dialog/Drawer */}
       {useMediaQuery("(min-width: 640px)") ? (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>
-          
+                {editingStaff ? "Edit Staff Member" : "Add New Staff Member"}
               </DialogTitle>
             </DialogHeader>
-            <Card className="w-full max-w-lg mx-auto">
-      <CardHeader>
-        <CardTitle> {editingStaff ? "Edit Staff Member" : "Add New Staff Member"} </CardTitle>
-      </CardHeader>
-      <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  defaultValue={editingStaff?.name}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="number"
-                  defaultValue={editingStaff?.phone}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  name="username"
-                  defaultValue={editingStaff?.username}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  defaultValue={editingStaff?.password}
-                  required={!editingStaff}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">{editingStaff ? "Update" : "Add"}</Button>
-              </div>
-            </form>
-            </CardContent>
-            </Card>
-          </DialogContent>
-        </Dialog>
-      ) : (
-        <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DrawerContent>
-            <DrawerHeader className="text-left">
-          
-            </DrawerHeader>
-
-            <div className="px-4">
-            <Card className="w-full max-w-lg mx-auto">
-      <CardHeader>
-        <CardTitle> {editingStaff ? "Edit Staff" : "Add New Staff"} </CardTitle>
-      </CardHeader>
-      <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-6">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
                   <Input
@@ -291,6 +335,9 @@ export default function Staff() {
                     required
                   />
                 </div>
+              </div>
+              
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
                   <Input
@@ -301,34 +348,163 @@ export default function Staff() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  {/* <Label htmlFor={`${id}-password`}>Password</Label> */}
+                  <div className="relative">
+                    <Input
+                      id={`${id}-password`}
+                      name="password"
+                      type={isPasswordVisible ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required={!editingStaff}
+                      className="pe-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                    >
+                      {isPasswordVisible ? (
+                        <EyeOffIcon className="h-4 w-4" />
+                      ) : (
+                        <EyeIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  <div className="mt-2">
+                    <div
+                      className="h-1 w-full rounded-full bg-border overflow-hidden"
+                      role="progressbar"
+                      aria-valuenow={passwordStrengthScore}
+                      aria-valuemin={0}
+                      aria-valuemax={4}
+                    >
+                      <div
+                        className={`h-full ${getStrengthColor(passwordStrengthScore)} transition-all duration-500`}
+                        style={{ width: `${(passwordStrengthScore / 4) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-sm mt-1">{getStrengthText(passwordStrengthScore)}</p>
+                  </div>
+                  
+                  <ul className="space-y-1.5 text-sm mt-2">
+                    {passwordStrength.map((req, index) => (
+                      <li key={index} className="flex items-center gap-2">
+                        {req.met ? (
+                          <CheckIcon className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <XIcon className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className={req.met ? "text-emerald-500" : "text-gray-500"}>
+                          {req.text}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="col-span-2 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">{editingStaff ? "Update Staff" : "Add Staff"}</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>
+                {editingStaff ? "Edit Staff" : "Add New Staff"}
+              </DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name-mobile">Name</Label>
                   <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    defaultValue={editingStaff?.password}
-                    required={!editingStaff}
+                    id="name-mobile"
+                    name="name"
+                    defaultValue={editingStaff?.name}
+                    required
                   />
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" className="hidden sm:block" onClick={() => setDialogOpen(false)}>
-                    Cancel
+                <div className="space-y-2">
+                  <Label htmlFor="phone-mobile">Phone</Label>
+                  <Input
+                    id="phone-mobile"
+                    name="phone"
+                    type="number"
+                    defaultValue={editingStaff?.phone}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username-mobile">Username</Label>
+                  <Input
+                    id="username-mobile"
+                    name="username"
+                    defaultValue={editingStaff?.username}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password-mobile">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="password-mobile"
+                      name="password"
+                      type={isPasswordVisible ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required={!editingStaff}
+                      className="pe-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                    >
+                      {isPasswordVisible ? (
+                        <EyeOffIcon className="h-4 w-4" />
+                      ) : (
+                        <EyeIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  <div className="mt-2">
+                    <div
+                      className="h-1 w-full rounded-full bg-border overflow-hidden"
+                      role="progressbar"
+                      aria-valuenow={passwordStrengthScore}
+                      aria-valuemin={0}
+                      aria-valuemax={4}
+                    >
+                      <div
+                        className={`h-full ${getStrengthColor(passwordStrengthScore)} transition-all duration-500`}
+                        style={{ width: `${(passwordStrengthScore / 4) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-sm mt-1">{getStrengthText(passwordStrengthScore)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col justify-end gap-2 pt-2">
+                 
+                  <Button type="submit" className="flex-1">
+                    {editingStaff ? "Update Staff" : "Add Staff"}
                   </Button>
-                  <Button type="submit" className="w-full md:w-auto">
-                    {editingStaff ? "Update" : "Add"}
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancel
                   </Button>
                 </div>
               </form>
-              </CardContent>
-              </Card>
             </div>
-            <DrawerFooter className="pt-2">
-              <DrawerClose asChild>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-              </DrawerClose>
-            </DrawerFooter>
           </DrawerContent>
         </Drawer>
       )}

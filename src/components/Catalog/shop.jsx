@@ -44,6 +44,23 @@ const ShopForm = ({ shop, onSuccess, onCancel }) => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        setSubmitting(false);
+        return;
+      }
+      
+      const parsedUser = JSON.parse(storedSession);
+      const organization_id = parsedUser.organization_id;
+      
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        setSubmitting(false);
+        return;
+      }
+      
       if (shop) {
         // Update existing shop (only update password if a new one is entered)
         const { error } = await supabase
@@ -56,7 +73,9 @@ const ShopForm = ({ shop, onSuccess, onCancel }) => {
             username,
             ...(password ? { password } : {}), // update password only if provided
           })
-          .eq("id", shop.id);
+          .eq("id", shop.id)
+          .eq("organization_id", organization_id); // Ensure shop belongs to organization
+          
         if (error) throw error;
         toast.success("Shop updated successfully!");
       } else {
@@ -70,6 +89,7 @@ const ShopForm = ({ shop, onSuccess, onCancel }) => {
             badge,
             username,
             password,
+            organization_id, // Add organization_id to new shops
           });
         if (error) throw error;
         toast.success("Shop added successfully!");
@@ -166,10 +186,30 @@ export default function Shop() {
   // Fetch shops from Supabase
   const fetchShops = async () => {
     setLoading(true);
+    
+    // Get organization_id from user session
+    const storedSession = localStorage.getItem('userSession');
+    if (!storedSession) {
+      toast.error("User session not found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
+    const parsedUser = JSON.parse(storedSession);
+    const organization_id = parsedUser.organization_id;
+    
+    if (!organization_id) {
+      toast.error("Organization information not found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
     const { data, error } = await supabase
       .from("shops")
       .select("*")
+      .eq("organization_id", organization_id) // Filter by organization_id
       .order("created_at", { ascending: false });
+      
     if (error) {
       toast.error(`Error fetching shops: ${error.message}`);
     } else {
@@ -205,7 +245,40 @@ export default function Shop() {
 
   const confirmDelete = async () => {
     try {
-      const { error } = await supabase.from("shops").delete().eq("id", shopToDelete.id);
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const parsedUser = JSON.parse(storedSession);
+      const organization_id = parsedUser.organization_id;
+      
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+      
+      // Verify the shop belongs to the organization before deleting
+      const { data: shopData, error: shopError } = await supabase
+        .from("shops")
+        .select("*")
+        .eq("id", shopToDelete.id)
+        .eq("organization_id", organization_id)
+        .single();
+        
+      if (shopError || !shopData) {
+        toast.error("You don't have permission to delete this shop.");
+        return;
+      }
+      
+      const { error } = await supabase
+        .from("shops")
+        .delete()
+        .eq("id", shopToDelete.id)
+        .eq("organization_id", organization_id); // Add organization filter for extra security
+        
       if (error) throw error;
       toast.success("Shop deleted successfully!");
       fetchShops();

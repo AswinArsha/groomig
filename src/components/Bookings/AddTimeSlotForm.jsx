@@ -90,6 +90,19 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
       toast.error("Please select at least one shop.");
       return;
     }
+    
+    // Get organization_id from user session
+    const storedSession = localStorage.getItem('userSession');
+    if (!storedSession) {
+      toast.error("User session not found. Please log in again.");
+      return;
+    }
+    
+    const { organization_id } = JSON.parse(storedSession);
+    if (!organization_id) {
+      toast.error("Organization information not found. Please log in again.");
+      return;
+    }
 
     const formattedStartTime = startTime; // "HH:MM:00" format
 
@@ -98,6 +111,7 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
       repeat_all_days: repeatAllDays,
       specific_days: repeatAllDays ? null : selectedDays,
       shop_ids: selectedShops, // store selected shops as an array
+      organization_id: organization_id // Add organization_id to associate with correct organization
     };
 
     try {
@@ -113,6 +127,7 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
         time_slot_id: mainSlotData.id,
         slot_number: slot.slot_number,
         description: slot.description || null,
+        organization_id: organization_id // Add organization_id to each sub-time slot
       }));
 
       const { error: subSlotsError } = await supabase.from("sub_time_slots").insert(subTimeSlots);

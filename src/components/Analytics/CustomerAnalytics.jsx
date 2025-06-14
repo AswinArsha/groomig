@@ -36,7 +36,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "../../supabase"; // Adjust the path based on your project structure
 
-function CustomerAnalytics({ dateRange }) {
+function CustomerAnalytics({ dateRange, organizationId }) {
   const navigate = useNavigate();
   const [uniqueCustomersData, setUniqueCustomersData] = useState([]);
   const [totalUniqueCustomers, setTotalUniqueCustomers] = useState(0);
@@ -57,7 +57,7 @@ function CustomerAnalytics({ dateRange }) {
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, [dateRange]);
+  }, [dateRange, organizationId]);
 
   const fetchAnalyticsData = async () => {
     setIsLoading(true);
@@ -72,6 +72,12 @@ function CustomerAnalytics({ dateRange }) {
   };
 
   const fetchUniqueCustomersData = async () => {
+    if (!organizationId) {
+      setUniqueCustomersData([]); // Clear or set to default
+      setTotalUniqueCustomers(0);
+      setCustomerGrowth(0);
+      return;
+    }
     try {
       // Use local date strings (IST) for querying
       // Convert dates to India local date strings (YYYY-MM-DD format)
@@ -84,6 +90,7 @@ function CustomerAnalytics({ dateRange }) {
       let query = supabase
         .from('historical_bookings')
         .select('contact_number, booking_date')
+        .eq('organization_id', organizationId)
         
       // Use exact match for single day queries
       if (from === to) {
@@ -103,7 +110,8 @@ function CustomerAnalytics({ dateRange }) {
       // Fetch monthly data for the chart including cancellation status
       let bookingsQuery = supabase
         .from('historical_bookings')
-        .select('booking_date, contact_number, status');
+        .select('booking_date, contact_number, status')
+        .eq('organization_id', organizationId)
         
       // Use exact match for single day queries  
       if (from === to) {
@@ -203,6 +211,13 @@ function CustomerAnalytics({ dateRange }) {
   };
 
   const fetchSatisfactionData = async () => {
+    if (!organizationId) {
+      setSatisfactionData([]); // Clear or set to default
+      setTotalRatings(0);
+      setAverageRating(0);
+      setRatingChange(0);
+      return;
+    }
     try {
       // Use local date strings (IST) for querying
       const from = dateRange?.from ? dateRange.from.toLocaleDateString('en-CA') : '2010-01-01';
@@ -211,7 +226,8 @@ function CustomerAnalytics({ dateRange }) {
       let query = supabase
         .from('historical_bookings')
         .select('feedback')
-        .not('feedback', 'is', null);
+        .not('feedback', 'is', null)
+        .eq('organization_id', organizationId)
         
       // Use exact match for single day queries
       if (from === to) {

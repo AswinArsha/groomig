@@ -62,18 +62,35 @@ export default function Groomer() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch groomers with shop details
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch groomers with shop details, filtered by organization_id
       const { data: groomersData, error: groomersError } = await supabase
         .from("groomers")
         .select(`*, shops(name)`)
+        .eq("organization_id", organization_id)
         .order("created_at", { ascending: false });
 
       if (groomersError) throw groomersError;
 
-      // Fetch shops for the select dropdown
+      // Fetch shops for the select dropdown, filtered by organization_id
       const { data: shopsData, error: shopsError } = await supabase
         .from("shops")
         .select("id, name")
+        .eq("organization_id", organization_id)
         .order("name");
 
       if (shopsError) throw shopsError;
@@ -107,17 +124,47 @@ export default function Groomer() {
         toast.error("Name and Shop are required!");
         return;
       }
+      
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+      
+      // Add organization_id to the form data
+      const groomerData = { ...formData, organization_id };
 
       if (editingGroomer) {
+        // Verify the groomer belongs to the organization before updating
+        const { data: groomerData, error: groomerError } = await supabase
+          .from("groomers")
+          .select("*")
+          .eq("id", editingGroomer.id)
+          .eq("organization_id", organization_id)
+          .single();
+          
+        if (groomerError || !groomerData) {
+          toast.error("You don't have permission to update this groomer.");
+          return;
+        }
+        
         const { error } = await supabase
           .from("groomers")
-          .update(formData)
-          .eq("id", editingGroomer.id);
+          .update(groomerData)
+          .eq("id", editingGroomer.id)
+          .eq("organization_id", organization_id); // Add organization filter for extra security
 
         if (error) throw error;
         toast.success("Groomer updated successfully!");
       } else {
-        const { error } = await supabase.from("groomers").insert([formData]);
+        const { error } = await supabase.from("groomers").insert([groomerData]);
         if (error) throw error;
         toast.success("Groomer added successfully!");
       }
@@ -154,10 +201,37 @@ export default function Groomer() {
 
   const confirmDelete = async () => {
     try {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+      
+      // Verify the groomer belongs to the organization before deleting
+      const { data: groomerData, error: groomerError } = await supabase
+        .from("groomers")
+        .select("*")
+        .eq("id", groomerToDelete.id)
+        .eq("organization_id", organization_id)
+        .single();
+        
+      if (groomerError || !groomerData) {
+        toast.error("You don't have permission to delete this groomer.");
+        return;
+      }
+      
       const { error } = await supabase
         .from("groomers")
         .delete()
-        .eq("id", groomerToDelete.id);
+        .eq("id", groomerToDelete.id)
+        .eq("organization_id", organization_id); // Add organization filter for extra security
 
       if (error) throw error;
 

@@ -13,6 +13,10 @@ import BookingDetails from "./components/Home/BookingDetails";
 import AllBookingsPage from "./components/Home/AllBookingsPage";
 import AllBookingDetails from "./components/Home/AllBookingDetails"; 
 import toast, { Toaster } from "react-hot-toast";
+import { useSubscriptionValidator } from "./hooks/useSubscriptionValidator.jsx";
+import SubscriptionValidator from "./components/SubscriptionValidator";
+import { useIsMobile } from "./hooks/use-mobile";
+
 
 // Import the new user components
 import UserBookingForm from "./components/User/UserBookingForm";
@@ -23,11 +27,23 @@ import SuperAdminLogin from "./components/SuperAdmin/SuperAdminLogin";
 import SuperAdminDashboard from "./components/SuperAdmin/SuperAdminDashboard";
 import SuperAdminProtectedRoute from "./components/SuperAdmin/SuperAdminProtectedRoute";
 
+
 function App() {
   return (
     <Router>
+      <AppContent />
+    </Router>
+  );
+}
+
+// Create a new component to house the logic that needs to be within Router context
+function AppContent() {
+  const subscriptionValidatorModal = useSubscriptionValidator();
+  return (
+    <>
       <SidebarProvider>
-        <Toaster position="top-right" />
+        <Toaster position={useIsMobile() ? "top-center" : "top-right"} />
+        {subscriptionValidatorModal} {/* Render the modal here */}
         <Routes>
           <Route path="/" element={<LoginForm />} />
           
@@ -42,9 +58,15 @@ function App() {
             <Route index element={<UserBookingForm />} />
           </Route>
           
-          {/* Protected Routes */}
+          {/* Subscription Plans Route */}
+     
+
+          {/* Protected Routes with Subscription Validation */}
           <Route element={<ProtectedRoute />}>
-            <Route element={<Sidebar />}>
+            <Route element={<>
+              <SubscriptionValidator />
+              <Sidebar />
+            </>}>
               <Route path="/home" element={<Home />} />
               <Route path="/bookings/:id" element={<BookingDetails />} />
               <Route path="/all-bookings" element={<AllBookingsPage />} />
@@ -59,7 +81,7 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </SidebarProvider>
-    </Router>
+    </>
   );
 }
 

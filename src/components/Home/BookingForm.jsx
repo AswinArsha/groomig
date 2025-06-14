@@ -40,6 +40,16 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
 
   // Step management: Now 4 steps (added Shop selection)
   const [step, setStep] = useState(1);
+  
+  // Get organization_id from user session
+  const [organizationId, setOrganizationId] = useState(null);
+  
+  useEffect(() => {
+    const userSession = JSON.parse(localStorage.getItem("userSession"));
+    if (userSession && userSession.organization_id) {
+      setOrganizationId(userSession.organization_id);
+    }
+  }, []);
 
   // Step 1: Booking Date
   const [bookingDate, setBookingDate] = useState(
@@ -133,10 +143,17 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
     setLoadingShops(true);
     
     try {
-      const { data: shops, error } = await supabase
+      let query = supabase
         .from("shops")
         .select("id, name, badge")
         .order("name", { ascending: true });
+      
+      // Filter shops by organization_id if available
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+      
+      const { data: shops, error } = await query;
       
       if (error) {
         throw error;
@@ -327,6 +344,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               sub_time_slot_id: selectedSubSlot,
               slot_time: slotTime,
               shop_id: selectedShop,
+              organization_id: organizationId,
               // Status remains unchanged or can be updated based on your logic
             })
             .eq("id", booking.id);
@@ -353,6 +371,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               sub_time_slot_id: selectedSubSlot,
               slot_time: slotTime,
               shop_id: selectedShop,
+              organization_id: organizationId,
               // Status defaults to 'reserved' as per table schema
             },
           ]);

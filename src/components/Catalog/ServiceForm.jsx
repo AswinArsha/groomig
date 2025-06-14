@@ -53,6 +53,19 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
     e.preventDefault();
     
     try {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+
       let finalImageUrl = imageUrl;
 
       // Handle image upload or replacement on submit
@@ -105,6 +118,7 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
         price,
         type, // Include the 'type' in the data
         image_url: finalImageUrl,
+        organization_id, // Add organization_id to the service data
       };
 
       if (isEditing) {

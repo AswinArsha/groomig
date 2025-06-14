@@ -42,9 +42,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "../../supabase"; // Adjust path as needed
 
-
-
-function ServiceAnalytics({ dateRange }) {
+function ServiceAnalytics({ dateRange, organizationId }) {
   const [popularServicesData, setPopularServicesData] = useState([]);
   const [revenueByServiceData, setRevenueByServiceData] = useState([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -69,7 +67,7 @@ function ServiceAnalytics({ dateRange }) {
 
   useEffect(() => {
     fetchServiceData();
-  }, [dateRange]);
+  }, [dateRange, organizationId]);
 
   const fetchServiceData = async () => {
     setIsLoading(true);
@@ -86,6 +84,11 @@ function ServiceAnalytics({ dateRange }) {
   };
 
   const fetchPopularServicesData = async () => {
+    if (!organizationId) {
+      setPopularServicesData([]); // Clear or set to default
+      setTopService({ name: '', count: 0 });
+      return;
+    }
     // Convert dates to IST by adding 5 hours and 30 minutes
     const fromDate = dateRange?.from ? new Date(dateRange.from.getTime() + (5.5 * 60 * 60 * 1000)) : new Date('2010-01-01');
     const toDate = dateRange?.to ? new Date(dateRange.to.getTime() + (5.5 * 60 * 60 * 1000)) : new Date();
@@ -101,6 +104,7 @@ function ServiceAnalytics({ dateRange }) {
         .select('services')
         .gte('booking_date', from)
         .lte('booking_date', to)
+        .eq('organization_id', organizationId)
         .not('services', 'is', null);
         
       if (error) throw error;
@@ -149,6 +153,12 @@ function ServiceAnalytics({ dateRange }) {
   };
 
   const fetchRevenueByServiceData = async () => {
+    if (!organizationId) {
+      setRevenueByServiceData([]); // Clear or set to default
+      setTotalRevenue(0);
+      setHighestRevenueService({ name: '', revenue: 0 });
+      return;
+    }
     // Convert dates to IST by adding 5 hours and 30 minutes
     const fromDate = dateRange?.from ? new Date(dateRange.from.getTime() + (5.5 * 60 * 60 * 1000)) : new Date('2010-01-01');
     const toDate = dateRange?.to ? new Date(dateRange.to.getTime() + (5.5 * 60 * 60 * 1000)) : new Date();
@@ -164,6 +174,7 @@ function ServiceAnalytics({ dateRange }) {
         .select('services')
         .gte('booking_date', from)
         .lte('booking_date', to)
+        .eq('organization_id', organizationId)
         .not('services', 'is', null);
         
       if (error) throw error;

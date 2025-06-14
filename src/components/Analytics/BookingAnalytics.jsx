@@ -42,7 +42,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "../../supabase"; // Adjust path as needed
 
-function BookingAnalytics({ dateRange }) {
+function BookingAnalytics({ dateRange, organizationId }) {
   const [totalBookingsData, setTotalBookingsData] = useState([]);
   const [bookingCount, setBookingCount] = useState(0);
   const [bookingTrend, setBookingTrend] = useState(0);
@@ -88,7 +88,7 @@ function BookingAnalytics({ dateRange }) {
 
   useEffect(() => {
     fetchBookingData();
-  }, [dateRange]);
+  }, [dateRange, organizationId]);
 
   const fetchBookingData = async () => {
     setIsLoading(true);
@@ -112,17 +112,26 @@ const getISTDateString = (date) => {
 };
 
 const fetchTotalBookingsData = async () => {
+    if (!organizationId) {
+      setTotalBookingsData([]); // Clear or set to default
+      setBookingCount(0);
+      setBookingTrend(0);
+      return;
+    }
     const from = dateRange?.from ? getISTDateString(dateRange.from) : '2010-01-01';
     const to = dateRange?.to ? getISTDateString(dateRange.to) : getISTDateString(new Date());
     
     try {
       // Fetch bookings within date range
-      const { data, error } = await supabase
+      let query = supabase
         .from('historical_bookings')
         .select('booking_date')
         .gte('booking_date', from)
         .lte('booking_date', to)
-        .order('booking_date');
+
+        .eq('organization_id', organizationId)
+      
+      const { data, error } = await query.order('booking_date');
         
       if (error) throw error;
       
@@ -180,16 +189,25 @@ const fetchTotalBookingsData = async () => {
   };
 
   const fetchCompletionRateData = async () => {
+    if (!organizationId) {
+      setCompletionRateData([]); // Clear or set to default
+      setCompletionRate(0);
+      setCancellationRate(0); // Also reset this as it's set here
+      return;
+    }
     const from = dateRange?.from ? getISTDateString(dateRange.from) : '2010-01-01';
     const to = dateRange?.to ? getISTDateString(dateRange.to) : getISTDateString(new Date());
     
     try {
       // Fetch bookings with status
-      const { data, error } = await supabase
+      let query = supabase
         .from('historical_bookings')
         .select('status')
         .gte('booking_date', from)
-        .lte('booking_date', to);
+        .lte('booking_date', to)
+        .eq('organization_id', organizationId)
+      
+      const { data, error } = await query;
         
       if (error) throw error;
       
@@ -237,17 +255,25 @@ const fetchTotalBookingsData = async () => {
   };
 
   const fetchCancellationRateData = async () => {
+    if (!organizationId) {
+      setCancellationRateData([]); // Clear or set to default
+      setCancellationTrend(0);
+      // Note: cancellationRate is also set in fetchCompletionRateData, ensure consistency or separate logic if needed
+      return;
+    }
     const from = dateRange?.from ? getISTDateString(dateRange.from) : '2010-01-01';
     const to = dateRange?.to ? getISTDateString(dateRange.to) : getISTDateString(new Date());
     
     try {
       // Fetch bookings with status and date
-      const { data, error } = await supabase
+      let query = supabase
         .from('historical_bookings')
         .select('booking_date, status')
         .gte('booking_date', from)
         .lte('booking_date', to)
-        .order('booking_date');
+        .eq('organization_id', organizationId)
+      
+      const { data, error } = await query.order('booking_date');
         
       if (error) throw error;
       
