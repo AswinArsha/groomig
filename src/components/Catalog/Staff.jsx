@@ -422,7 +422,7 @@ export default function Staff() {
                 {editingStaff ? "Edit Staff" : "Add New Staff"}
               </DrawerTitle>
             </DrawerHeader>
-            <div className="px-4">
+            <div className="px-4 mb-4">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name-mobile">Name</Label>

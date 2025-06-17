@@ -226,7 +226,8 @@ function FinancialAnalytics({ dateRange, organizationId }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Financial Analytics</h2>
+      <h2 className="text-xl font-bold hidden sm:block">Financial Analytics</h2>
+
       
       <div className="space-y-4">
  

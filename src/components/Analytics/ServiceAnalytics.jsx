@@ -242,7 +242,7 @@ function ServiceAnalytics({ dateRange, organizationId }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Service Analytics</h2>
+      <h2 className="text-xl font-bold hidden sm:block">Service Analytics</h2>
       
       <Tabs defaultValue="popular">
         <TabsList className="grid w-full grid-cols-2">
@@ -268,7 +268,7 @@ function ServiceAnalytics({ dateRange, organizationId }) {
                       <span className="hidden md:inline">Top: </span>
                       {topService.name}
                     </>
-                  ) : 'No data'}
+                  ) : ''}
                 </div>
               </div>
             </CardHeader>

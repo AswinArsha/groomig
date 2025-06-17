@@ -302,7 +302,7 @@ function CustomerAnalytics({ dateRange, organizationId }) {
   return (
     <div className="space-y-4">
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Customer Analytics</h2>
+        <h2 className="text-2xl font-bold  hidden sm:block">Customer Analytics</h2>
         
         <Tabs defaultValue="total">
           {/* Total Unique Customers Tab */}

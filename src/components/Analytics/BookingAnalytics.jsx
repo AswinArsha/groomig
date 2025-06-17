@@ -349,7 +349,7 @@ const fetchTotalBookingsData = async () => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Booking Analytics</h2>
+      <h2 className="text-xl font-bold  hidden sm:block">Booking Analytics</h2>
       
       <div className="space-y-4">
   

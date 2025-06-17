@@ -115,7 +115,7 @@ function Analytics() {
   }, [dateRange]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mb-[2rem]">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col md:flex-row justify-center items-center gap-4">
           <div className="flex  gap-2 items-center">
@@ -148,7 +148,7 @@ function Analytics() {
       
       {/* Summary Cards Section */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Business Summary</h2>
+    
         <SummaryCards dateRange={dateRange} selectedShop={selectedShop} organizationId={organizationId} />
       </div>
       

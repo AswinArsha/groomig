@@ -60,41 +60,45 @@ function Home() {
   }, []);
 
   return (
-    <div className="-m-4 mt-1 min-h-screen ">
-      <div className="space-x-4 ml-4 ">
-        {/* New Booking Dialog */}
-       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="mb-4" 
-              disabled={isSubscriptionInactive}
-              style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
-            >
-              New Booking
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              {/* Optional: Add a title if needed */}
-            </DialogHeader>
-            <BookingForm 
-      onSuccess={() => setIsDialogOpen(false)}
-           onSave={() => {}} />
-          </DialogContent>
-        </Dialog>
-
-        <Button 
-          onClick={() => !isSubscriptionInactive && navigate("/all-bookings")}
-          disabled={isSubscriptionInactive}
-          style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
-        >
-            View All Bookings
+    <div className="-m-4 mt-1">
+    <div className="flex  sm:flex-row gap-3 sm:space-x-4 mx-4">
+  
+      {/* New Booking Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button
+            className="w-full sm:w-auto"
+            disabled={isSubscriptionInactive}
+            style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
+          >
+            New Booking
           </Button>
-      </div>
-      
-      {/* Booking Table */}
-      <BookingTable />
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader />
+          <BookingForm
+            onSuccess={() => setIsDialogOpen(false)}
+            onSave={() => {}}
+          />
+        </DialogContent>
+      </Dialog>
+  
+      {/* View All Bookings Button */}
+      <Button
+        className="w-full sm:w-auto"
+        onClick={() => !isSubscriptionInactive && navigate("/all-bookings")}
+        disabled={isSubscriptionInactive}
+        style={isSubscriptionInactive ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
+      >
+        View All Bookings
+      </Button>
+  
     </div>
+  
+    {/* Booking Table */}
+    <BookingTable />
+  </div>
+  
   );
 }
 

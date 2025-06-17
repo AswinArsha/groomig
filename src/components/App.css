@@ -1,8 +1,17 @@
-/* Home.css */
 .home-wrapper {
-    min-height: 100vh;
-    background-image: url('../assets/doodle-bg.jpg');
- 
-    background-position: center;
+  min-height: 100vh;
+  background-image: url('../assets/doodle-bg.png');
+  background-repeat: no-repeat;
+  background-position: center calc(100% - 64px);
+  background-size: auto 400px;
+  padding-bottom: 220px;
+}
+
+/* Mobile View */
+@media (max-width: 768px) {
+  .home-wrapper {
+    background-size: auto 280px;
+    background-position: center calc(100% - 90px); /* Moves doodle 80px above the bottom */
+    padding-bottom: 180px; /* Leaves space for doodle + gap */
   }
-  
+}

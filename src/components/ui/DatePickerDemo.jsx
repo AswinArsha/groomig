@@ -1,4 +1,3 @@
-// src/components/ui/DatePickerDemo.jsx
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
@@ -12,8 +11,13 @@ import {
 } from "@/components/ui/popover";
 
 export function DatePickerDemo({ date, setDate }) {
+  const [open, setOpen] = useState(false);
+
+  // Detect mobile screen
+  const isMobile = window.innerWidth <= 768;
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -33,6 +37,9 @@ export function DatePickerDemo({ date, setDate }) {
           onSelect={(selected) => {
             if (selected) {
               setDate(selected);
+              if (isMobile) {
+                setOpen(false); // Close on mobile
+              }
             }
           }}
           initialFocus

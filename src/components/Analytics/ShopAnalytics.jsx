@@ -335,7 +335,8 @@ function ShopAnalytics({ dateRange, organizationId }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Shop Analytics</h2>
+      <h2 className="text-xl font-bold hidden sm:block">Shop Analytics</h2>
+
       
       <Tabs defaultValue="performance">
         <TabsList className="grid w-full grid-cols-2">
