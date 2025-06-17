@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea"
 import { ImagePlus } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
-export default function ServiceForm({ service, onSuccess, onCancel }) {
+export default function ServiceForm({ service, onSuccess, onCancel, loading = false }) {
   const isEditing = Boolean(service);
   
   const [name, setName] = useState(service?.name || "");
@@ -147,6 +148,36 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
         <CardTitle>{isEditing ? "Edit Service" : "Add New Service"}</CardTitle>
       </CardHeader>
       <CardContent>
+      {loading ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-32 w-full" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} className="space-y-6">
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
     {/* Left Column */}
@@ -243,6 +274,7 @@ export default function ServiceForm({ service, onSuccess, onCancel }) {
   
 </form>
 
+      )}
       </CardContent>
       <CardFooter className="flex justify-end space-x-2">
         {onCancel && (

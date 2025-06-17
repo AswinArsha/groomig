@@ -732,7 +732,7 @@ export default function BookingTable() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="container mx-auto p-4">
+    <div className=" w-full p-4">
       <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-4 mb-2">
         <Input
           type="text"

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
  import { useMediaQuery } from "@/hooks/use-media-query";
-import { Loader2, Plus, Pencil, Trash2, Search, CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react"; // Added CheckIcon, EyeIcon, EyeOffIcon, XIcon
+import { Loader2, Plus, Pencil, Trash2, Search, CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -260,12 +261,19 @@ export default function Staff() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, index) => (
-            <Card key={index} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+            <Card key={index} className="flex flex-col">
+              <CardHeader>
+                <Skeleton className="h-4 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <Skeleton className="h-4 w-1/4 mb-2" />
+                <Skeleton className="w-full h-48 rounded-md" />
               </CardContent>
+              <CardFooter className="flex justify-between">
+                <Skeleton className="h-10 w-20" />
+                <Skeleton className="h-10 w-20" />
+              </CardFooter>
             </Card>
           ))}
         </div>

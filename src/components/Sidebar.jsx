@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
-  Home,
+  Calendar,
   Store,
   BarChart,
   LogOut,
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import toast from "react-hot-toast";
 import { supabase } from "../supabase";
-import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Tooltip,
   TooltipContent,
@@ -138,7 +138,7 @@ function Sidebar() {
   }, [showHistory, user?.organization_id]);
 
   const navigationItems = [
-    { name: "Home", path: "/home", icon: <Home className="w-5 h-5" /> },
+    { name: "Bookings", path: "/home", icon: <Calendar className="w-5 h-5" /> },
     { name: "Shop", path: "/shop", icon: <Store className="w-5 h-5" /> },
     { name: "Analytics", path: "/analytics", icon: <BarChart className="w-5 h-5" /> },
   ];
@@ -225,38 +225,41 @@ function Sidebar() {
   
 
 
-  // Sidebar animation variants - smoother spring animation
+  // Sidebar animation variants - enhanced spring animation
   const sidebarVariants = {
     expanded: {
       width: "200px",
       transition: {
         type: "spring",
-        stiffness: 200,
-        damping: 25,
-        duration: 0.3
+        stiffness: 250,
+        damping: 22,
+        mass: 1,
+        velocity: 0
       }
     },
     collapsed: {
       width: "80px",
       transition: {
         type: "spring",
-        stiffness: 200,
-        damping: 25,
-        duration: 0.3
+        stiffness: 250,
+        damping: 22,
+        mass: 1,
+        velocity: 0
       }
     }
   };
 
-  // Mobile overlay variants - smoother animations
+  // Mobile overlay variants - enhanced animations
   const overlayVariants = {
     open: {
       opacity: 1,
       y: 0,
       transition: {
         type: "spring",
-        stiffness: 300,
-        damping: 30,
-        duration: 0.3
+        stiffness: 350,
+        damping: 28,
+        mass: 0.8,
+        velocity: 2
       }
     },
     closed: {
@@ -264,47 +267,53 @@ function Sidebar() {
       y: "100%",
       transition: {
         type: "spring",
-        stiffness: 300,
-        damping: 30,
-        duration: 0.3
+        stiffness: 350,
+        damping: 28,
+        mass: 0.8,
+        velocity: 2
       }
     }
   };
 
-  // Profile drawer animation variants
+  // Profile drawer animation variants - enhanced
   const profileDrawerVariants = {
     open: {
       height: "auto",
       opacity: 1,
+      scale: 1,
       transition: {
         type: "spring",
-        stiffness: 300,
-        damping: 30,
-        duration: 0.3
+        stiffness: 350,
+        damping: 26,
+        mass: 0.9,
+        velocity: 2
       }
     },
     closed: {
       height: 0,
       opacity: 0,
+      scale: 0.95,
       transition: {
         type: "spring",
-        stiffness: 300,
-        damping: 30,
-        duration: 0.3
+        stiffness: 350,
+        damping: 26,
+        mass: 0.9,
+        velocity: 2
       }
     }
   };
 
-  // Improved text animation variants
+  // Enhanced text animation variants
   const textVariants = {
     show: {
       opacity: 1,
       x: 0,
       transition: {
         type: "spring",
-        stiffness: 500,
-        damping: 30,
-        duration: 0.3
+        stiffness: 550,
+        damping: 28,
+        mass: 0.7,
+        velocity: 2
       }
     },
     hide: {
@@ -312,9 +321,10 @@ function Sidebar() {
       x: -10,
       transition: {
         type: "spring",
-        stiffness: 500,
-        damping: 30,
-        duration: 0.3
+        stiffness: 550,
+        damping: 28,
+        mass: 0.7,
+        velocity: 2
       }
     }
   };
@@ -368,11 +378,14 @@ function Sidebar() {
                         <div className={`${isCollapsed ? "flex justify-center w-full" : "relative"}`}>
                           <motion.div
                             layout
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
                             transition={{
                               type: "spring",
-                              stiffness: 300,
-                              damping: 30,
-                              duration: 0.2
+                              stiffness: 400,
+                              damping: 25,
+                              mass: 0.8,
+                              velocity: 2
                             }}
                             className="flex-shrink-0"
                           >
@@ -414,10 +427,16 @@ function Sidebar() {
     {user && (
       <motion.div
         key="user-profile"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 10 }}
-        transition={{ duration: 0.2 }}
+        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+        transition={{ 
+          type: "spring",
+          stiffness: 400,
+          damping: 25,
+          mass: 0.8,
+          velocity: 2
+        }}
         className={`flex items-center mb-4 ${
           isCollapsed ? 'justify-center' : ''
         }`}
@@ -556,7 +575,15 @@ function Sidebar() {
     <div className={`${isCollapsed ? "flex justify-center w-full" : "relative"}`}>
       <motion.div
         layout
-        transition={{ type: "spring", stiffness: 300, damping: 30, duration: 0.2 }}
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        whileTap={{ scale: 0.95 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 400, 
+          damping: 25, 
+          mass: 0.8,
+          velocity: 2 
+        }}
       >
         <LogOut className="h-5 w-5" />
       </motion.div>

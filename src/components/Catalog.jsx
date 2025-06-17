@@ -46,6 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function Catalog() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [formLoading, setFormLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -93,17 +94,20 @@ export default function Catalog() {
   const handleFormSuccess = () => {
     setDialogOpen(false);
     setEditingService(null);
+    setFormLoading(false);
     fetchServices();
   };
 
   // Open dialog for editing a service
   const handleEdit = (service) => {
+    setFormLoading(true);
     setEditingService(service);
     setDialogOpen(true);
   };
 
   // Open dialog for adding a new service
   const handleAddNew = () => {
+    setFormLoading(true);
     setEditingService(null);
     setDialogOpen(true);
   };
@@ -180,7 +184,7 @@ export default function Catalog() {
   );
 
   return (
-    <div className="container mx-auto">
+    <div className="">
       <Tabs defaultValue="services" className="w-full">
         <TabsList className="flex w-full mb-8 overflow-x-auto pl-10 sm:pl-1 scrollbar-hide sm:grid sm:grid-cols-5">
           <TabsTrigger value="services">Services</TabsTrigger>
@@ -282,6 +286,7 @@ export default function Catalog() {
               service={editingService}
               onSuccess={handleFormSuccess}
               onCancel={() => setDialogOpen(false)}
+              loading={formLoading}
             />
           </DialogContent>
         </Dialog>
@@ -296,6 +301,7 @@ export default function Catalog() {
                 service={editingService}
                 onSuccess={handleFormSuccess}
                 onCancel={() => setDialogOpen(false)}
+                loading={formLoading}
               />
             </div>
             <DrawerFooter className="pt-2">

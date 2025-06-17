@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion ,AnimatePresence  } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import {
   LogOut,
@@ -79,25 +79,52 @@ const MobileSidebar = ({
     fetchSubscription();
   }, [user]);
 
-  // Animation variants
+  // Enhanced animation variants
   const navContainerVariants = {
-    visible: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
+    visible: { 
+      transition: { 
+        staggerChildren: 0.06,
+        delayChildren: 0.08,
+        staggerDirection: 1,
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        mass: 0.8,
+        velocity: 2
+      } 
+    },
     hidden: {}
   };
   const navItemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 30, scale: 0.9, rotate: -5 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { type: "spring", stiffness: 300, damping: 24 }
+      scale: 1,
+      rotate: 0,
+      transition: { 
+        type: "spring", 
+        stiffness: 450, 
+        damping: 20,
+        mass: 0.7,
+        velocity: 3
+      }
     }
   };
   const profileDrawerVariants = {
-    hidden: { opacity: 0, y: "100%" },
+    hidden: { opacity: 0, y: "100%", scale: 0.95, rotateX: 5 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { type: "spring", stiffness: 280, damping: 30 }
+      scale: 1,
+      rotateX: 0,
+      transition: { 
+        type: "spring", 
+        stiffness: 380, 
+        damping: 24,
+        mass: 0.8,
+        velocity: 3
+      }
     }
   };
 
@@ -120,19 +147,28 @@ const MobileSidebar = ({
           <motion.div
             key={item.name}
             layout
-            whileHover={{ scale: 1.1 }}
+            whileHover={{ scale: 1.12, y: -3, rotate: 1 }}
+            whileTap={{ scale: 0.95, y: 1, rotate: -1 }}
             variants={navItemVariants}
             className="flex-1 min-w-[64px] transition-transform"
           >
             <Link to={item.path} className="flex flex-col items-center px-2 py-1">
               <motion.div
-                whileTap={{ scale: 0.85 }}
-                className={`p-2.5 rounded-full relative ${
-                  touchedItem === item.name ? "bg-pink-50 dark:bg-pink-900/20" : ""
-                }`}
-                onTouchStart={() => handleTouchStart(item.name)}
-                onTouchEnd={handleTouchEnd}
-              >
+                  whileHover={{ scale: 1.08, rotate: 2, y: -1 }}
+                  whileTap={{ scale: 0.92, rotate: -2, y: 1 }}
+                  className={`p-2.5 rounded-full relative ${
+                    touchedItem === item.name ? "bg-pink-50 dark:bg-pink-900/20" : ""
+                  }`}
+                  onTouchStart={() => handleTouchStart(item.name)}
+                  onTouchEnd={handleTouchEnd}
+                  transition={{ 
+                    type: "spring", 
+                    stiffness: 400, 
+                    damping: 22,
+                    mass: 0.8,
+                    velocity: 2
+                  }}
+                >
                 <AnimatePresence>
                   {isLinkActive(item.path) && (
                     <motion.div
@@ -140,7 +176,13 @@ const MobileSidebar = ({
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ 
+                        type: "spring",
+                        stiffness: 450,
+                        damping: 22,
+                        mass: 0.7,
+                        velocity: 2
+                      }}
                       className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
                       style={{ zIndex: -1 }}
                     />
@@ -179,12 +221,19 @@ const MobileSidebar = ({
             onTouchEnd={handleTouchEnd}
           >
             <motion.div
-              whileTap={{ scale: 0.85 }}
-              className={`rounded-full relative ${
-                touchedItem === "profile" ? "bg-pink-50 dark:bg-pink-900/20" : ""
-              }`}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            >
+                whileHover={{ scale: 1.08, rotate: 2, y: -2 }}
+                whileTap={{ scale: 0.92, rotate: -2, y: 1 }}
+                className={`rounded-full relative ${
+                  touchedItem === "profile" ? "bg-pink-50 dark:bg-pink-900/20" : ""
+                }`}
+                transition={{ 
+                  type: "spring", 
+                  stiffness: 400, 
+                  damping: 22,
+                  mass: 0.8,
+                  velocity: 2
+                }}
+              >
               <AnimatePresence>
                 {showMobileProfile && (
                   <motion.div
@@ -192,7 +241,13 @@ const MobileSidebar = ({
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ 
+                      type: "spring",
+                      stiffness: 450,
+                      damping: 22,
+                      mass: 0.7,
+                      velocity: 2
+                    }}
                     className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
                     style={{ zIndex: -1 }}
                   />
@@ -220,7 +275,16 @@ const MobileSidebar = ({
       <Drawer open={showMobileProfile && !showHistory} onOpenChange={setShowMobileProfile}>
         <DrawerContent>
               {user && (
-                <div className="p-4 space-y-6">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ 
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 25,
+                    mass: 0.8 
+                  }}
+                  className="p-4 space-y-6">
                   {/* Avatar + Name */}
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-12 w-12 ring-2 ring-pink-100 dark:ring-pink-900/40">
@@ -234,7 +298,8 @@ const MobileSidebar = ({
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {getRole()}
                       </p>
-                    </div>
+                   
+                  </div>
                   </div>
 
                   {/* Subscription Details */}
@@ -312,7 +377,7 @@ const MobileSidebar = ({
                     <LogOut className="h-4 w-4" />
                     <span className="font-medium">Logout</span>
                   </Button>
-                </div>
+                </motion.div>
               )}
             </DrawerContent>
           </Drawer>
@@ -320,7 +385,16 @@ const MobileSidebar = ({
           {/* Subscription History Drawer */}
           <Drawer open={showHistory} onOpenChange={setShowHistory}>
             <DrawerContent>
-              <div className="flex flex-col h-[80vh]">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 380,
+                  damping: 24,
+                  mass: 0.8 
+                }}
+                className="flex flex-col h-[80vh]">
                 <div className="p-4">
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                     Subscription History
@@ -334,9 +408,19 @@ const MobileSidebar = ({
                     </div>
                   ) : subscriptionHistory.length > 0 ? (
                     <div className="space-y-3 pb-4">
-                      {subscriptionHistory.map((history) => (
-                        <div
+                      {subscriptionHistory.map((history, index) => (
+                        <motion.div
                           key={history.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ 
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 25,
+                            mass: 0.8,
+                            delay: index * 0.1
+                          }}
+                          whileHover={{ scale: 1.02, x: 4 }}
                           className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2"
                         >
                           <div className="flex items-center justify-between">
@@ -347,7 +431,7 @@ const MobileSidebar = ({
                           <div className="text-sm text-gray-500 dark:text-gray-400">
                             {new Date(history.start_date).toLocaleDateString('en-GB')} - {history.end_date ? new Date(history.end_date).toLocaleDateString('en-GB') : 'Present'}
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   ) : (
@@ -368,7 +452,7 @@ const MobileSidebar = ({
                     Close
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             </DrawerContent>
           </Drawer>
     </div>
