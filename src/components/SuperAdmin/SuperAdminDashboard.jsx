@@ -242,6 +242,29 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  // Function to check and update expired subscriptions
+  const checkAndUpdateExpiredSubscriptions = useCallback(async () => {
+    try {
+      const now = new Date().toISOString();
+      const { data: expiredOrgs, error } = await supabase
+        .from('organizations')
+        .update({ subscription_status: 'inactive' })
+        .eq('subscription_status', 'active')
+        .lt('subscription_end_date', now)
+        .select();
+
+      if (error) throw error;
+      
+      if (expiredOrgs?.length > 0) {
+        fetchData(); // Refresh the organizations list
+        toast.success('Updated expired subscriptions');
+      }
+    } catch (error) {
+      console.error('Error updating expired subscriptions:', error);
+      toast.error('Failed to update expired subscriptions');
+    }
+  }, [fetchData]);
+
   useEffect(() => {
     const superAdminSession = localStorage.getItem('superAdminSession');
     if (!superAdminSession) {
@@ -250,7 +273,15 @@ export default function SuperAdminDashboard() {
     }
     fetchData();
     fetchSubscriptions();
-  }, [navigate, fetchData]);
+    
+    // Check for expired subscriptions initially
+    checkAndUpdateExpiredSubscriptions();
+    
+    // Set up interval to check periodically (every 5 minutes)
+    const interval = setInterval(checkAndUpdateExpiredSubscriptions, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [navigate, fetchData, fetchSubscriptions, checkAndUpdateExpiredSubscriptions]);
 
   const handleLogout = () => {
     localStorage.removeItem('superAdminSession');

@@ -1,11 +1,12 @@
 // src/components/Catalog/ServiceForm.jsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabase";
 import toast from "react-hot-toast";
+import imageCompression from "browser-image-compression";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle,CardFooter  } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -13,279 +14,295 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea"
-import { ImagePlus } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import { ImagePlus, Loader2 } from "lucide-react";
 
 export default function ServiceForm({ service, onSuccess, onCancel, loading = false }) {
   const isEditing = Boolean(service);
-  
+
+  // Prevent double-submits
+  const [submitting, setSubmitting] = useState(false);
+
   const [name, setName] = useState(service?.name || "");
   const [description, setDescription] = useState(service?.description || "");
   const [price, setPrice] = useState(service?.price || "");
-  const [type, setType] = useState(service?.type || "checkbox"); // New state for service type
-  
+  const [type, setType] = useState(service?.type || "checkbox");
+
   const [imageUrl, setImageUrl] = useState(service?.image_url || "");
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(service?.image_url || "");
-  
-  const imageFileRef = useRef(null);
+  const [compressionProgress, setCompressionProgress] = useState(0);
 
-  // Cleanup the preview URL when component unmounts or when a new file is selected
+  // Clean up blob URLs on unmount or when preview changes
   useEffect(() => {
     return () => {
-      if (previewUrl && previewUrl.startsWith('blob:')) {
+      if (previewUrl && previewUrl.startsWith("blob:")) {
         URL.revokeObjectURL(previewUrl);
       }
     };
   }, [previewUrl]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      // Create a preview URL for the selected file
-      const objectUrl = URL.createObjectURL(file);
+  // Handle file selection and compression
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Invalid format. Only JPEG, PNG & WEBP allowed.");
+      return;
+    }
+
+    try {
+      setCompressionProgress(0);
+
+      const options = {
+        maxSizeMB: 0.3,
+        maxWidthOrHeight: 800,
+        useWebWorker: true,
+        onProgress: (p) => setCompressionProgress(Math.round(p)),
+      };
+
+      const compressedFile = await imageCompression(file, options);
+
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      const objectUrl = URL.createObjectURL(compressedFile);
+      setSelectedFile(compressedFile);
       setPreviewUrl(objectUrl);
+      setCompressionProgress(100);
+    } catch (err) {
+      console.error("Compression error:", err);
+      toast.error("Image compression failed.");
     }
   };
 
+  // Handle form submission (add or edit)
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    if (submitting) return;
+    setSubmitting(true);
+
     try {
-      // Get organization_id from user session
-      const storedSession = localStorage.getItem('userSession');
+      const storedSession = localStorage.getItem("userSession");
       if (!storedSession) {
-        toast.error("User session not found. Please log in again.");
+        toast.error("Session not found. Please log in.");
         return;
       }
-      
       const { organization_id } = JSON.parse(storedSession);
       if (!organization_id) {
-        toast.error("Organization information not found. Please log in again.");
+        toast.error("Organization info missing. Please log in.");
         return;
       }
 
       let finalImageUrl = imageUrl;
 
-      // Handle image upload or replacement on submit
+      // If a new image was selected, delete old then upload new
       if (selectedFile) {
-        // If editing and there's an existing image, delete it first
         if (isEditing && service.image_url) {
-          // Extract file path from image_url
           const imagePath = service.image_url.split("/").pop();
-          const { error: removeError } = await supabase
+          const { error: rmErr } = await supabase
             .storage
             .from("service-images")
             .remove([imagePath]);
-          
-          if (removeError) {
-            toast.error(`Error deleting old image: ${removeError.message}`);
+          if (rmErr) {
+            toast.error(`Error deleting old image: ${rmErr.message}`);
+            setSubmitting(false);
             return;
           }
         }
 
-        // Upload new image
         const filePath = `${Date.now()}-${selectedFile.name}`;
-        const { data: uploadData, error: uploadError } = await supabase
+        const { error: upErr } = await supabase
           .storage
           .from("service-images")
           .upload(filePath, selectedFile, { upsert: true });
-
-        if (uploadError) {
-          toast.error(`Error uploading image: ${uploadError.message}`);
+        if (upErr) {
+          toast.error(`Error uploading image: ${upErr.message}`);
+          setSubmitting(false);
           return;
         }
 
-        // Get public URL
-        const { data: { publicUrl }, error: publicUrlError } = supabase
+        const { data: urlData, error: urlErr } = supabase
           .storage
           .from("service-images")
           .getPublicUrl(filePath);
-
-        if (publicUrlError) {
-          toast.error(`Error getting public URL: ${publicUrlError.message}`);
+        if (urlErr) {
+          toast.error(`Error fetching image URL: ${urlErr.message}`);
+          setSubmitting(false);
           return;
         }
 
-        finalImageUrl = publicUrl;
+        finalImageUrl = urlData.publicUrl;
         setImageUrl(finalImageUrl);
       }
 
-      const serviceData = {
+      const payload = {
         name,
         description,
         price,
-        type, // Include the 'type' in the data
+        type,
         image_url: finalImageUrl,
-        organization_id, // Add organization_id to the service data
+        organization_id,
       };
 
+      let dbErr;
       if (isEditing) {
-        const { error } = await supabase
+        ({ error: dbErr } = await supabase
           .from("services")
-          .update(serviceData)
-          .eq("id", service.id);
-        if (error) throw error;
+          .update(payload)
+          .eq("id", service.id));
       } else {
-        const { error } = await supabase
+        ({ error: dbErr } = await supabase
           .from("services")
-          .insert([serviceData]);
-        if (error) throw error;
+          .insert([payload]));
       }
+      if (dbErr) throw dbErr;
 
       toast.success(isEditing ? "Service updated!" : "Service added!");
-      if (onSuccess) onSuccess();
-    } catch (error) {
-      toast.error(`Error: ${error.message}`);
+      onSuccess?.();
+    } catch (err) {
+      console.error(err);
+      toast.error(`Error: ${err.message}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-<Card className="w-full max-w-lg mx-auto">
+    <Card className="w-full max-w-lg mx-auto">
       <CardHeader>
         <CardTitle>{isEditing ? "Edit Service" : "Add New Service"}</CardTitle>
       </CardHeader>
       <CardContent>
-      {loading ? (
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Column */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-10 w-full" />
+                <Label htmlFor="name">Service Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder="Enter service name"
+                />
               </div>
               <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-32 w-full" />
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe your service"
+                  rows={4}
+                />
+              </div>
+              <div className="hidden">
+                <Label htmlFor="type">Service Type</Label>
+                <Select value={type} onValueChange={setType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select service type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="checkbox">Checkbox</SelectItem>
+                    <SelectItem value="input">Input</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
+            {/* Right Column */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-10 w-full" />
+                <Label htmlFor="price">Price</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  required
+                  placeholder="0.00"
+                  min="0"
+                />
               </div>
               <div className="space-y-2">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-20 w-full" />
+                <Label htmlFor="imageFile">Service Image</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => document.getElementById("imageFile").click()}
+                      disabled={submitting}
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      id="imageFile"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                      disabled={submitting}
+                    />
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-20 h-20 object-cover rounded"
+                      />
+                    ) : (
+                      <div className="text-sm text-muted-foreground">No image selected</div>
+                    )}
+                  </div>
+                  {compressionProgress > 0 && compressionProgress < 100 && (
+                    <Progress value={compressionProgress} />
+                  )}
+                </div>
               </div>
             </div>
           </div>
-          <div className="flex justify-end space-x-2">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-32" />
-          </div>
-        </div>
-      ) : (
-      <form onSubmit={handleSubmit} className="space-y-6">
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    {/* Left Column */}
-    <div className="space-y-4">
-      {/* Service Name */}
-      <div className="space-y-2">
-        <Label htmlFor="name">Service Name</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          placeholder="Enter service name"
-        />
-      </div>
-
-      {/* Description */}
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe your service"
-          rows={4}
-        />
-      </div>
-
-      {/* Service Type */}
-      <div className="space-y-2 hidden">
-        <Label htmlFor="type">Service Type</Label>
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select service type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="checkbox">Checkbox</SelectItem>
-            <SelectItem value="input">Input</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-
-    {/* Right Column */}
-    <div className="space-y-4">
-      {/* Price */}
-      <div className="space-y-2">
-        <Label htmlFor="price">Price</Label>
-        <Input
-          id="price"
-          type="number"
-          step="0.01"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          required
-          placeholder="0.00"
-          min="0"
-        />
-      </div>
-
-      {/* Service Image */}
-      <div className="space-y-2">
-        <Label htmlFor="imageFile">Service Image</Label>
-        <div className="flex items-center space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => document.getElementById("imageFile").click()}
-          >
-            <ImagePlus className="h-4 w-4" />
-          </Button>
-          <Input
-            id="imageFile"
-            type="file"
-            onChange={handleFileChange}
-            accept="image/*"
-            className="hidden"
-          />
-          {previewUrl ? (
-            <img
-              src={previewUrl || "/placeholder.svg"}
-              alt="Preview"
-              className="w-20 h-20 object-cover rounded"
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">No image selected</div>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  
-</form>
-
-      )}
+        </form>
       </CardContent>
-      <CardFooter className="flex justify-end space-x-2">
-        {onCancel && (
-          <Button type="button" className="hidden sm:block" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-        <Button type="submit" className="w-full md:w-auto" onClick={handleSubmit}>
-          {isEditing ? "Save Changes" : "Add Service"}
-        </Button>
-      </CardFooter>
+      <CardFooter className="flex flex-col sm:flex-row justify-end sm:space-x-2 space-y-2 sm:space-y-0 w-full">
+  {/* Cancel button – hidden on mobile */}
+  {onCancel && (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={onCancel}
+      disabled={submitting}
+      className="hidden sm:inline-flex"
+    >
+      Cancel
+    </Button>
+  )}
+
+  {/* Submit/Add button – full width on mobile */}
+  <Button
+    type="submit"
+    onClick={handleSubmit}
+    disabled={submitting}
+    className="w-full sm:w-auto"
+  >
+    {submitting ? (
+      <>
+        <Loader2 className="animate-spin mr-2 h-4 w-4" />
+        {isEditing ? "Saving…" : "Adding…"}
+      </>
+    ) : (
+      isEditing ? "Save Changes" : "Add Service"
+    )}
+  </Button>
+</CardFooter>
+
     </Card>
   );
 }

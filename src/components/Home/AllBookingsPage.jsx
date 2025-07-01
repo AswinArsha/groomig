@@ -96,37 +96,63 @@ export default function HistoricalBookingTable() {
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 10; // Number of bookings per page
 
+  // *** ADDED: Organization state variables ***
+  const [userRole, setUserRole] = useState(null);
+  const [organizationId, setOrganizationId] = useState(null);
 
-
-
-
-
-  // Fetch available services
-  const fetchServiceOptions = useCallback(async () => {
+  // ─────────────────────────────────────────────────────────────────────────────
+  // UPDATED: Fetch available services - now filtered by organization
+  // ─────────────────────────────────────────────────────────────────────────────
+  const fetchServiceOptions = async (orgId) => {
+    if (!orgId) {
+      console.log("No organization ID provided for services");
+      setServiceOptions([]);
+      return;
+    }
+    
     try {
+      console.log("Fetching services for organization:", orgId); // Debug log
       const { data, error } = await supabase
         .from("services")
         .select("id, name")
+        .eq("organization_id", orgId) // Filter by organization
         .order("name");
+      
       if (error) throw error;
+      
+      console.log("Fetched services:", data); // Debug log
       const options = data.map((service) => ({
         value: service.id,
         label: service.name,
       }));
       setServiceOptions(options);
     } catch (error) {
+      console.error("Error fetching services:", error);
       toast.error(`Error fetching services: ${error.message}`);
     }
-  }, []);
+  };
 
-  // Fetch available shops for filtering
-  const fetchShopOptions = useCallback(async () => {
+  // ─────────────────────────────────────────────────────────────────────────────
+  // UPDATED: Fetch available shops - now filtered by organization
+  // ─────────────────────────────────────────────────────────────────────────────
+  const fetchShopOptions = async (orgId) => {
+    if (!orgId) {
+      console.log("No organization ID provided for shops");
+      setShopOptions([{ value: null, label: "All Shops" }]);
+      return;
+    }
+    
     try {
+      console.log("Fetching shops for organization:", orgId); // Debug log
       const { data, error } = await supabase
         .from("shops")
         .select("id, name")
+        .eq("organization_id", orgId) // Filter by organization
         .order("name");
+      
       if (error) throw error;
+      
+      console.log("Fetched shops:", data); // Debug log
       const options = [{ value: null, label: "All Shops" }].concat(
         data.map((shop) => ({
           value: shop.id,
@@ -135,14 +161,34 @@ export default function HistoricalBookingTable() {
       );
       setShopOptions(options);
     } catch (error) {
+      console.error("Error fetching shops:", error);
       toast.error(`Error fetching shops: ${error.message}`);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // NEW: Set up user session and organization ID
+  // ─────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const userSession = JSON.parse(localStorage.getItem("userSession"));
+    if (userSession) {
+      setUserRole(userSession.type === "staff" ? "staff" : "admin");
+      const orgId = userSession.organization_id;
+      console.log("Setting organization ID:", orgId); // Debug log
+      setOrganizationId(orgId);
     }
   }, []);
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // NEW: Fetch shops and services when organizationId changes
+  // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchServiceOptions();
-    fetchShopOptions();
-  }, [fetchServiceOptions, fetchShopOptions]);
+    if (organizationId) {
+      console.log("Organization ID is available, fetching options:", organizationId); // Debug log
+      fetchServiceOptions(organizationId);
+      fetchShopOptions(organizationId);
+    }
+  }, [organizationId]);
 
   const handleServiceSelect = (serviceId) => {
     const selectedService = serviceOptions.find(
@@ -194,7 +240,6 @@ export default function HistoricalBookingTable() {
       setRatingSort(null);
     }
   };
-
 
   const getDisplayPaymentMode = (booking) => {
     // If there's no payment_details, fallback to booking.payment_mode
@@ -254,8 +299,8 @@ export default function HistoricalBookingTable() {
       }
 
       // - If neither is credit => display "mode1 + mode2"
-      // - If both are credit (edge case?), you’d see "credit + credit" or just "credit"
-      //   but that scenario is unusual. For simplicity, we’ll join them:
+      // - If both are credit (edge case?), you'd see "credit + credit" or just "credit"
+      //   but that scenario is unusual. For simplicity, we'll join them:
       if (firstMode === secondMode) {
         // e.g. both "credit"
         return firstMode;
@@ -288,8 +333,6 @@ export default function HistoricalBookingTable() {
       ? booking.payment_mode.toLowerCase()
       : "";
   };
-
-
 
   // Helper function to calculate total bill from services
   const calculateTotalBill = (services) => {
@@ -401,22 +444,22 @@ export default function HistoricalBookingTable() {
     doc.save("historical-bookings-report.pdf");
   };
 
-  // Fetch bookings and apply server-side filtering & pagination
+  // ─────────────────────────────────────────────────────────────────────────────
+  // UPDATED: Fetch bookings and apply server-side filtering & pagination
+  // ─────────────────────────────────────────────────────────────────────────────
   const fetchHistoricalBookings = useCallback(async () => {
     setLoading(true);
     try {
-      // Get organization_id from user session
-      const userSession = JSON.parse(localStorage.getItem("userSession"));
-      const userOrgId = userSession?.organization_id;
-
-      if (!userOrgId) {
-        toast.error("No organization found. Please log in again.");
+      // Use organizationId from state instead of reading from localStorage every time
+      if (!organizationId) {
+        console.log("No organization ID available for fetching bookings");
         setBookings([]);
         setTotalCount(0);
         setLoading(false);
         return;
       }
 
+      console.log("Fetching historical bookings for organization:", organizationId); // Debug log
       const formattedDateFrom = format(selectedDate.from, "yyyy-MM-dd");
       const formattedDateTo = format(selectedDate.to, "yyyy-MM-dd");
 
@@ -427,7 +470,7 @@ export default function HistoricalBookingTable() {
       let query = supabase
         .from("historical_bookings")
         .select("*", { count: "exact" })
-        .eq("organization_id", userOrgId)
+        .eq("organization_id", organizationId) // Use state variable
         .gte("booking_date", formattedDateFrom)
         .lte("booking_date", formattedDateTo)
         .order("completed_at", { ascending: false })
@@ -509,7 +552,8 @@ export default function HistoricalBookingTable() {
     selectedPaymentMode,
     ratingSort,
     currentPage,
-    itemsPerPage
+    itemsPerPage,
+    organizationId, // Add organizationId to dependencies
   ]);
 
   // Handle page change
@@ -517,8 +561,13 @@ export default function HistoricalBookingTable() {
     setCurrentPage(page);
   };
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // UPDATED: Only fetch when organizationId is available
+  // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchHistoricalBookings();
+    if (organizationId) {
+      fetchHistoricalBookings();
+    }
   }, [
     searchTerm,
     selectedDate,
@@ -528,6 +577,7 @@ export default function HistoricalBookingTable() {
     selectedPaymentMode,
     ratingSort,
     currentPage,
+    organizationId, // Make sure organizationId is included
     fetchHistoricalBookings,
   ]);
 
@@ -648,7 +698,6 @@ export default function HistoricalBookingTable() {
       </div>
     );
   };
-
 
   const formatTimeIST = (timeStr) => {
     if (!timeStr) return "N/A";
@@ -905,8 +954,6 @@ export default function HistoricalBookingTable() {
                     </SelectContent>
                   </Select>
 
-
-
                   <Select
                     value={selectValue}
                     onValueChange={(val) => handleServiceSelect(val)}
@@ -966,6 +1013,14 @@ export default function HistoricalBookingTable() {
                       {ratingSort === "asc" && "Rating: Low to High"}
                     </span>
                   </Button>
+                  <Button
+              variant="outline"
+              onClick={downloadPDF}
+              className="flex w-full items-center space-x-2"
+            >
+              <Download className="h-4 w-4" />
+              <span>Download PDF</span>
+            </Button>
                 </div>
                 <DrawerFooter>
                   <Button variant="outline" onClick={clearAllFilters} className="w-full">
@@ -1416,62 +1471,17 @@ export default function HistoricalBookingTable() {
                         </div>
                       </CardContent>
                       <CardFooter className="flex justify-end space-x-2 pt-2">
-                        {booking.status !== "cancelled" &&
-                          booking.status !== "canceled" &&
-                          booking.status !== "completed" && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Open edit dialog (implement as needed)
-                                }}
-                                aria-label={`Edit booking ${booking.id}`}
-                              >
-                                <span>Edit</span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Open cancel confirmation (implement as needed)
-                                }}
-                                aria-label={`Cancel booking ${booking.id}`}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        {booking.status === "reserved" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Handle check-in action
-                            }}
-                            className="bg-green-500 text-white"
-                            aria-label={`Check in booking ${booking.id}`}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                        ) : (booking.status === "checked_in" ||
-                          booking.status === "progressing" ||
-                          booking.status === "completed") ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/all-booking-details/${booking.id}`);
-                            }}
-                            aria-label={`View details for booking ${booking.id}`}
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/all-booking-details/${booking.id}`);
+                          }}
+                          aria-label={`View details for booking ${booking.id}`}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
                       </CardFooter>
                     </Card>
                   );

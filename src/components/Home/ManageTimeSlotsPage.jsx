@@ -55,12 +55,12 @@ export default function ManageTimeSlotsPage({ onSlotAdded }) {
             </DrawerTrigger>
             <DrawerContent>
               <DrawerHeader>
-              
+                 <DrawerTitle>Add Time Slot</DrawerTitle>
               </DrawerHeader>
-              <div className="mt-4 px-4">
+              <div className=" -mt-4 -mb-6">
                 <AddTimeSlotForm onSlotAdded={handleSlotAdded} />
               </div>
-              <div className="px-6 py-4">
+              <div className="px-6 pb-4 pt-2 ">
                 <Button variant="outline" className="w-full" onClick={() => setIsOpen(false)}>
                   Cancel
                 </Button>
@@ -73,7 +73,7 @@ export default function ManageTimeSlotsPage({ onSlotAdded }) {
               <Plus className="h-4 w-4 mr-2" />
               Add Time Slot
             </Button>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-3xl -p-4">
               
               <AddTimeSlotForm onSlotAdded={handleSlotAdded} />
             </DialogContent>

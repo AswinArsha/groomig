@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @layer base {
+  /* Default theme */
   :root {
     --background: 1 0% 99.4%;
     --foreground: 21 13% 3.4%;
@@ -41,6 +42,39 @@
     --sidebar-accent-foreground: 26 5% 0%;
     --sidebar-border: 21 5% 86.4%;
     --sidebar-ring: 205 84% 50.4%;
+  }
+  
+  /* Blue theme */
+  [data-theme="blue"] {
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 217 91% 60%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 217 70% 50%;
+    --sidebar-primary: 217 91% 50%;
+    --sidebar-ring: 217 91% 45%;
+  }
+  
+  /* Green theme */
+  [data-theme="green"] {
+    --primary: 142 76% 36%;
+    --primary-foreground: 355 100% 97%;
+    --ring: 142 76% 36%;
+    --chart-1: 142 76% 36%;
+    --chart-2: 142 60% 45%;
+    --sidebar-primary: 142 76% 30%;
+    --sidebar-ring: 142 76% 25%;
+  }
+  
+  /* Purple theme */
+  [data-theme="purple"] {
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 262 83% 58%;
+    --chart-1: 262 83% 58%;
+    --chart-2: 262 70% 50%;
+    --sidebar-primary: 262 83% 50%;
+    --sidebar-ring: 262 83% 45%;
   }
 
   /* Add background pattern to html element */

@@ -31,9 +31,23 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
 
   useEffect(() => {
     const fetchShops = async () => {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+
       const { data, error } = await supabase
         .from("shops")
         .select("id, name")
+        .eq("organization_id", organization_id)
         .order("created_at", { ascending: false });
       if (error) {
         toast.error(`Error fetching shops: ${error.message}`);
@@ -247,7 +261,7 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
           <div className="space-y-4">
             <Label className="text-base font-semibold">Select Shops</Label>
             {/* On extra-small screens, show one column; on small and above, two columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               {shops.map((shop) => (
                 <div key={shop.id} className="flex items-center space-x-2">
                   <Checkbox
@@ -269,9 +283,9 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
         </div>
 
         {/* Right Column - Sub-Time Slots */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           <Label className="text-base font-semibold">Sub-Time Slots</Label>
-          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 ">
+          <div className="-mt-4 max-h-[400px] overflow-y-auto pr-4 scrollbar-thin ">
             {subSlots.map((subSlot, index) => (
               <div key={index} className="flex items-center space-x-4 bg-secondary/20 p-3 rounded-lg">
                 <span className="text-sm font-medium min-w-[60px]">Slot {subSlot.slot_number}:</span>
@@ -302,8 +316,8 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
       </div>
 
       {/* Form Actions */}
-      <div className="flex justify-end space-x-2 pt-4 border-t">
-        <Button type="submit">Save Changes</Button>
+      <div className=" pt-4 border-t">
+        <Button className="w-full" type="submit">Save Changes</Button>
       </div>
     </form>
   );

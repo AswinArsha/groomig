@@ -33,9 +33,23 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
   // Fetch available shops from Supabase
   useEffect(() => {
     const fetchShops = async () => {
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+
       const { data, error } = await supabase
         .from("shops")
         .select("id, name")
+        .eq("organization_id", organization_id)
         .order("created_at", { ascending: false });
       if (error) {
         toast.error(`Error fetching shops: ${error.message}`);
@@ -145,18 +159,18 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
   };
 
   return (
-    <Card className="w-full mx-auto border-0">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-2xl font-bold">Add Time Slot</CardTitle>
+    <Card className="w-full  bg-white border-0 shadow-none">
+      <CardHeader className="">
+        <CardTitle className="text-2xl font-bold hidden sm:block">Add Time Slot</CardTitle>
         <CardDescription className="hidden md:block">Set up a new time slot with sub-slots for your schedule</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 -mt-8 sm:-mt-0">
             {/* Left Column - Time Picker and Shop Selection */}
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               {/* Time Picker */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <TimePicker onTimeSelect={handleTimeSelect} />
               </div>
 
@@ -219,8 +233,8 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
               </div>
 
               {/* Shop Multi-Select */}
-              <div className="space-y-4">
-                <Label className="text-base font-semibold block mb-3">Select Shops</Label>
+              <div className="space-y-4 ">
+                <Label className="text-base font-semibold ">Select Shops</Label>
                 <div className="grid grid-cols-2 gap-4">
                   {shops.map((shop) => (
                     <div 
@@ -246,9 +260,9 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
             </div>
 
             {/* Right Column - Sub-Time Slots */}
-            <div className="space-y-4">
-              <Label className="text-lg font-semibold block mb-3">Sub-Time Slots</Label>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-4 scrollbar-thin">
+            <div>
+              <Label className="text-base  font-semibold block mb-3">Sub-Time Slots</Label>
+              <div className="-mt-4 max-h-[400px] overflow-y-auto pr-4 scrollbar-thin">
                 {subSlots.map((slot, index) => (
                   <div
                     key={index}
@@ -285,13 +299,14 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
               </Button>
             </div>
           </div>
-
+<div className=" pt-4 border-t ">
           <Button 
             type="submit" 
-            className="w-full bg-primary hover:bg-primary/90 transition-colors"
+            className="w-full bg-primary hover:bg-primary/90 transition-colors 
+            "
           >
             Add Time Slot
-          </Button>
+          </Button></div>
         </form>
       </CardContent>
     </Card>

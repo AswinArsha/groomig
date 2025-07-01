@@ -12,7 +12,17 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Loader2, Clock, Trash2, Edit2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,6 +33,11 @@ export default function TimeSlotList() {
   const [loading, setLoading] = useState(true);
   const [editingSlot, setEditingSlot] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  
+  // Media query for responsive behavior
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const fetchSlots = async () => {
     setLoading(true);
@@ -133,6 +148,7 @@ export default function TimeSlotList() {
       toast.error(`Error: ${error.message}`);
     } finally {
       setDeleteId(null);
+      setDeleteOpen(false);
     }
   };
 
@@ -201,8 +217,9 @@ export default function TimeSlotList() {
 
       if (insertError) throw insertError;
 
-    
+      toast.success("Time slot updated successfully!");
       setEditingSlot(null);
+      setEditOpen(false);
       fetchSlots();
     } catch (error) {
       toast.error(`Error updating time slot: ${error.message}`);
@@ -216,6 +233,198 @@ export default function TimeSlotList() {
     return `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`;
   };
 
+  // Edit Dialog/Drawer Component
+  const EditTimeSlotComponent = ({ slot }) => {
+    if (isDesktop) {
+      return (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditingSlot(slot);
+                setEditOpen(true);
+              }}
+              className="flex-1 hover:border-primary hover:text-primary transition-colors"
+            >
+              <Edit2 className="h-4 w-4 mr-1.5" />
+              Edit
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Time Slot</DialogTitle>
+              <DialogDescription >
+                Make changes to your time slot here. Click save when you're done.
+              </DialogDescription>
+            </DialogHeader>
+            {editingSlot && (
+              <EditTimeSlotForm
+                slot={editingSlot}
+                onSave={handleEdit}
+                onCancel={() => {
+                  setEditingSlot(null);
+                  setEditOpen(false);
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      );
+    }
+
+    return (
+      <Drawer open={editOpen} onOpenChange={setEditOpen}>
+        <DrawerTrigger asChild>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditingSlot(slot);
+              setEditOpen(true);
+            }}
+            className="flex-1 hover:border-primary hover:text-primary transition-colors"
+          >
+            <Edit2 className="h-4 w-4 mr-1.5" />
+            Edit
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent className="max-h-[95vh]">
+          <DrawerHeader >
+            <DrawerTitle>Edit Time Slot</DrawerTitle>
+            <DrawerDescription className="hidden md:block">
+              Make changes to your time slot here. Click save when you're done.
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className=" overflow-y-auto">
+            {editingSlot && (
+              <EditTimeSlotForm
+                slot={editingSlot}
+                onSave={handleEdit}
+                onCancel={() => {
+                  setEditingSlot(null);
+                  setEditOpen(false);
+                }}
+                className="pb-4"
+              />
+            )}
+          </div>
+          <DrawerFooter className="pt-2">
+            <DrawerClose asChild>
+              <Button variant="outline" onClick={() => {
+                setEditingSlot(null);
+                setEditOpen(false);
+              }}>
+                Cancel
+              </Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+    );
+  };
+
+  // Delete Dialog/Drawer Component
+  const DeleteTimeSlotComponent = ({ slotId }) => {
+    if (isDesktop) {
+      return (
+        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <DialogTrigger asChild>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => {
+                setDeleteId(slotId);
+                setDeleteOpen(true);
+              }}
+              className="flex-1 opacity-90 hover:opacity-100"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              Delete
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this time slot? This will also
+                delete all associated sub-time slots.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteId(null);
+                  setDeleteOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleDelete(deleteId)}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      );
+    }
+
+    return (
+      <Drawer open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DrawerTrigger asChild>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => {
+              setDeleteId(slotId);
+              setDeleteOpen(true);
+            }}
+            className="flex-1 opacity-90 hover:opacity-100"
+          >
+            <Trash2 className="h-4 w-4 mr-1.5" />
+            Delete
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent>
+          <DrawerHeader className="text-left">
+            <DrawerTitle>Confirm Deletion</DrawerTitle>
+            <DrawerDescription>
+              Are you sure you want to delete this time slot? This will also
+              delete all associated sub-time slots.
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="px-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. This will permanently delete the time slot and all its sub-time slots.
+            </p>
+          </div>
+          <DrawerFooter className="pt-2 flex flex-col gap-2">
+            <Button
+              variant="destructive"
+              onClick={() => handleDelete(deleteId)}
+              className="w-full"
+            >
+              Delete Time Slot
+            </Button>
+            <DrawerClose asChild>
+              <Button variant="outline" onClick={() => {
+                setDeleteId(null);
+                setDeleteOpen(false);
+              }}>
+                Cancel
+              </Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -225,126 +434,65 @@ export default function TimeSlotList() {
   }
 
   return (
-<div>
-        {slots.length === 0 ? (
-          <div className="text-center p-8 border-2 border-dashed rounded-lg">
-            <p className="text-muted-foreground text-lg mb-2">No time slots found.</p>
-            <p className="text-sm text-muted-foreground">
-              Add a time slot to get started.
-            </p>
-          </div>
-        ) : (
-
-            <div className="grid grid-cols-1  sm:grid-cols-2 lg:grid-cols-3 gap-4 -mt-2">
-              {slots.map((slot) => (
-                <div key={slot.id} className="aspect-square group">
-                  <Card className="h-full transition-all duration-200  hover:border-primary/50">
-                    <CardContent className="p-4 h-full flex flex-col justify-between relative">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-primary/10 p-2.5 rounded-full transition-colors group-hover:bg-primary/20">
-                            <Clock className="h-6 w-6 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-lg text-foreground/90 group-hover:text-foreground">
-                              {formatTimeDisplay(slot.start_time)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {slot.sub_time_slots?.length || 0} sub-slots
-                            </p>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-semibold text-sm flex items-center gap-2">
-                            Sub-Time Slots
-                            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-xs font-normal">
-                              {slot.sub_time_slots?.length || 0}
-                            </span>
-                          </h4>
-                          {slot.sub_time_slots && slot.sub_time_slots.length > 0 ? (
-                            <ul className="text-sm space-y-1.5 overflow-y-auto max-h-[120px] pr-2">
-                              {slot.sub_time_slots.map((subSlot) => (
-                                <li key={subSlot.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                                  <span className="text-primary text-lg">•</span>
-                                  <span className="text-foreground/80">Slot {subSlot.slot_number}: {subSlot.description || "No Description"}</span>
-                                </li>
-                              ))}                          
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-muted-foreground p-2 bg-muted/30 rounded-md">No sub-time slots added.</p>
-                          )}
-                        </div>
+    <div>
+      {slots.length === 0 ? (
+        <div className="text-center p-8 border-2 border-dashed rounded-lg">
+          <p className="text-muted-foreground text-lg mb-2">No time slots found.</p>
+          <p className="text-sm text-muted-foreground">
+            Add a time slot to get started.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 -mt-2">
+          {slots.map((slot) => (
+            <div key={slot.id} className="aspect-square group">
+              <Card className="h-full transition-all duration-200 hover:border-primary/50">
+                <CardContent className="p-4 h-full flex flex-col justify-between relative">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2.5 rounded-full transition-colors group-hover:bg-primary/20">
+                        <Clock className="h-6 w-6 text-primary" />
                       </div>
-                      <div className="flex gap-2 mt-4">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingSlot(slot)}
-                              className="flex-1 hover:border-primary hover:text-primary transition-colors"
-                            >
-                              <Edit2 className="h-4 w-4 mr-1.5" />
-                              Edit
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[800px]">
-                            <DialogHeader>
-                     
-                            </DialogHeader>
-                            {editingSlot && (
-                              <EditTimeSlotForm
-                                slot={editingSlot}
-                                onSave={handleEdit}
-                                onCancel={() => setEditingSlot(null)}
-                              />
-                            )}
-                          </DialogContent>
-                        </Dialog>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setDeleteId(slot.id)}
-                              className="flex-1 opacity-90 hover:opacity-100"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1.5" />
-                              Delete
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Confirm Deletion</DialogTitle>
-                              <DialogDescription>
-                                Are you sure you want to delete this time slot? This will also
-                                delete all associated sub-time slots.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <Button
-                                variant="outline"
-                                onClick={() => setDeleteId(null)}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                onClick={() => handleDelete(deleteId)}
-                              >
-                                Delete
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                      <div>
+                        <p className="font-medium text-lg text-foreground/90 group-hover:text-foreground">
+                          {formatTimeDisplay(slot.start_time)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {slot.sub_time_slots?.length || 0} sub-slots
+                        </p>
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm flex items-center gap-2">
+                        Sub-Time Slots
+                        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-xs font-normal">
+                          {slot.sub_time_slots?.length || 0}
+                        </span>
+                      </h4>
+                      {slot.sub_time_slots && slot.sub_time_slots.length > 0 ? (
+                        <ul className="text-sm space-y-1.5 overflow-y-auto max-h-[120px] pr-2">
+                          {slot.sub_time_slots.map((subSlot) => (
+                            <li key={subSlot.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                              <span className="text-primary text-lg">•</span>
+                              <span className="text-foreground/80">Slot {subSlot.slot_number}: {subSlot.description || "No Description"}</span>
+                            </li>
+                          ))}                          
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground p-2 bg-muted/30 rounded-md">No sub-time slots added.</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <EditTimeSlotComponent slot={slot} />
+                    <DeleteTimeSlotComponent slotId={slot.id} />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-       
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

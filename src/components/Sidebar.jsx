@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Menu, Loader2, CheckCircle, XCircle
 } from "lucide-react";
+import Preferences from "@/components/Catalog/Preferences";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import toast from "react-hot-toast";
@@ -26,7 +27,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import MobileSidebar from "@/components/ui/mobile-sidebar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle , DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import './App.css';
 
 function Sidebar() {
@@ -41,6 +42,7 @@ function Sidebar() {
   const [showHistory, setShowHistory] = useState(false);
   const [subscriptionHistory, setSubscriptionHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showPreferencesDialog, setShowPreferencesDialog] = useState(false);
 
   // Handle screen resize
   useEffect(() => {
@@ -367,10 +369,10 @@ function Sidebar() {
                       to={isSubscriptionInactive ? "#" : item.path}
                       onClick={(e) => isSubscriptionInactive && e.preventDefault()}
                       className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${isLinkActive(item.path)
-                          ? "bg-pink-100 dark:bg-pink-900/30"
+                          ? "bg-[hsl(var(--primary)/0.15)] dark:bg-[hsl(var(--primary)/0.25)]"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         } ${isSubscriptionInactive ? "opacity-50 cursor-not-allowed" : ""}`}
-                      style={{ color: isLinkActive(item.path) ? "#c93b7d" : "" }}
+                      style={{ color: isLinkActive(item.path) ? "hsl(var(--primary))" : "" }}
                     >
                       {/* Fixed layout to prevent icon movement during collapse */}
                       <div className="relative flex items-center w-full">
@@ -390,7 +392,7 @@ function Sidebar() {
                             className="flex-shrink-0"
                           >
                             {React.cloneElement(item.icon, {
-                              className: `${isLinkActive(item.path) ? "text-pink-600 dark:text-pink-400" : ""} ${item.icon.props.className}`,
+                              className: `${isLinkActive(item.path) ? "text-[hsl(var(--primary))] dark:text-[hsl(var(--primary))]" : ""} ${item.icon.props.className}`,
                             })}
                           </motion.div>
                         </div>
@@ -443,9 +445,9 @@ function Sidebar() {
       >
         <Popover>
           <PopoverTrigger asChild>
-            <Avatar className="h-9 w-9 cursor-pointer ring-1 ring-pink-400 hover:ring-2 hover:ring-pink-500 transition-all duration-200">
+            <Avatar className="h-9 w-9 cursor-pointer ring-1 ring-[hsl(var(--sidebar-primary))] hover:ring-2 hover:ring-[hsl(var(--sidebar-ring))] transition-all duration-200">
               <AvatarImage src={user.user_metadata?.avatar_url} />
-              <AvatarFallback>
+              <AvatarFallback className=" ">
                 {getAvatarLetter()}
               </AvatarFallback>
             </Avatar>
@@ -460,10 +462,18 @@ function Sidebar() {
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </div>
+                      <Button
+    variant="outline"
+     size="sm"
+     className="w-full mt-2"
+    onClick={() => setShowPreferencesDialog(true)}
+   >
+     Preferences
+   </Button>
 
                       {loadingSubscription ? (
                         <div className="flex justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin text-pink-600" />
+                          <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--primary))]" />
                         </div>
                       ) : subscriptionDetails ? (
                         <div className="space-y-3">
@@ -513,7 +523,7 @@ function Sidebar() {
                       <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
                         {loadingHistory ? (
                           <div className="flex justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-pink-600" />
+                            <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--primary))]" />
                           </div>
                         ) : subscriptionHistory.length > 0 ? (
                           <div className="overflow-hidden">
@@ -550,7 +560,24 @@ function Sidebar() {
                       </div>
                     </DialogContent>
                   </Dialog>
+                  
               </Popover>
+              <Dialog
+  open={showPreferencesDialog}
+  onOpenChange={setShowPreferencesDialog}
+>
+  <DialogContent className="sm:max-w-lg">
+    <DialogHeader>
+      <DialogTitle>Shop Preferences</DialogTitle>
+     
+    </DialogHeader>
+    
+    {/* Your existing component to edit shop name & image */}
+    <Preferences />
+
+
+  </DialogContent>
+</Dialog>
 
         {/* only show name & role when expanded */}
         {!isCollapsed && (

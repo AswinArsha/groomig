@@ -30,7 +30,7 @@ import {
   Phone,
   User,
   DogIcon,
-  Store
+  Store,ChevronLeft 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion"; // For animations
 import { Progress } from "@/components/ui/progress"; // Updated import
@@ -803,7 +803,9 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               onClick={() => setStep(step - 1)}
               aria-label="Go to previous step"
             >
-              Back
+              <ChevronLeft /> 
+              <span className="hidden sm:block">Back</span>
+              
             </Button>
           )}
           {/* Next buttons for different steps */}
@@ -841,7 +843,7 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full md:w-auto"
+              className="w-4/6 sm:w-full md:w-auto"
               aria-label="Confirm booking"
             >
               {submitting ? (

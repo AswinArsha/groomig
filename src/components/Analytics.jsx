@@ -41,66 +41,66 @@ function Analytics() {
   const [selectedShop, setSelectedShop] = useState(null);
   const [organizationId, setOrganizationId] = useState(null);
 
-  // Get organization ID from localStorage and fetch shops on component mount
+  // ─────────────────────────────────────────────────────────────────────────────
+  // UPDATED: Get organization ID and fetch shops - organization filtered
+  // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    try {
-      // Get user session from localStorage
-      const userSession = localStorage.getItem('userSession');
-      if (userSession) {
+    const initializeData = async () => {
+      try {
+        // Get user session from localStorage
+        const userSession = localStorage.getItem('userSession');
+        if (!userSession) {
+          console.error('User session not found in localStorage');
+          toast({
+            title: "Error",
+            description: "Unable to load user organization data",
+            variant: "destructive",
+          });
+          return;
+        }
+
         const parsedUserSession = JSON.parse(userSession);
         const orgId = parsedUserSession.organization_id;
+        
         if (!orgId) {
           throw new Error('Organization ID not found in user session');
         }
+
+        console.log('Setting organization ID:', orgId); // Debug log
         setOrganizationId(orgId);
 
-        // Fetch shops for this organization
-        const fetchShops = async () => {
-          const { data, error } = await supabase
-            .from('shops')
-            .select('id, name')
-            .eq('organization_id', orgId)
-            .order('name');
+        // Fetch shops for this organization ONLY
+        console.log('Fetching shops for organization:', orgId); // Debug log
+        const { data, error } = await supabase
+          .from('shops')
+          .select('id, name')
+          .eq('organization_id', orgId) // Filter by organization
+          .order('name');
 
-          if (error) {
-            throw error;
-          }
-          if (data) {
-            setShops(data);
-          }
-        };
+        if (error) {
+          throw error;
+        }
 
-        fetchShops();
-      } else {
-        console.error('User session not found in localStorage');
+        if (data) {
+          console.log('Fetched shops:', data); // Debug log
+          setShops(data);
+        } else {
+          console.log('No shops found for organization:', orgId);
+          setShops([]);
+        }
+
+      } catch (error) {
+        console.error('Error getting organization data:', error);
         toast({
           title: "Error",
-          description: "Unable to load user organization data",
+          description: error.message || "Failed to load organization data",
           variant: "destructive",
         });
       }
-    } catch (error) {
-      console.error('Error getting organization ID:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load organization data",
-        variant: "destructive",
-      });
-    }
-    
-    const fetchShops = async () => {
-      const { data, error } = await supabase
-        .from('shops')
-        .select('id, name')
-        .order('name');
-
-      if (!error && data) {
-        setShops(data);
-      }
     };
 
-    fetchShops();
-  }, []);
+    initializeData();
+  }, []); // Empty dependency array - only run on mount
 
   // Debug date changes - including local date strings
   useEffect(() => {
@@ -148,7 +148,6 @@ function Analytics() {
       
       {/* Summary Cards Section */}
       <div className="mb-8">
-    
         <SummaryCards dateRange={dateRange} selectedShop={selectedShop} organizationId={organizationId} />
       </div>
       

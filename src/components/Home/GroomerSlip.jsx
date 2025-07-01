@@ -1,6 +1,8 @@
 import { format, parse } from "date-fns";
 
-export const handleGroomerPrintSlip = (booking, selectedServices, serviceInputs, groomers = []) => {
+import { supabase } from "../../supabase";
+
+export const handleGroomerPrintSlip = async (booking, selectedServices, serviceInputs, groomers = []) => {
   const printWindow = window.open("", "_blank", "width=300,height=600");
   
   // Get groomer name from the groomers array
@@ -14,8 +16,31 @@ export const handleGroomerPrintSlip = (booking, selectedServices, serviceInputs,
     }
   }
   
-  // Get shop name
-  const shopName = booking.shop_name || "White Dog";
+  // Get organization ID from localStorage
+  const userSession = JSON.parse(localStorage.getItem("userSession"));
+  const organizationId = userSession?.organization_id;
+  
+  // Default shop name and image
+  let shopName = "White Dog";
+  let shopImageUrl = "";
+  
+  // Fetch shop preferences if organization ID is available
+  if (organizationId) {
+    try {
+      const { data, error } = await supabase
+        .from("shop_preferences")
+        .select("shop_name, image_url")
+        .eq("organization_id", organizationId)
+        .single();
+      
+      if (!error && data) {
+        shopName = data.shop_name || shopName;
+        shopImageUrl = data.image_url || "";
+      }
+    } catch (error) {
+      console.error("Error fetching shop preferences:", error);
+    }
+  }
   
   // Format current date
   const currentDate = new Date();
@@ -152,8 +177,9 @@ export const handleGroomerPrintSlip = (booking, selectedServices, serviceInputs,
         </head>
         <body>
           <div class="header">
+            ${shopImageUrl ? `<div style="text-align:center; "><img src="${shopImageUrl}" alt="${shopName}" style="width: 20mm; height: 15mm;  filter: grayscale(100%);" /></div>` : ''}
             <div class="shop-name">${shopName}</div>
-            <div class="title">GROOMER WORK ORDER</div>
+            <div>GROOMER WORK ORDER</div>
             <div>${formattedDate}</div>
           </div>
           

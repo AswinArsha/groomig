@@ -172,7 +172,7 @@ export default function BookingDetails() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, organizationId]);
 
   // Fetch all available services (for editing)
   const fetchAllServices = useCallback(async () => {
@@ -192,7 +192,7 @@ export default function BookingDetails() {
     } catch (error) {
       toast.error(`Failed to fetch services: ${error.message}`);
     }
-  }, []);
+  }, [organizationId]);
 
   // Fetch all groomers
   const fetchGroomers = useCallback(async () => {
@@ -213,13 +213,15 @@ export default function BookingDetails() {
     } catch (error) {
       toast.error(`Failed to fetch groomers: ${error.message}`);
     }
-  }, []);
+  }, [organizationId]);
 
   useEffect(() => {
-    fetchBookingDetails();
-    fetchAllServices();
-    fetchGroomers();
-  }, [fetchBookingDetails, fetchAllServices, fetchGroomers]);
+    if (organizationId) {
+      fetchBookingDetails();
+      fetchAllServices();
+      fetchGroomers();
+    }
+  }, [fetchBookingDetails, fetchAllServices, fetchGroomers, organizationId]);
 
   // Subscribe to real-time changes for bookings
   useEffect(() => {
@@ -750,26 +752,28 @@ export default function BookingDetails() {
   };
 
   // Handle printing slip (for customer or groomer)
-  const handlePrintSlip = (copyType) => {
-    if (copyType.toLowerCase() === "customer") {
-      handleCustomerPrintSlip(booking, selectedServices, serviceInputs);
-    } else if (copyType.toLowerCase() === "groomer") {
-      handleGroomerPrintSlip(booking, selectedServices, serviceInputs, groomers);
+  const handlePrintSlip = async (copyType) => {
+    try {
+      if (copyType.toLowerCase() === "customer") {
+        await handleCustomerPrintSlip(booking, selectedServices, serviceInputs, groomers);
+      } else if (copyType.toLowerCase() === "groomer") {
+        await handleGroomerPrintSlip(booking, selectedServices, serviceInputs, groomers);
+      }
+    } catch (error) {
+      console.error("Error printing slip:", error);
     }
   };
 
   // Open fullscreen image modal with index tracking
-  const openFullscreenImage = (imageUrl, serviceName) => {
-    // Find all services with images
-    const servicesWithImages = services.filter(service => service.image_url);
-    // Find the index of the current service
-    const currentIndex = servicesWithImages.findIndex(service => service.image_url === imageUrl);
-    
+  const openFullscreenImage = (service) => {
+    const servicesWithImages = services.filter(s => s.image_url);
+    const currentIndex = servicesWithImages.findIndex(s => s.id === service.id);
     setFullscreenImage({ 
-      url: imageUrl, 
-      name: serviceName,
+      url:           service.image_url,
+      name:          service.name,
+      price:         service.price,      
       currentIndex,
-      allServices: servicesWithImages
+      allServices:   servicesWithImages
     });
   };
 
@@ -923,7 +927,7 @@ export default function BookingDetails() {
                             className="absolute bottom-2 right-2 p-1 bg-white rounded-full cursor-pointer shadow-md opacity-70 hover:opacity-100 transition-opacity"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openFullscreenImage(service.image_url, service.name);
+                              openFullscreenImage(service);
                             }}
                           >
                             <Maximize className="h-5 w-5 text-primary" />
@@ -1013,55 +1017,94 @@ export default function BookingDetails() {
         );
         return (
           <motion.div
-            key="step2"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            <h3 className="text-lg font-semibold">Review Your Bill</h3>
-            <Card className="overflow-hidden">
-              <CardContent className="p-0">
-                <ScrollArea className="h-[300px] p-4 bg-gray-50">
-                {selectedServices.map((service) => (
-                  <div key={service.id} className="flex items-center py-3 border-b last:border-b-0">
-                    {service.image_url && (
-                      <div className="h-12 w-12 rounded-md overflow-hidden mr-3 flex-shrink-0">
-                        <img
-                          src={service.image_url}
-                          alt={service.name}
-                          className="h-full w-full object-cover"
-                        />
+          key="step2"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          <h3 className="text-2xl font-semibold">Review Your Bill</h3>
+        
+          <Card className="overflow-hidden rounded-lg">
+            <CardContent className="p-0">
+              <div className="flex flex-col md:flex-row">
+              
+        {/* Services List */}
+<div className="flex-grow">
+  <div className="sticky top-0 bg-gray-100 px-4 py-3 grid grid-cols-6 items-center gap-4">
+    <span className="col-span-5 text-sm font-medium text-gray-700">
+      Service
+    </span>
+    <span className="col-span-1 text-sm font-medium text-right text-gray-700">
+      Price
+    </span>
+  </div>
+  <ScrollArea className="h-[300px]">
+    {selectedServices.map((service, idx) => (
+      <div
+        key={service.id}
+        className={`
+          grid grid-cols-6 space-x-2 sm:space-x-0 items-center gap-4 px-4 py-3
+          ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+          hover:bg-primary/10 transition-colors
+        `}
+      >
+        {/* image */}
+        {service.image_url && (
+          <div className="col-span-1 h-12 w-12 rounded-md overflow-hidden">
+            <img
+              src={service.image_url}
+              alt={service.name}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        )}
+        {/* name & details */}
+        <div className="col-span-4 space-y-1">
+          <div className="font-medium text-sm">{service.name}</div>
+          {service.type === "input" && serviceInputs[service.id] && (
+            <div className="text-xs text-gray-500">
+              {serviceInputs[service.id]}
+            </div>
+          )}
+          {careTips[service.id] && (
+            <div className="text-xs italic text-gray-400">
+              Care Tip: {careTips[service.id]}
+            </div>
+          )}
+        </div>
+        {/* price */}
+        <div className="col-span-1 text-right font-semibold text-primary">
+          ₹{service.price}
+        </div>
+      </div>
+    ))}
+  </ScrollArea>
+</div>
+
+                {/* Summary */}
+                <div className="mt-4 md:mt-0 md:ml-6 w-full md:w-1/3">
+                <Card className="rounded-lg border border-gray-200 ">
+                    <CardContent className="p-5">
+                      <h4 className="text-lg font-medium mb-4">Summary</h4>
+                      <div className="flex justify-between mb-2 text-sm text-gray-600">
+                        <span>Subtotal</span>
+                        <span>₹{totalBill.toFixed(2)}</span>
                       </div>
-                    )}
-                    <div className="flex-grow">
-                      <div className="font-medium">{service.name}</div>
-                      {service.type === "input" && serviceInputs[service.id] && (
-                        <div className="text-sm text-muted-foreground">
-                          {serviceInputs[service.id]}
-                        </div>
-                      )}
-                      {/* Show the care tip if provided */}
-                      {careTips[service.id] && (
-                        <div className="text-sm text-muted-foreground">
-                          Care Tip: {careTips[service.id]}
-                        </div>
-                      )}
-                    </div>
-                    <div className="font-bold text-primary">₹{service.price}</div>
-                  </div>
-                ))}
-                </ScrollArea>
-                <div className="p-4 bg-muted/30">
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>Total:</span>
-                    <span>₹{totalBill.toFixed(2)}</span>
-                  </div>
+                      {/* Taxes/discount lines could go here */}
+                      <div className="border-t mt-2 pt-2 flex justify-between font-bold text-xl">
+                        <span>Total</span>
+                        <span>₹{totalBill.toFixed(2)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        
         );
 
       default:
@@ -1130,9 +1173,9 @@ export default function BookingDetails() {
     {/* Right column */}
     <div className="space-y-4">
     {booking.check_in_time && (  
-        <div className=" md:hidden ">  
-        <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
-          <Check className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <div className="-my-1 md:hidden ">  
+        <div className="flex items-center space-x-1  text-sm ">
+          <Check className="h-4 w-4  text-primary" />
           <span className="font-medium">Checked in:</span>
           <span>{format(new Date(booking.check_in_time), "PPp")}</span>
         </div>
@@ -1173,14 +1216,14 @@ export default function BookingDetails() {
         <span
           className={`inline-block px-2 py-0.5 rounded-full text-xs md:text-sm font-medium ${
             booking.status === "checked_in"
-              ? "bg-green-100 text-green-800"
+              ? "bg-purple-200 text-purple-700 border border-purple-300"
               : booking.status === "reserved"
-              ? "bg-yellow-100 text-yellow-800"
+              ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
               : booking.status === "progressing"
-              ? "bg-blue-100 text-blue-800"
+              ? "bg-blue-200 text-blue-700 border border-blue-300"
               : booking.status === "completed"
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
+              ? "bg-green-200 text-green-700 border border-green-300"
+              : "bg-red-200 text-red-700 border border-red-300"
           }`}
         >
           {booking.status.replace("_", " ").toUpperCase()}
@@ -1380,22 +1423,30 @@ export default function BookingDetails() {
             </div>
             
             {fullscreenImage?.name && (
-              <div className="bg-black text-white p-4 text-center">
-                <h3 className="text-xl font-medium">{fullscreenImage.name}</h3>
-                {fullscreenImage?.allServices && fullscreenImage.allServices.length > 1 && (
-                  <p className="text-sm text-gray-400 mt-1">
-                    {fullscreenImage.currentIndex + 1} of {fullscreenImage.allServices.length}
-                  </p>
-                )}
-              </div>
-            )}
-            
-            {/* Touch indicator for mobile users */}
-            <div className="absolute bottom-20 left-0 right-0 flex justify-center opacity-70 pointer-events-none">
-              <div className="bg-black/70 text-white px-4 py-2 rounded-full text-sm transition-opacity duration-200">
-                Swipe or use arrow keys to navigate
-              </div>
-            </div>
+  <div
+    className="
+      absolute bottom-0 left-0 right-0
+      bg-black/60 backdrop-blur-sm 
+      text-white
+      p-4
+      flex items-center justify-between
+      space-x-4
+    "
+  >
+    {/* Service name */}
+    <h3 className="text-2xl font-semibold truncate">
+      {fullscreenImage.name}
+    </h3>
+
+    {/* Service price */}
+    <p className="text-2xl font-semibold">
+      ₹{fullscreenImage.price}
+    </p>
+  </div>
+)}
+
+
+
           </div>
         </DialogContent>
       </Dialog>

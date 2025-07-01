@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { 
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+ } from "@/components/ui/drawer";
 import {
   LogOut,
   Loader2,
   CheckCircle,
-  XCircle
+  XCircle , History, Settings 
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "../../supabase";
+import Preferences from "@/components/Catalog/Preferences";
 
 const MobileSidebar = ({
   user,
@@ -30,6 +40,7 @@ const MobileSidebar = ({
   const [showHistory, setShowHistory] = useState(false);
   const [subscriptionHistory, setSubscriptionHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [prefOpen, setPrefOpen] = useState(false);
 
   // Fetch subscription history when drawer opens
   useEffect(() => {
@@ -134,142 +145,125 @@ const MobileSidebar = ({
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40 shadow-lg">
 
-      {/* Bottom nav */}
-      <motion.nav
-        layout
-        className="flex items-center justify-around px-1 py-2"
-        variants={navContainerVariants}
-        initial="hidden"
-        animate="visible"
-        exit="hidden"
-      >
-        {navigationItems.map((item) => (
-          <motion.div
-            key={item.name}
-            layout
-            whileHover={{ scale: 1.12, y: -3, rotate: 1 }}
-            whileTap={{ scale: 0.95, y: 1, rotate: -1 }}
-            variants={navItemVariants}
-            className="flex-1 min-w-[64px] transition-transform"
-          >
-            <Link to={item.path} className="flex flex-col items-center px-2 py-1">
+
+
+{/* Bottom nav */}
+<motion.nav
+  initial={{ opacity: 0, y: 10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.5, ease: "easeOut" }}
+  className="flex items-center justify-around px-1 py-2"
+>
+  {navigationItems.map((item) => (
+    <motion.div
+      key={item.name}
+      whileHover={{ scale: 1.08 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+      className="flex-1 min-w-[64px]"
+    >
+      <Link to={item.path} className="flex flex-col items-center px-2 py-1">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="relative p-2.5 rounded-full"
+        >
+          <AnimatePresence>
+            {isLinkActive(item.path) && (
               <motion.div
-                  whileHover={{ scale: 1.08, rotate: 2, y: -1 }}
-                  whileTap={{ scale: 0.92, rotate: -2, y: 1 }}
-                  className={`p-2.5 rounded-full relative ${
-                    touchedItem === item.name ? "bg-pink-50 dark:bg-pink-900/20" : ""
-                  }`}
-                  onTouchStart={() => handleTouchStart(item.name)}
-                  onTouchEnd={handleTouchEnd}
-                  transition={{ 
-                    type: "spring", 
-                    stiffness: 400, 
-                    damping: 22,
-                    mass: 0.8,
-                    velocity: 2
-                  }}
-                >
-                <AnimatePresence>
-                  {isLinkActive(item.path) && (
-                    <motion.div
-                      key="indicator"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ 
-                        type: "spring",
-                        stiffness: 450,
-                        damping: 22,
-                        mass: 0.7,
-                        velocity: 2
-                      }}
-                      className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
-                      style={{ zIndex: -1 }}
-                    />
-                  )}
-                </AnimatePresence>
+                key="indicator"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.35, ease: "easeInOut" }}
+                className="absolute inset-0 bg-[hsl(var(--primary)/0.15)] dark:bg-[hsl(var(--primary)/0.25)] rounded-full"
+                style={{ zIndex: -1 }}
+              />
+            )}
+          </AnimatePresence>
 
-                {React.cloneElement(item.icon, {
-                  className: `w-6 h-6 ${
-                    isLinkActive(item.path)
-                      ? "text-pink-600 dark:text-pink-400"
-                      : "text-gray-600 dark:text-gray-400"
-                  }`
-                })}
-              </motion.div>
-
-              <motion.span
-                className={`text-xs mt-1 font-medium ${
-                  isLinkActive(item.path)
-                    ? "text-pink-600 dark:text-pink-400"
-                    : "text-gray-600 dark:text-gray-400"
-                }`}
-                animate={{ opacity: isLinkActive(item.path) ? 1 : 0.85 }}
-              >
-                {item.name}
-              </motion.span>
-            </Link>
-          </motion.div>
-        ))}
-
-        {/* Profile toggle */}
-        <motion.div variants={navItemVariants} className="flex-1 min-w-[64px]">
-          <button
-            onClick={() => setShowMobileProfile(!showMobileProfile)}
-            className="flex flex-col items-center px-2 py-1 w-full"
-            onTouchStart={() => handleTouchStart("profile")}
-            onTouchEnd={handleTouchEnd}
-          >
-            <motion.div
-                whileHover={{ scale: 1.08, rotate: 2, y: -2 }}
-                whileTap={{ scale: 0.92, rotate: -2, y: 1 }}
-                className={`rounded-full relative ${
-                  touchedItem === "profile" ? "bg-pink-50 dark:bg-pink-900/20" : ""
-                }`}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 400, 
-                  damping: 22,
-                  mass: 0.8,
-                  velocity: 2
-                }}
-              >
-              <AnimatePresence>
-                {showMobileProfile && (
-                  <motion.div
-                    key="indicator-profile"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ 
-                      type: "spring",
-                      stiffness: 450,
-                      damping: 22,
-                      mass: 0.7,
-                      velocity: 2
-                    }}
-                    className="absolute inset-0 bg-pink-100 dark:bg-pink-900/30 rounded-full"
-                    style={{ zIndex: -1 }}
-                  />
-                )}
-              </AnimatePresence>
-
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback>{getAvatarLetter()}</AvatarFallback>
-              </Avatar>
-            </motion.div>
-            <motion.span
-              className={`text-xs mt-1 font-medium ${
-                showMobileProfile ? "text-pink-600 dark:text-pink-400" : "text-gray-600 dark:text-gray-400"
-              }`}
-              animate={{ opacity: showMobileProfile ? 1 : 0.85 }}
-            >
-              Profile
-            </motion.span>
-          </button>
+          {React.cloneElement(item.icon, {
+            className: `w-6 h-6 ${
+              isLinkActive(item.path)
+                ? "text-[hsl(var(--primary))] dark:text-[hsl(var(--primary))]"
+                : "text-gray-600 dark:text-gray-400"
+            }`
+          })}
         </motion.div>
-      </motion.nav>
+
+        <motion.span
+          initial={{ opacity: 0.7 }}
+          animate={{ opacity: isLinkActive(item.path) ? 1 : 0.8 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className={`text-xs mt-1 font-medium ${
+            isLinkActive(item.path)
+              ? "text-[hsl(var(--primary))] dark:text-[hsl(var(--primary))]"
+              : "text-gray-600 dark:text-gray-400"
+          }`}
+        >
+          {item.name}
+        </motion.span>
+      </Link>
+    </motion.div>
+  ))}
+
+  {/* Profile toggle */}
+  <motion.div
+    whileHover={{ scale: 1.08 }}
+    whileTap={{ scale: 0.95 }}
+    transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+    className="flex-1 min-w-[64px]"
+  >
+    <button
+      onClick={() => setShowMobileProfile(!showMobileProfile)}
+      className="flex flex-col items-center px-2 py-1 w-full"
+    >
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="relative rounded-full"
+      >
+        <AnimatePresence>
+          {showMobileProfile && (
+            <motion.div
+              key="indicator-profile"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
+              className="absolute inset-0 bg-[hsl(var(--primary)/0.15)] dark:bg-[hsl(var(--primary)/0.25)] rounded-full"
+              style={{ zIndex: -1 }}
+            />
+          )}
+        </AnimatePresence>
+
+        <Avatar className="h-12 w-12 ring-1 ring-[hsl(var(--sidebar-primary))] hover:ring-2 hover:ring-[hsl(var(--sidebar-ring))] transition-all duration-200">
+          <AvatarImage src={user?.user_metadata?.avatar_url} />
+          <AvatarFallback className="bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]">
+            {getAvatarLetter()}
+          </AvatarFallback>
+        </Avatar>
+      </motion.div>
+
+      <motion.span
+        initial={{ opacity: 0.7 }}
+        animate={{
+          opacity: showMobileProfile ? 1 : 0.8
+        }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className={`text-xs mt-1 font-medium ${
+          showMobileProfile
+            ? "text-[hsl(var(--primary))] dark:text-[hsl(var(--primary))]"
+            : "text-gray-600 dark:text-gray-400"
+        }`}
+      >
+        Profile
+      </motion.span>
+    </button>
+  </motion.div>
+</motion.nav>
 
       {/* Profile drawer */}
       <Drawer open={showMobileProfile && !showHistory} onOpenChange={setShowMobileProfile}>
@@ -286,22 +280,52 @@ const MobileSidebar = ({
                   }}
                   className="p-4 space-y-6">
                   {/* Avatar + Name */}
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-12 w-12 ring-2 ring-pink-100 dark:ring-pink-900/40">
-                      <AvatarImage src={user.user_metadata?.avatar_url} />
-                      <AvatarFallback>{getAvatarLetter()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-base font-semibold text-gray-800 dark:text-gray-100">
-                        {getDisplayName()}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {getRole()}
-                      </p>
-                   
-                  </div>
-                  </div>
+              <div className="flex justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-12 w-12 ring-2 ring-[hsl(var(--sidebar-primary)/0.3)] dark:ring-[hsl(var(--sidebar-primary)/0.4)]">
+                    <AvatarImage src={user.user_metadata?.avatar_url} />
+                    <AvatarFallback className="bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]">{getAvatarLetter()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-base font-semibold text-gray-800 dark:text-gray-100">
+                      {getDisplayName()}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {getRole()}
+                    </p>
 
+                  </div>
+                </div>
+                <div className="flex space-x-4">
+                  {/* Subscription History Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => {
+                      setShowHistory(true);
+                      setShowMobileProfile(false);
+                    }}
+                    aria-label="View History"
+                  >
+                    <History className="h-5 w-5" />
+                  </Button>
+
+                  {/* Preferences button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => {
+                      setPrefOpen(true);
+                      setShowMobileProfile(false);
+                    }}
+                    aria-label="Preferences"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
                   {/* Subscription Details */}
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -309,7 +333,7 @@ const MobileSidebar = ({
                     </h4>
                     {loadingSubscription ? (
                       <div className="flex justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin text-pink-600" />
+                        <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--primary))]" />
                       </div>
                     ) : subscriptionDetails ? (
                       <>
@@ -348,18 +372,7 @@ const MobileSidebar = ({
                           </div>
                         )}
 
-                        {/* Subscription History Button */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full mt-2"
-                          onClick={() => {
-                            setShowHistory(true);
-                            setShowMobileProfile(false);
-                          }}
-                        >
-                          View History
-                        </Button>
+                  
                       </>
                     ) : (
                       <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -367,6 +380,9 @@ const MobileSidebar = ({
                       </p>
                     )}
                   </div>
+
+
+
 
                   {/* Logout Button */}
                   <Button
@@ -381,6 +397,27 @@ const MobileSidebar = ({
               )}
             </DrawerContent>
           </Drawer>
+
+     {/* 3️⃣ Preferences Drawer */}
+     <Drawer open={prefOpen} onOpenChange={setPrefOpen}>
+       {/* No need for a trigger here, since we open it programmatically */}
+       <DrawerContent>
+         <DrawerHeader>
+           <DrawerTitle>Shop Preferences</DrawerTitle>
+          
+         </DrawerHeader>
+
+         {/* 4️⃣ Embed your Preferences component */}
+         <Preferences />
+
+         <DrawerFooter className="flex justify-end space-x-2">
+           <DrawerClose asChild>
+             <Button variant="outline">Close</Button>
+           </DrawerClose>
+         </DrawerFooter>
+       </DrawerContent>
+     </Drawer>
+
 
           {/* Subscription History Drawer */}
           <Drawer open={showHistory} onOpenChange={setShowHistory}>
@@ -404,7 +441,7 @@ const MobileSidebar = ({
                 <div className="flex-1 overflow-y-auto px-4">
                   {loadingHistory ? (
                     <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-pink-600" />
+                      <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--primary))]" />
                     </div>
                   ) : subscriptionHistory.length > 0 ? (
                     <div className="space-y-3 pb-4">

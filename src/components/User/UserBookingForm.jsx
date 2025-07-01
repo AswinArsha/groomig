@@ -37,8 +37,12 @@ import { Progress } from "@/components/ui/progress";
 import Lottie from "lottie-react";
 import greenTickAnimation from "../../assets/greenTick.json"
 import { sendWhatsAppConfirmation } from "../../services/twilioService";
+import { useParams } from "react-router-dom";
 
 export default function UserBookingForm() {
+  // Get businessId from URL parameters
+  const { businessId } = useParams();
+
   // Step management: 5 steps (including summary)
   const [step, setStep] = useState(1);
 
@@ -134,16 +138,28 @@ export default function UserBookingForm() {
     setLoadingShops(true);
 
     try {
-      const { data: shops, error } = await supabase
+      let query = supabase
         .from("shops")
         .select("id, name, badge")
         .order("name", { ascending: true });
+
+      // If businessId is provided, filter shops by organization_id
+      if (businessId) {
+        query = query.eq("organization_id", businessId);
+      }
+
+      const { data: shops, error } = await query;
 
       if (error) {
         throw error;
       }
 
       setAvailableShops(shops || []);
+      
+      // If there's only one shop and we're filtering by businessId, auto-select it
+      if (businessId && shops && shops.length === 1) {
+        setSelectedShop(shops[0].id);
+      }
     } catch (error) {
       toast.error(`Error fetching shops: ${error.message}`);
     } finally {
@@ -934,7 +950,7 @@ export default function UserBookingForm() {
   };
 
   return (
-    <div className="container mx-auto max-w-3xl py-8 px-4">
+    <div className="container mx-auto max-w-3xl px-4">
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="mb-4 sm:mb-0 text-center text-xl sm:text-2xl">

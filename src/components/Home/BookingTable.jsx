@@ -185,36 +185,38 @@ export default function BookingTable() {
   // ─────────────────────────────────────────────────────────────────────────────
   // Shop Options
   // ─────────────────────────────────────────────────────────────────────────────
-  const fetchShopOptions = useCallback(async () => {
-    try {
-      let query = supabase
-        .from("shops")
-        .select("id, name")
-        .order("name");
-      
-      // Filter shops by organization_id if available
-      if (organizationId) {
-        query = query.eq("organization_id", organizationId);
-      }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      const options = [{ value: null, label: "All Shops" }].concat(
-        data.map((shop) => ({
-          value: shop.id,
-          label: shop.name,
-        }))
-      );
-      setShopOptions(options);
-    } catch (error) {
-      toast.error(`Error fetching shops: ${error.message}`);
-    }
-  }, [organizationId]);
+ const fetchShopOptions = async (orgId) => {
+  if (!orgId) {
+    console.log("No organization ID provided for shops");
+    setShopOptions([{ value: null, label: "All Shops" }]);
+    return;
+  }
+  
+  try {
+    console.log("Fetching shops for organization:", orgId); // Debug log
+    const { data, error } = await supabase
+      .from("shops")
+      .select("id, name")
+      .eq("organization_id", orgId) // Always filter by organization
+      .order("name");
+    
+    if (error) throw error;
+    
+    console.log("Fetched shops:", data); // Debug log
+    const options = [{ value: null, label: "All Shops" }].concat(
+      data.map((shop) => ({
+        value: shop.id,
+        label: shop.name,
+      }))
+    );
+    setShopOptions(options);
+  } catch (error) {
+    console.error("Error fetching shops:", error);
+    toast.error(`Error fetching shops: ${error.message}`);
+  }
+};
 
-  useEffect(() => {
-    fetchShopOptions();
-  }, [fetchShopOptions]);
-
+// ──────
   // ─────────────────────────────────────────────────────────────────────────────
   // Helper: Display Sub-slot
   // ─────────────────────────────────────────────────────────────────────────────
@@ -232,33 +234,36 @@ export default function BookingTable() {
   // ─────────────────────────────────────────────────────────────────────────────
   // Service Options
   // ─────────────────────────────────────────────────────────────────────────────
-  const fetchServiceOptions = useCallback(async () => {
-    try {
-      let query = supabase
-        .from("services")
-        .select("id, name")
-        .order("name");
-      
-      // Filter services by organization_id if available
-      if (organizationId) {
-        query = query.eq("organization_id", organizationId);
-      }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      const options = data.map((service) => ({
-        value: service.id,
-        label: service.name,
-      }));
-      setServiceOptions(options);
-    } catch (error) {
-      toast.error(`Error fetching services: ${error.message}`);
-    }
-  }, [organizationId]);
+const fetchServiceOptions = async (orgId) => {
+  if (!orgId) {
+    console.log("No organization ID provided for services");
+    setServiceOptions([]);
+    return;
+  }
+  
+  try {
+    console.log("Fetching services for organization:", orgId); // Debug log
+    const { data, error } = await supabase
+      .from("services")
+      .select("id, name")
+      .eq("organization_id", orgId) // Always filter by organization
+      .order("name");
+    
+    if (error) throw error;
+    
+    console.log("Fetched services:", data); // Debug log
+    const options = data.map((service) => ({
+      value: service.id,
+      label: service.name,
+    }));
+    setServiceOptions(options);
+  } catch (error) {
+    console.error("Error fetching services:", error);
+    toast.error(`Error fetching services: ${error.message}`);
+  }
+};
 
-  useEffect(() => {
-    fetchServiceOptions();
-  }, [fetchServiceOptions]);
+
 
   const handleServiceSelect = (serviceId) => {
     const selectedService = serviceOptions.find((s) => s.value === serviceId);
@@ -318,105 +323,101 @@ export default function BookingTable() {
   // ─────────────────────────────────────────────────────────────────────────────
   // Fetch Bookings
   // ─────────────────────────────────────────────────────────────────────────────
-  const fetchBookings = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Get organization_id from user session
-      const userSession = JSON.parse(localStorage.getItem("userSession"));
-      const userOrgId = userSession?.organization_id;
+const fetchBookings = useCallback(async () => {
+  setLoading(true);
+  try {
+    // Get organization_id from state instead of localStorage every time
+    if (!organizationId) {
+      console.log("No organization ID available for fetching bookings");
+      setBookings([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
 
-      if (!userOrgId) {
-        toast.error("No organization found. Please log in again.");
+    console.log("Fetching bookings for organization:", organizationId); // Debug log
+    const formattedDate = format(selectedDate, "yyyy-MM-dd");
+    const from = (currentPage - 1) * itemsPerPage;
+    const to = from + itemsPerPage - 1;
+
+    let query = supabase
+      .from("bookings")
+      .select(
+        `
+        *,
+        sub_time_slots (
+          *,
+          time_slots (
+            start_time
+          )
+        ),
+        booking_services_selected (*, services(*)),
+        historical_bookings!historical_bookings_original_booking_id_fkey (
+          payment_mode,
+          payment_details
+        )
+      `,
+        { count: "exact" }
+      )
+      .eq("booking_date", formattedDate)
+      .eq("organization_id", organizationId) // Use state variable
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (searchTerm) {
+      query = query.or(
+        `customer_name.ilike.%${searchTerm}%,dog_breed.ilike.%${searchTerm}%,contact_number.ilike.%${searchTerm}%,dog_name.ilike.%${searchTerm}%`
+      );
+    }
+
+    // Shop filter
+    if (selectedShop) {
+      query = query.eq("shop_id", selectedShop);
+    }
+
+    // Services filter
+    if (selectedServiceFilters.length > 0) {
+      const selectedServiceIds = selectedServiceFilters.map(
+        (service) => service.value
+      );
+      const { data: bookingIds, error: serviceError } = await supabase
+        .from("booking_services_selected")
+        .select("booking_id")
+        .in("service_id", selectedServiceIds);
+
+      if (serviceError) throw serviceError;
+
+      if (bookingIds && bookingIds.length > 0) {
+        const uniqueBookingIds = [
+          ...new Set(bookingIds.map((item) => item.booking_id)),
+        ];
+        query = query.in("id", uniqueBookingIds);
+      } else {
         setBookings([]);
         setTotalCount(0);
         setLoading(false);
         return;
       }
-
-      const formattedDate = format(selectedDate, "yyyy-MM-dd");
-      const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-
-      // NEW: Add `payment_details` to the historical_bookings join
-      let query = supabase
-        .from("bookings")
-        .select(
-          `
-          *,
-          sub_time_slots (
-            *,
-            time_slots (
-              start_time
-            )
-          ),
-          booking_services_selected (*, services(*)),
-          historical_bookings!historical_bookings_original_booking_id_fkey (
-            payment_mode,
-            payment_details
-          )
-        `,
-          { count: "exact" }
-        )
-        .eq("booking_date", formattedDate)
-        .eq("organization_id", userOrgId)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (searchTerm) {
-        query = query.or(
-          `customer_name.ilike.%${searchTerm}%,dog_breed.ilike.%${searchTerm}%,contact_number.ilike.%${searchTerm}%,dog_name.ilike.%${searchTerm}%`
-        );
-      }
-
-      // Shop filter
-      if (selectedShop) {
-        query = query.eq("shop_id", selectedShop);
-      }
-
-      // Services filter
-      if (selectedServiceFilters.length > 0) {
-        const selectedServiceIds = selectedServiceFilters.map(
-          (service) => service.value
-        );
-        const { data: bookingIds, error: serviceError } = await supabase
-          .from("booking_services_selected")
-          .select("booking_id")
-          .in("service_id", selectedServiceIds);
-
-        if (serviceError) throw serviceError;
-
-        if (bookingIds && bookingIds.length > 0) {
-          const uniqueBookingIds = [
-            ...new Set(bookingIds.map((item) => item.booking_id)),
-          ];
-          query = query.in("id", uniqueBookingIds);
-        } else {
-          setBookings([]);
-          setTotalCount(0);
-          setLoading(false);
-          return;
-        }
-      }
-
-      const { data: bookingsData, error: bookingsError, count } =
-        await query;
-      if (bookingsError) throw bookingsError;
-      setBookings(bookingsData || []);
-      setTotalCount(count || 0);
-    } catch (error) {
-      toast.error(`Error fetching bookings: ${error.message}`);
-    } finally {
-      setLoading(false);
     }
-  }, [
-    selectedDate,
-    searchTerm,
-    selectedServiceFilters,
-    selectedShop,
-    currentPage,
-    itemsPerPage,
-    organizationId, // Add organizationId to dependencies
-  ]);
+
+    const { data: bookingsData, error: bookingsError, count } = await query;
+    if (bookingsError) throw bookingsError;
+    setBookings(bookingsData || []);
+    setTotalCount(count || 0);
+  } catch (error) {
+    toast.error(`Error fetching bookings: ${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+}, [
+  selectedDate,
+  searchTerm,
+  selectedServiceFilters,
+  selectedShop,
+  currentPage,
+  itemsPerPage,
+  organizationId, // Include organizationId in dependencies
+]);
 
   useEffect(() => {
     fetchBookings();
@@ -447,13 +448,23 @@ export default function BookingTable() {
     };
   }, [searchTerm, selectedDate, selectedServiceFilters, currentPage, fetchBookings]);
 
-  useEffect(() => {
-    const userSession = JSON.parse(localStorage.getItem("userSession"));
-    if (userSession) {
-      setUserRole(userSession.type === "staff" ? "staff" : "admin");
-      setOrganizationId(userSession.organization_id);
-    }
-  }, []);
+useEffect(() => {
+  const userSession = JSON.parse(localStorage.getItem("userSession"));
+  if (userSession) {
+    setUserRole(userSession.type === "staff" ? "staff" : "admin");
+    const orgId = userSession.organization_id;
+    console.log("Setting organization ID:", orgId); // Debug log
+    setOrganizationId(orgId);
+  }
+}, []);
+
+useEffect(() => {
+  if (organizationId) {
+    console.log("Organization ID is available, fetching options:", organizationId); // Debug log
+    fetchShopOptions(organizationId);
+    fetchServiceOptions(organizationId);
+  }
+}, [organizationId]);
 
   // Separate useEffect for subscription
   useEffect(() => {
@@ -1242,7 +1253,7 @@ export default function BookingTable() {
                               booking.status === "reserved"
                                 ? "bg-yellow-200 text-yellow-700 border border-yellow-300"
                                 : booking.status === "checked_in"
-                                ? "bg-green-200 text-green-700 border border-green-300"
+                                ? "bg-purple-200 text-purple-700 border border-purple-300"
                                 : booking.status === "progressing"
                                 ? "bg-blue-200 text-blue-700 border border-blue-300"
                                 : booking.status === "completed"

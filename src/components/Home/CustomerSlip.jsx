@@ -1,7 +1,7 @@
 import { format, parse } from "date-fns";
-import logo from "../../assets/logo.jpg";
+import { supabase } from "../../supabase";
 
-export const handleCustomerPrintSlip = (booking, selectedServices, serviceInputs, groomers = []) => {
+export const handleCustomerPrintSlip = async (booking, selectedServices, serviceInputs, groomers = []) => {
   const printWindow = window.open("", "_blank", "width=300,height=600");
   
   // Get groomer name from the groomers array
@@ -15,8 +15,31 @@ export const handleCustomerPrintSlip = (booking, selectedServices, serviceInputs
     }
   }
   
-  // Get shop name
-  const shopName = booking.shop_name || "White Dog Pets Partner";
+  // Get organization ID from localStorage
+  const userSession = JSON.parse(localStorage.getItem("userSession"));
+  const organizationId = userSession?.organization_id;
+  
+  // Default shop name and image
+  let shopName = "White Dog Pets Partner";
+  let shopImageUrl = "";
+  
+  // Fetch shop preferences if organization ID is available
+  if (organizationId) {
+    try {
+      const { data, error } = await supabase
+        .from("shop_preferences")
+        .select("shop_name, image_url")
+        .eq("organization_id", organizationId)
+        .single();
+      
+      if (!error && data) {
+        shopName = data.shop_name || shopName;
+        shopImageUrl = data.image_url || "";
+      }
+    } catch (error) {
+      console.error("Error fetching shop preferences:", error);
+    }
+  }
   
   // Calculate total bill
   const totalBill = selectedServices.reduce(
@@ -186,10 +209,7 @@ export const handleCustomerPrintSlip = (booking, selectedServices, serviceInputs
         </head>
         <body>
           <div class="header">
-            <!-- Use a placeholder instead of imported logo -->
-            <div style="text-align:center; margin-bottom:2mm;">
-           <img src="${logo}" alt="Shop Logo" style="width: 20mm; height: 15mm; margin-bottom: 2mm; filter: grayscale(100%);" />
-            </div>
+            ${shopImageUrl ? `<div style="text-align:center; "><img src="${shopImageUrl}" alt="${shopName}" style="width: 20mm; height: 15mm;  filter: grayscale(100%);" /></div>` : ''}
             <div class="shop-name">${shopName}</div>
             <div class="title">CUSTOMER RECEIPT</div>
             <div class="subtitle">${formattedDate}</div>
@@ -253,7 +273,7 @@ export const handleCustomerPrintSlip = (booking, selectedServices, serviceInputs
             <div class="total-section">
               <div class="total-row">
                 <span>TOTAL</span>
-                <span>₹${totalBill.toFixed(2)}</span>
+                <span >₹${totalBill.toFixed(2)}</span>
               </div>
             </div>
           </div>

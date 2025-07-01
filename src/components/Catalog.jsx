@@ -43,6 +43,7 @@ import { Loader2, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+
 export default function Catalog() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);

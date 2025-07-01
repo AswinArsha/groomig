@@ -359,7 +359,7 @@ function ShopAnalytics({ dateRange, organizationId }) {
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground hidden sm:block">Metric:</span>
                   <Select value={selectedMetric} onValueChange={handleMetricChange}>
-                    <SelectTrigger className="w-[180px] h-8">
+                    <SelectTrigger className="w-[100px] sm:w-[180px] h-8">
                       <SelectValue placeholder="Select metric" />
                     </SelectTrigger>
                     <SelectContent>

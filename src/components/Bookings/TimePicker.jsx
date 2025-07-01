@@ -59,11 +59,11 @@ export default function TimePicker({ onTimeSelect, initialTime }) {
               <Label htmlFor="hour-select" className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Hour
               </Label>
-              <Select value={hour} onValueChange={setHour}>
+              <Select value={hour} onValueChange={setHour} >
                 <SelectTrigger id="hour-select" className="w-full">
                   <SelectValue placeholder="Hour" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="h-80" >
                   {hours.map((h) => (
                     <SelectItem key={h} value={h}>
                       {h}
@@ -80,7 +80,7 @@ export default function TimePicker({ onTimeSelect, initialTime }) {
                 <SelectTrigger id="minute-select" className="w-full">
                   <SelectValue placeholder="Minute" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="h-80" >
                   {minutes.map((m) => (
                     <SelectItem key={m} value={m}>
                       {m}
