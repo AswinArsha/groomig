@@ -32,8 +32,8 @@ export default function TimeSlotList() {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingSlot, setEditingSlot] = useState(null);
+  const [editOpen, setEditOpen] = useState(false); // Added missing state
   const [deleteId, setDeleteId] = useState(null);
-  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   
   // Media query for responsive behavior
@@ -179,6 +179,32 @@ export default function TimeSlotList() {
         toast.error("You don't have permission to update this time slot.");
         return;
       }
+
+      // Check for duplicate time only if the time has changed
+      if (updatedSlot.start_time !== slotData.start_time) {
+        const { data: duplicateData, error: duplicateError } = await supabase
+          .from("time_slots")
+          .select("id, start_time")
+          .eq("organization_id", organization_id)
+          .eq("start_time", updatedSlot.start_time)
+          .neq("id", updatedSlot.id);
+
+        if (duplicateError) {
+          console.error("Error checking duplicate time:", duplicateError);
+          toast.error("Error checking for duplicate time slots.");
+          return;
+        }
+
+        if (duplicateData && duplicateData.length > 0) {
+          const [hours, minutes] = updatedSlot.start_time.split(":").map(Number);
+          const ampm = hours >= 12 ? "PM" : "AM";
+          const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+          const formattedTime = `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+          
+          toast.error(`A time slot for ${formattedTime} already exists. Please choose a different time.`);
+          return;
+        }
+      }
       
       // Update main time slot
       const { error: mainSlotError } = await supabase
@@ -219,7 +245,7 @@ export default function TimeSlotList() {
 
       toast.success("Time slot updated successfully!");
       setEditingSlot(null);
-      setEditOpen(false);
+      setEditOpen(false); // Close the dialog after successful update
       fetchSlots();
     } catch (error) {
       toast.error(`Error updating time slot: ${error.message}`);
@@ -255,7 +281,7 @@ export default function TimeSlotList() {
           <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Time Slot</DialogTitle>
-              <DialogDescription >
+              <DialogDescription>
                 Make changes to your time slot here. Click save when you're done.
               </DialogDescription>
             </DialogHeader>
@@ -291,13 +317,13 @@ export default function TimeSlotList() {
           </Button>
         </DrawerTrigger>
         <DrawerContent className="max-h-[95vh]">
-          <DrawerHeader >
+          <DrawerHeader>
             <DrawerTitle>Edit Time Slot</DrawerTitle>
             <DrawerDescription className="hidden md:block">
               Make changes to your time slot here. Click save when you're done.
             </DrawerDescription>
           </DrawerHeader>
-          <div className=" overflow-y-auto">
+          <div className="overflow-y-auto">
             {editingSlot && (
               <EditTimeSlotForm
                 slot={editingSlot}
@@ -443,53 +469,51 @@ export default function TimeSlotList() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 -mt-2">
+        <div className="px-4 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {slots.map((slot) => (
-            <div key={slot.id} className="aspect-square group">
-              <Card className="h-full transition-all duration-200 hover:border-primary/50">
-                <CardContent className="p-4 h-full flex flex-col justify-between relative">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 p-2.5 rounded-full transition-colors group-hover:bg-primary/20">
-                        <Clock className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-lg text-foreground/90 group-hover:text-foreground">
-                          {formatTimeDisplay(slot.start_time)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {slot.sub_time_slots?.length || 0} sub-slots
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm flex items-center gap-2">
-                        Sub-Time Slots
-                        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-xs font-normal">
-                          {slot.sub_time_slots?.length || 0}
+            <Card key={slot.id} className="flex flex-col h-full border overflow-hidden">
+              {/* Header */}
+              <div className="bg-primary/10 px-4 py-3 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-6 w-6 text-primary" />
+                  <span className="text-lg font-semibold text-primary">
+                    {formatTimeDisplay(slot.start_time)}
+                  </span>
+                </div>
+                <span className="text-sm bg-primary/20 text-primary font-medium px-2 py-1 rounded-full">
+                  {slot.sub_time_slots?.length ?? 0} sub-slots
+                </span>
+              </div>
+
+              {/* Body */}
+              <CardContent className="p-4 flex-1 flex flex-col">
+                {slot.sub_time_slots && slot.sub_time_slots.length > 0 ? (
+                  <ul className="flex-1 overflow-y-auto space-y-1 pr-2">
+                    {slot.sub_time_slots.map((sub) => (
+                      <li key={sub.id} className="flex items-center gap-2 py-1">
+                        <span className="inline-flex items-center justify-center w-5 h-5 bg-primary text-white rounded-full text-xs">
+                          {sub.slot_number}
                         </span>
-                      </h4>
-                      {slot.sub_time_slots && slot.sub_time_slots.length > 0 ? (
-                        <ul className="text-sm space-y-1.5 overflow-y-auto max-h-[120px] pr-2">
-                          {slot.sub_time_slots.map((subSlot) => (
-                            <li key={subSlot.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                              <span className="text-primary text-lg">•</span>
-                              <span className="text-foreground/80">Slot {subSlot.slot_number}: {subSlot.description || "No Description"}</span>
-                            </li>
-                          ))}                          
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-muted-foreground p-2 bg-muted/30 rounded-md">No sub-time slots added.</p>
-                      )}
-                    </div>
+                        <span className="text-sm text-foreground/80 truncate">
+                          {sub.description || "No Description"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-muted rounded-md text-muted/70">
+                    <Clock className="h-6 w-6 mb-1" />
+                    <span className="text-sm">No sub-time slots added</span>
                   </div>
-                  <div className="flex gap-2 mt-4">
-                    <EditTimeSlotComponent slot={slot} />
-                    <DeleteTimeSlotComponent slotId={slot.id} />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+              </CardContent>
+
+              {/* Footer with actions */}
+              <div className="border-t px-4 py-3 flex justify-end gap-2 bg-muted/10">
+                <EditTimeSlotComponent slot={slot} />
+                <DeleteTimeSlotComponent slotId={slot.id} />
+              </div>
+            </Card>
           ))}
         </div>
       )}

@@ -1150,12 +1150,21 @@ export default function HistoricalBookingTable() {
                               "MMM dd, yyyy"
                             )}
                           </TableCell>
-                          <TableCell>
-                            {booking.slot_time
-                              ? formatTimeIST(booking.slot_time)
-                              : "N/A"}
-                          </TableCell>
-                          <TableCell>{getSubSlotDisplay(booking)}</TableCell>
+                         <TableCell>
+  {booking.time_slot_name
+    ? booking.time_slot_name
+    : booking.slot_time
+      ? formatTimeIST(booking.slot_time)
+      : "N/A"}
+</TableCell>
+<TableCell>
+  {booking.sub_slot_name
+    ? booking.sub_slot_name
+    : booking.slot_description
+      ? booking.slot_description
+      : "N/A"}
+</TableCell>
+
                           <TableCell>
                             <span
                               className={`rounded-full font-medium p-1 text-xs ${booking.status === "reserved"
@@ -1357,18 +1366,23 @@ export default function HistoricalBookingTable() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">Time:</span>
-                            <span className="font-medium">
-                              {booking.slot_time
-                                ? formatTimeIST(booking.slot_time)
-                                : "N/A"}
-                            </span>
+                         <span className="font-medium">
+  {booking.time_slot_name
+    ? booking.time_slot_name
+    : booking.slot_time
+      ? formatTimeIST(booking.slot_time)
+      : "N/A"}
+</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">Sub Slot:</span>
-                            <span className="font-medium">
-                              {getSubSlotDisplay(booking)}
-                            </span>
-                          </div>
+<span className="font-medium">
+  {booking.sub_slot_name
+    ? booking.sub_slot_name
+    : booking.slot_description
+      ? booking.slot_description
+      : "N/A"}
+</span>                  </div>
                           <div className="flex justify-between items-center">
                             <span className="text-gray-500">Total Bill:</span>
                             <Popover>

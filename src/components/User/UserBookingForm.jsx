@@ -42,6 +42,9 @@ import { useParams } from "react-router-dom";
 export default function UserBookingForm() {
   // Get businessId from URL parameters
   const { businessId } = useParams();
+  
+  // State for organization_id
+  const [organizationId, setOrganizationId] = useState(null);
 
   // Step management: 5 steps (including summary)
   const [step, setStep] = useState(1);
@@ -76,6 +79,13 @@ export default function UserBookingForm() {
 
   // Popover control
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  // Get organization_id from businessId parameter
+  useEffect(() => {
+    if (businessId) {
+      setOrganizationId(businessId);
+    }
+  }, [businessId]);
 
   // Fetch available shops when date is selected
   useEffect(() => {
@@ -203,6 +213,10 @@ export default function UserBookingForm() {
       }) || [];
 
       setAvailableTimeSlots(availableSlots);
+      // Clear sub-slot state when time slots are updated
+      setSelectedTimeSlot("");
+      setSelectedSubSlot("");
+      setAvailableSubSlots([]);
     } catch (error) {
       toast.error(`Error fetching time slots: ${error.message}`);
     } finally {
@@ -288,6 +302,39 @@ export default function UserBookingForm() {
   
         const slotTime = subSlotData.time_slots.start_time;
   
+        // Get shop name from selected shop
+        const { data: shopData, error: shopError } = await supabase
+          .from("shops")
+          .select("name")
+          .eq("id", selectedShop)
+          .single();
+
+        if (shopError) {
+          console.error("Error fetching shop name:", shopError);
+        }
+
+        // Get time slot name (using start_time as the name)
+        const { data: timeSlotData, error: timeSlotError } = await supabase
+          .from("time_slots")
+          .select("start_time")
+          .eq("id", subSlotData.time_slot_id)
+          .single();
+
+        if (timeSlotError) {
+          console.error("Error fetching time slot name:", timeSlotError);
+        }
+
+        // Get sub slot name (using description or slot_number)
+        const { data: subSlotDetails, error: subSlotDetailsError } = await supabase
+          .from("sub_time_slots")
+          .select("description, slot_number")
+          .eq("id", selectedSubSlot)
+          .single();
+
+        if (subSlotDetailsError) {
+          console.error("Error fetching sub slot details:", subSlotDetailsError);
+        }
+
         // Create new booking
         const { data, error } = await supabase.from("bookings").insert([
           {
@@ -299,6 +346,10 @@ export default function UserBookingForm() {
             sub_time_slot_id: selectedSubSlot,
             slot_time: slotTime,
             shop_id: selectedShop,
+            shop_name: shopData?.name || null,
+            time_slot_name: timeSlotData?.start_time ? formatTimeIST(timeSlotData.start_time) : null,
+            sub_slot_name: subSlotDetails?.description || `Slot ${subSlotDetails?.slot_number}` || null,
+            organization_id: businessId, // Use businessId as organization_id
             status: "reserved" // Default status
           },
         ]).select();
@@ -328,7 +379,7 @@ export default function UserBookingForm() {
                 slot_time: formatTimeIST(slotTime)
               };
               
-              await sendWhatsAppConfirmation(bookingData, shopData);
+              // await sendWhatsAppConfirmation(bookingData, shopData);
                
                console.log("WhatsApp notification sent successfully");
             } catch (whatsappError) {
@@ -564,10 +615,14 @@ export default function UserBookingForm() {
                     mode="single"
                     selected={bookingDate}
                     onSelect={(date) => {
-                      setBookingDate(date);
-                      setSelectedShop("");
-                      setSelectedTimeSlot("");
-                      setSelectedSubSlot("");
+                      if (date !== bookingDate) {
+                        setBookingDate(date);
+                        setSelectedShop("");
+                        setSelectedTimeSlot("");
+                        setSelectedSubSlot("");
+                        setAvailableTimeSlots([]);
+                        setAvailableSubSlots([]);
+                      }
                       setIsPopoverOpen(false);
                     }}
                     initialFocus
@@ -627,7 +682,14 @@ export default function UserBookingForm() {
                           ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                           : "border-gray-200 hover:border-primary/50"
                       }`}
-                      onClick={() => setSelectedShop(shop.id)}
+                      onClick={() => {
+                        if (selectedShop !== shop.id) {
+                          setSelectedShop(shop.id);
+                          setSelectedTimeSlot("");
+                          setSelectedSubSlot("");
+                          setAvailableSubSlots([]);
+                        }
+                      }}
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex flex-col">
@@ -710,8 +772,11 @@ export default function UserBookingForm() {
                         selectedTimeSlot === timeSlot.id ? "default" : "outline"
                       }
                       onClick={() => {
-                        setSelectedTimeSlot(timeSlot.id);
-                        setSelectedSubSlot("");
+                        if (selectedTimeSlot !== timeSlot.id) {
+                          setSelectedTimeSlot(timeSlot.id);
+                          setSelectedSubSlot("");
+                          setAvailableSubSlots([]);
+                        }
                       }}
                       className={`py-6 ${
                         selectedTimeSlot === timeSlot.id

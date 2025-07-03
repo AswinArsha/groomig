@@ -220,16 +220,10 @@ export default function BookingTable() {
   // ─────────────────────────────────────────────────────────────────────────────
   // Helper: Display Sub-slot
   // ─────────────────────────────────────────────────────────────────────────────
-  const getSubSlotDisplay = (booking) => {
-    const sub = booking.sub_time_slots;
-    if (sub) {
-      return (
-        sub.description ||
-        (sub.slot_number ? `Slot ${sub.slot_number}` : "N/A")
-      );
-    }
-    return "N/A";
-  };
+ const getSubSlotDisplay = (booking) => {
+  return booking.sub_slot_name || "N/A";
+};
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Service Options
@@ -345,6 +339,7 @@ const fetchBookings = useCallback(async () => {
       .select(
         `
         *,
+        
         sub_time_slots (
           *,
           time_slots (
@@ -591,6 +586,9 @@ useEffect(() => {
               : null,
           shop_name: shopData?.name || null,
           slot_description: slotDescription,
+              time_slot_name: booking.time_slot_name || null,
+    sub_slot_name: booking.sub_slot_name || null,
+
         });
       if (historyError) throw historyError;
 
@@ -936,12 +934,18 @@ useEffect(() => {
                               "MMM dd, yyyy"
                             )}
                           </TableCell>
-                          <TableCell>
-                            {booking.slot_time
-                              ? formatTimeIST(booking.slot_time)
-                              : "N/A"}
-                          </TableCell>
-                          <TableCell>{getSubSlotDisplay(booking)}</TableCell>
+                         <TableCell>
+    {booking.slot_time             
+      ? formatTimeIST(booking.slot_time)
+      : booking.time_slot_name      
+        ?? "N/A"}                 
+  </TableCell>
+                           <TableCell>
+    {booking.sub_time_slots?.description  
+      ? booking.sub_time_slots.description 
+      : booking.sub_slot_name             
+        ?? "N/A"}                         
+  </TableCell>
                           <TableCell>
                             <span
                               className={`rounded-full font-medium p-1 text-xs ${
@@ -1285,20 +1289,23 @@ useEffect(() => {
                               )}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Time:</span>
-                            <span className="font-medium">
-                              {booking.slot_time
-                                ? formatTimeIST(booking.slot_time)
-                                : "N/A"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Sub Slot:</span>
-                            <span className="font-medium">
-                              {getSubSlotDisplay(booking)}
-                            </span>
-                          </div>
+                        <div className="flex justify-between">
+  <span className="text-gray-500">Time:</span>
+  <span className="font-medium">
+    {booking.slot_time
+      ? formatTimeIST(booking.slot_time)
+      : booking.time_slot_name ?? "N/A"}
+  </span>
+</div>
+                         <div className="flex justify-between">
+  <span className="text-gray-500">Sub Slot:</span>
+  <span className="font-medium">
+    {booking.sub_time_slots?.description
+      ? booking.sub_time_slots.description
+      : booking.sub_slot_name ?? "N/A"}
+      
+  </span>
+</div>
                           {/* TOTAL BILL */}
                           <div className="flex justify-between items-center">
                             <span className="text-gray-500">Total Bill:</span>

@@ -656,7 +656,9 @@ export default function BookingDetails() {
         shop_id: booking.shop_id,
         shop_name: shopName || "Unknown Shop",
         organization_id: organizationId || booking.organization_id, // Ensure organization_id is maintained
-        slot_description: slotDescription || "Unknown Slot",
+         slot_description: slotDescription || "Unknown Slot",
+  time_slot_name: booking.time_slot_name || null,
+  sub_slot_name: booking.sub_slot_name || null,
         groomer_id: booking.groomer_id,
         groomer_name: groomers.find(g => g.id === booking.groomer_id)?.name || "Unknown Groomer",
         status: 'completed',
@@ -1189,27 +1191,32 @@ export default function BookingDetails() {
       <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
         <Clock className="h-4 w-4 md:h-5 md:w-5 text-primary" />
         <span className="font-medium">Slot:</span>
-        <span>
-          {booking.sub_time_slots?.time_slots?.start_time
-            ? format(
-                parse(
-                  booking.sub_time_slots.time_slots.start_time,
-                  "HH:mm:ss",
-                  new Date()
-                ),
-                "hh:mm a"
-              )
-            : "N/A"}
-        </span>
+       <span>
+        {booking.sub_time_slots?.time_slots?.start_time
+           ? format(
+              parse(
+                booking.sub_time_slots.time_slots.start_time,
+                "HH:mm:ss",
+                 new Date()
+               ),
+               "hh:mm a"
+             )
+          : booking.time_slot_name ?? "N/A"}
+      </span>
+
+
+
       </div>
       <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
         <Clock className="h-4 w-4 md:h-5 md:w-5 text-primary" />
         <span className="font-medium">Sub‑Slot:</span>
-        <span>
-          {booking.sub_time_slots?.description ||
-            `Slot ${booking.sub_time_slots?.slot_number}` ||
-            "N/A"}
-        </span>
+       <span>
+         {booking.sub_time_slots?.description
+           ? booking.sub_time_slots.description
+           : booking.sub_slot_name ?? "N/A"}
+       </span>
+
+
       </div>
       <div className="flex items-center space-x-1 md:space-x-2 text-sm md:text-base">
         <span className="font-medium">Status:</span>

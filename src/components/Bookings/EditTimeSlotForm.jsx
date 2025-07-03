@@ -28,6 +28,7 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
   const [selectedShops, setSelectedShops] = useState(slot.shop_ids || []);
   // Fetch available shops
   const [shops, setShops] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchShops = async () => {
@@ -60,6 +61,30 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
 
   // State for sub-time slots
   const [subSlots, setSubSlots] = useState(slot.sub_time_slots || []);
+
+  // Check if time slot already exists for the organization (excluding current slot)
+  const checkDuplicateTime = async (time, organizationId, currentSlotId) => {
+    const { data, error } = await supabase
+      .from("time_slots")
+      .select("id, start_time")
+      .eq("organization_id", organizationId)
+      .eq("start_time", time)
+      .neq("id", currentSlotId); // Exclude current slot from check
+
+    if (error) {
+      console.error("Error checking duplicate time:", error);
+      return false;
+    }
+
+    return data && data.length > 0;
+  };
+
+  const formatTimeDisplay = (time) => {
+    const [hours, minutes] = time.split(":").map(Number);
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+    return `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+  };
 
   const handleAddSubSlot = () => {
     setSubSlots([...subSlots, { slot_number: subSlots.length + 1, description: "" }]);
@@ -96,96 +121,57 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!startTime) {
-      toast.error("Please select a time.");
-      return;
-    }
-    if (selectedShops.length === 0) {
-      toast.error("Please select at least one shop.");
-      return;
-    }
-    
-    // Get organization_id from user session
-    const storedSession = localStorage.getItem('userSession');
-    if (!storedSession) {
-      toast.error("User session not found. Please log in again.");
-      return;
-    }
-    
-    const { organization_id } = JSON.parse(storedSession);
-    if (!organization_id) {
-      toast.error("Organization information not found. Please log in again.");
-      return;
-    }
-
-    const updatedMainSlot = {
-      id: slot.id,
-      start_time: startTime,
-      repeat_all_days: repeatAllDays,
-      specific_days: repeatAllDays ? null : selectedDays,
-      shop_ids: selectedShops,
-      sub_time_slots: subSlots,
-      organization_id: organization_id // Ensure organization_id is maintained
-    };
+    setIsSubmitting(true);
 
     try {
-      // Verify the time slot belongs to the organization before updating
-      const { data: slotData, error: slotError } = await supabase
-        .from("time_slots")
-        .select("*")
-        .eq("id", updatedMainSlot.id)
-        .eq("organization_id", organization_id)
-        .single();
-        
-      if (slotError || !slotData) {
-        toast.error("You don't have permission to update this time slot.");
+      if (!startTime) {
+        toast.error("Please select a time.");
+        return;
+      }
+      if (selectedShops.length === 0) {
+        toast.error("Please select at least one shop.");
         return;
       }
       
-      const { error: mainSlotError } = await supabase
-        .from("time_slots")
-        .update({
-          start_time: updatedMainSlot.start_time,
-          repeat_all_days: repeatAllDays,
-          specific_days: repeatAllDays ? null : selectedDays,
-          shop_ids: updatedMainSlot.shop_ids,
-          organization_id: organization_id // Ensure organization_id is maintained
-        })
-        .eq("id", updatedMainSlot.id)
-        .eq("organization_id", organization_id); // Add organization filter for extra security
-
-      if (mainSlotError) throw mainSlotError;
-
-      const { error: deleteError } = await supabase
-        .from("sub_time_slots")
-        .delete()
-        .eq("time_slot_id", updatedMainSlot.id);
-
-      if (deleteError) throw deleteError;
-
-      const newSubSlots = updatedMainSlot.sub_time_slots.map((s) => ({
-        time_slot_id: updatedMainSlot.id,
-        slot_number: s.slot_number,
-        description: s.description || null,
-        organization_id: organization_id // Add organization_id to each sub-time slot
-      }));
-
-      // Ensure all sub-slots have organization_id
-      if (!newSubSlots.every(slot => slot.organization_id)) {
-        throw new Error('Organization ID is required for all sub-time slots');
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
       }
 
-      const { error: insertError } = await supabase
-        .from("sub_time_slots")
-        .insert(newSubSlots);
+      // Only check for duplicate time if the time has changed
+      if (startTime !== slot.start_time) {
+        const isDuplicate = await checkDuplicateTime(startTime, organization_id, slot.id);
+        if (isDuplicate) {
+          toast.error(`A time slot for ${formatTimeDisplay(startTime)} already exists. Please choose a different time.`);
+          return;
+        }
+      }
 
-      if (insertError) throw insertError;
+      const updatedMainSlot = {
+        id: slot.id,
+        start_time: startTime,
+        repeat_all_days: repeatAllDays,
+        specific_days: repeatAllDays ? null : selectedDays,
+        shop_ids: selectedShops,
+        sub_time_slots: subSlots,
+        organization_id: organization_id // Ensure organization_id is maintained
+      };
 
-      toast.success("Time slot updated!");
+      // Call onSave directly without additional database operations
+      // The parent component (TimeSlotList) will handle the database operations
       onSave(updatedMainSlot);
     } catch (error) {
-      toast.error(`Error updating time slot: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -285,7 +271,7 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
         {/* Right Column - Sub-Time Slots */}
         <div className="space-y-2">
           <Label className="text-base font-semibold">Sub-Time Slots</Label>
-          <div className="-mt-4 max-h-[400px] overflow-y-auto pr-4 scrollbar-thin ">
+          <div className="-mt-4 max-h-[400px] overflow-y-auto pr-4 scrollbar-thin">
             {subSlots.map((subSlot, index) => (
               <div key={index} className="flex items-center space-x-4 bg-secondary/20 p-3 rounded-lg">
                 <span className="text-sm font-medium min-w-[60px]">Slot {subSlot.slot_number}:</span>
@@ -316,8 +302,14 @@ export default function EditTimeSlotForm({ slot, onSave, onCancel }) {
       </div>
 
       {/* Form Actions */}
-      <div className=" pt-4 border-t">
-        <Button className="w-full" type="submit">Save Changes</Button>
+      <div className="pt-4 border-t">
+        <Button 
+          className="w-full" 
+          type="submit" 
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Saving Changes..." : "Save Changes"}
+        </Button>
       </div>
     </form>
   );

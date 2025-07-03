@@ -25,6 +25,7 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
   const [subSlots, setSubSlots] = useState([{ slot_number: 1, description: "" }]);
   const [repeatAllDays, setRepeatAllDays] = useState(true);
   const [selectedDays, setSelectedDays] = useState(WEEKDAYS);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // New state for shops and multi-select (selectedShops is an array of shop IDs)
   const [shops, setShops] = useState([]);
@@ -59,6 +60,29 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
     };
     fetchShops();
   }, []);
+
+  // Check if time slot already exists for the organization
+  const checkDuplicateTime = async (time, organizationId) => {
+    const { data, error } = await supabase
+      .from("time_slots")
+      .select("id, start_time")
+      .eq("organization_id", organizationId)
+      .eq("start_time", time);
+
+    if (error) {
+      console.error("Error checking duplicate time:", error);
+      return false;
+    }
+
+    return data && data.length > 0;
+  };
+
+  const formatTimeDisplay = (time) => {
+    const [hours, minutes] = time.split(":").map(Number);
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+    return `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+  };
 
   const handleAddSubSlot = () => {
     setSubSlots([...subSlots, { slot_number: subSlots.length + 1, description: "" }]);
@@ -95,40 +119,48 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!startTime) {
-      toast.error("Please select a time.");
-      return;
-    }
-    if (selectedShops.length === 0) {
-      toast.error("Please select at least one shop.");
-      return;
-    }
-    
-    // Get organization_id from user session
-    const storedSession = localStorage.getItem('userSession');
-    if (!storedSession) {
-      toast.error("User session not found. Please log in again.");
-      return;
-    }
-    
-    const { organization_id } = JSON.parse(storedSession);
-    if (!organization_id) {
-      toast.error("Organization information not found. Please log in again.");
-      return;
-    }
-
-    const formattedStartTime = startTime; // "HH:MM:00" format
-
-    const mainTimeSlot = {
-      start_time: formattedStartTime,
-      repeat_all_days: repeatAllDays,
-      specific_days: repeatAllDays ? null : selectedDays,
-      shop_ids: selectedShops, // store selected shops as an array
-      organization_id: organization_id // Add organization_id to associate with correct organization
-    };
+    setIsSubmitting(true);
 
     try {
+      if (!startTime) {
+        toast.error("Please select a time.");
+        return;
+      }
+      if (selectedShops.length === 0) {
+        toast.error("Please select at least one shop.");
+        return;
+      }
+      
+      // Get organization_id from user session
+      const storedSession = localStorage.getItem('userSession');
+      if (!storedSession) {
+        toast.error("User session not found. Please log in again.");
+        return;
+      }
+      
+      const { organization_id } = JSON.parse(storedSession);
+      if (!organization_id) {
+        toast.error("Organization information not found. Please log in again.");
+        return;
+      }
+
+      // Check for duplicate time
+      const isDuplicate = await checkDuplicateTime(startTime, organization_id);
+      if (isDuplicate) {
+        toast.error(`A time slot for ${formatTimeDisplay(startTime)} already exists. Please choose a different time.`);
+        return;
+      }
+
+      const formattedStartTime = startTime; // "HH:MM:00" format
+
+      const mainTimeSlot = {
+        start_time: formattedStartTime,
+        repeat_all_days: repeatAllDays,
+        specific_days: repeatAllDays ? null : selectedDays,
+        shop_ids: selectedShops, // store selected shops as an array
+        organization_id: organization_id // Add organization_id to associate with correct organization
+      };
+
       const { data: mainSlotData, error: mainSlotError } = await supabase
         .from("time_slots")
         .insert([mainTimeSlot])
@@ -155,11 +187,13 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
       if (onSlotAdded) onSlotAdded();
     } catch (error) {
       toast.error(`Error: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="w-full  bg-white border-0 shadow-none">
+    <Card className="w-full bg-white border-0 shadow-none">
       <CardHeader className="">
         <CardTitle className="text-2xl font-bold hidden sm:block">Add Time Slot</CardTitle>
         <CardDescription className="hidden md:block">Set up a new time slot with sub-slots for your schedule</CardDescription>
@@ -235,7 +269,7 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
               {/* Shop Multi-Select */}
               <div className="space-y-4 ">
                 <Label className="text-base font-semibold ">Select Shops</Label>
-                <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-2 gap-4">
                   {shops.map((shop) => (
                     <div 
                       key={shop.id} 
@@ -261,7 +295,7 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
 
             {/* Right Column - Sub-Time Slots */}
             <div>
-              <Label className="text-base  font-semibold block mb-3">Sub-Time Slots</Label>
+              <Label className="text-base font-semibold block mb-3">Sub-Time Slots</Label>
               <div className="-mt-4 max-h-[400px] overflow-y-auto pr-4 scrollbar-thin">
                 {subSlots.map((slot, index) => (
                   <div
@@ -299,14 +333,15 @@ export default function AddTimeSlotForm({ onSlotAdded }) {
               </Button>
             </div>
           </div>
-<div className=" pt-4 border-t ">
-          <Button 
-            type="submit" 
-            className="w-full bg-primary hover:bg-primary/90 transition-colors 
-            "
-          >
-            Add Time Slot
-          </Button></div>
+          <div className="pt-4 border-t">
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="w-full bg-primary hover:bg-primary/90 transition-colors"
+            >
+              {isSubmitting ? "Adding Time Slot..." : "Add Time Slot"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

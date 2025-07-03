@@ -177,11 +177,13 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
       .from("time_slots")
       .select(`
         id,
-        start_time
+        start_time,
+        repeat_all_days,
+        specific_days
       `)
-      .or(`repeat_all_days.eq.true,specific_days.cs.{${dayOfWeek}}`)
+      .order("start_time", { ascending: true })
       .contains('shop_ids', [selectedShop])
-      .order("start_time", { ascending: true });
+      ;
 
     if (error) {
       toast.error(`Error fetching time slots: ${error.message}`);
@@ -189,7 +191,24 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
       return;
     }
 
-    setAvailableTimeSlots(timeSlots || []);
+    // Filter time slots based on availability for the selected day
+    const availableSlots = timeSlots?.filter(slot => {
+      // Check if the slot is available for all days
+      if (slot.repeat_all_days) return true;
+      
+      // Check if the slot is available for the specific day
+      if (slot.specific_days && Array.isArray(slot.specific_days)) {
+        return slot.specific_days.includes(dayOfWeek);
+      }
+      
+      return false;
+    }) || [];
+
+    setAvailableTimeSlots(availableSlots);
+    // Clear sub-slot state when time slots are updated
+    setSelectedTimeSlot("");
+    setSelectedSubSlot("");
+    setAvailableSubSlots([]);
     setLoadingTimeSlots(false);
   };
 
@@ -331,6 +350,39 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
 
         const slotTime = subSlotData.time_slots.start_time; // "HH:MM:SS"
 
+        // Get shop name from selected shop
+        const { data: shopData, error: shopError } = await supabase
+          .from("shops")
+          .select("name")
+          .eq("id", selectedShop)
+          .single();
+
+        if (shopError) {
+          console.error("Error fetching shop name:", shopError);
+        }
+
+        // Get time slot name (using start_time as the name)
+        const { data: timeSlotData, error: timeSlotError } = await supabase
+          .from("time_slots")
+          .select("start_time")
+          .eq("id", subSlotData.time_slot_id)
+          .single();
+
+        if (timeSlotError) {
+          console.error("Error fetching time slot name:", timeSlotError);
+        }
+
+        // Get sub slot name (using description or slot_number)
+        const { data: subSlotDetails, error: subSlotDetailsError } = await supabase
+          .from("sub_time_slots")
+          .select("description, slot_number")
+          .eq("id", selectedSubSlot)
+          .single();
+
+        if (subSlotDetailsError) {
+          console.error("Error fetching sub slot details:", subSlotDetailsError);
+        }
+        
         if (isEditing) {
           // Update existing booking
           const { error } = await supabase
@@ -345,6 +397,9 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               slot_time: slotTime,
               shop_id: selectedShop,
               organization_id: organizationId,
+              shop_name: shopData?.name || null,
+              time_slot_name: timeSlotData?.start_time ? formatTimeIST(timeSlotData.start_time) : null,
+              sub_slot_name: subSlotDetails?.description || `Slot ${subSlotDetails?.slot_number}` || null,
               // Status remains unchanged or can be updated based on your logic
             })
             .eq("id", booking.id);
@@ -372,6 +427,9 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
               slot_time: slotTime,
               shop_id: selectedShop,
               organization_id: organizationId,
+              shop_name: shopData?.name || null,
+              time_slot_name: timeSlotData?.start_time ? formatTimeIST(timeSlotData.start_time) : null,
+              sub_slot_name: subSlotDetails?.description || `Slot ${subSlotDetails?.slot_number}` || null,
               // Status defaults to 'reserved' as per table schema
             },
           ]);
@@ -582,9 +640,11 @@ export default function BookingForm({ booking, onSave, onCancel, onSuccess }) {
                       key={timeSlot.id}
                       variant={selectedTimeSlot === timeSlot.id ? "primary" : "outline"}
                       onClick={() => {
-                        setSelectedTimeSlot(timeSlot.id);
-                        // Reset sub-time slot selection when time slot changes
-                        setSelectedSubSlot("");
+                        if (selectedTimeSlot !== timeSlot.id) {
+                          setSelectedTimeSlot(timeSlot.id);
+                          setSelectedSubSlot("");
+                          setAvailableSubSlots([]);
+                        }
                       }}
                       className="py-3 px-5 text-lg"
                       aria-pressed={selectedTimeSlot === timeSlot.id}
